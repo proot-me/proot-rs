@@ -1,6 +1,7 @@
 [package]
-name = "PRoot-rust"
+name = "proot_rust"
 version = "0.1.0"
-authors = ["vincent"]
+authors = ["vincenthage"]
 
 [dependencies]
+nix = "0.7.0"

@@ -1,5 +1,6 @@
 extern crate nix;
 use nix::sys::ioctl::libc::pid_t;
+#[allow(non_camel_case_types)]
 type word_t = i32;
 use nix::sys::ioctl::libc::size_t;
 use std::path::PathBuf;

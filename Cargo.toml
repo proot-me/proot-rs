@@ -5,3 +5,4 @@ authors = ["vincenthage"]
 
 [dependencies]
 nix = "0.7.0"
+clap = "2.20.5"

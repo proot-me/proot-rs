@@ -1,9 +1,12 @@
 use clap::{App, Arg};
 use std::string::String;
-use std::path::Path;
+use std::path::{Path};
+use tracee::{Binding, FileSystemNameSpace};
 
 const DEFAULT_ROOTFS: &'static str = "/";
+const DEFAULT_CWD: &'static str = ".";
 
+/// Check wheter the path is a valid path (file that exists, or path that ends in /)
 fn is_valid_path(path: &str, error_message: String) -> Result<(), String> {
     if !Path::new(path).exists() {
         Err(error_message)
@@ -12,13 +15,13 @@ fn is_valid_path(path: &str, error_message: String) -> Result<(), String> {
     }
 }
 
-/// Checks whether the path for the rootfs exists.
-fn rootfs_validator(path: String) -> Result<(), String> {
+/// Check whether the path exists and is a folder
+fn path_validator(path: String) -> Result<(), String> {
     is_valid_path(path.as_str(), path.to_string() + " is not a valid path.")
+    //TODO: check for folder path
 }
 
-/// Check whether a path is of the type ```host_path:guest_path```,
-/// and that the host
+/// Check whether a path is of the type ```host_path:guest_path``` and that the host.
 fn binding_validator(binding_paths: String) -> Result<(), String> {
     let parts: Vec<&str> = binding_paths.split_terminator(":").collect();
 
@@ -29,9 +32,13 @@ fn binding_validator(binding_paths: String) -> Result<(), String> {
 
         is_valid_path(host_path, host_path.to_string() + " is not a valid path.")
     }
+
+    //TODO: add a check to avoid equivalent paths bindings?
+    //TODO: add a check for guest path? (rootfs + guest path must exists?)
+    //TODO: add a check to check both paths are of the same type (file:file or folder:folder)
 }
 
-pub fn get_config() {
+pub fn get_config(fs: &mut FileSystemNameSpace) {
     let matches = App::new("proot_rust")
         .arg(Arg::with_name("rootfs")
             .short("r")
@@ -39,7 +46,7 @@ pub fn get_config() {
             .help("Use *path* as the new guest root file-system.")
             .takes_value(true)
             .default_value(DEFAULT_ROOTFS)
-            .validator(rootfs_validator))
+            .validator(path_validator))
         .arg(Arg::with_name("bind")
             .short("b")
             .long("bind")
@@ -47,39 +54,56 @@ pub fn get_config() {
             .multiple(true)
             .takes_value(true)
             .validator(binding_validator))
+        .arg(Arg::with_name("cwd")
+            .short("w")
+            .long("cwd")
+            .help("Set the initial working directory to *path*.")
+            .takes_value(true)
+            .default_value(DEFAULT_CWD))
         .get_matches();
 
-    let rootfs = matches.value_of("rootfs").unwrap();
-    println!("Value for rootfs: {}", rootfs);
+    // option -r
+    let rootfs: &str = matches.value_of("rootfs").unwrap();
+    // -r *path* is equivalent to -b *path*:/
+    fs.add_binding(Binding::new(rootfs, "/", true, true));
 
+    // option(s) -b
     match matches.values_of("bind") {
-        Some(bindings) => {
-            println!("Value for bindings: {:?}", bindings.collect::<Vec<_>>());
+        Some(b_bindings) => {
+            let raw_bindings_str: Vec<&str> = b_bindings.collect::<Vec<&str>>();
+
+            for raw_binding_str in &raw_bindings_str {
+                let parts: Vec<&str> = raw_binding_str.split_terminator(":").collect();
+                fs.add_binding(Binding::new(parts[0], parts[1], true, true));
+            }
         },
         None    => ()
     };
-}
 
+    // option -w
+    let cwd: &str = matches.value_of("cwd").unwrap();
+    fs.set_cwd(cwd);
+}
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
-    fn test_rootfs_validator_correct_paths() {
+    fn test_path_validator_correct_paths() {
         let correct_paths = [".", "./", "..", "../", "./.."];
 
         for path in &correct_paths {
-            assert_eq!(rootfs_validator(path.to_string()), Ok(()));
+            assert_eq!(path_validator(path.to_string()), Ok(()));
         }
     }
 
     #[test]
-    fn test_rootfs_validator_incorrect_paths() {
+    fn test_path_validator_incorrect_paths() {
         let incorrect_paths = ["impossible path", "../../../../impossible path", "/\\/", "\'`"];
 
         for path in &incorrect_paths {
-            assert_eq!(rootfs_validator(path.to_string()), Err((path.to_string() + " is not a valid path.")));
+            assert_eq!(path_validator(path.to_string()), Err((path.to_string() + " is not a valid path.")));
         }
     }
 

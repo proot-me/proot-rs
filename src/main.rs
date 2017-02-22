@@ -5,18 +5,24 @@ mod proot;
 mod cli;
 
 use proot::PRoot;
+use tracee::FileSystemNameSpace;
 
 fn main() {
-    cli::get_config();
-
     // main memory of the program
-    let mut proot = PRoot::new();
+    let mut proot: PRoot = PRoot::new();
+    // memory for bindings and other struct
+    let mut fs: FileSystemNameSpace = FileSystemNameSpace::new();
+
+    // step 1: CLI parsing
+    cli::get_config(&mut fs);
+    println!("{:?}", fs);
 
     {
-        // step 1: pre-create the first tracee (pid == 0)
-        let tracee = proot.create_tracee(0);
+        // step 2: Pre-create the first tracee (pid == 0)
+        let tracee = proot.create_tracee(0, fs);
         println!("{:?}", &tracee);
     }
 
-    println!("{:?}", &proot);
+
+    println!("{:?}", proot);
 }

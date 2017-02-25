@@ -138,6 +138,9 @@ impl Tracee {
      * UTILITIES
      */
 
+    //pub fn get_pid(& self) -> pid_t { self.pid }
+    //pub fn set_pid(&mut self, pid: pid_t) { self.pid = pid; }
+
     /*
     pub fn is_in_sys_enter(&self) -> bool {
         self.status == 0

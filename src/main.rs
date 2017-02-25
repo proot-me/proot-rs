@@ -6,6 +6,7 @@ mod cli;
 
 use proot::PRoot;
 use tracee::FileSystemNameSpace;
+use nix::unistd::getpid;
 
 fn main() {
     // main memory of the program
@@ -15,14 +16,22 @@ fn main() {
 
     // step 1: CLI parsing
     cli::get_config(&mut fs);
-    println!("{:?}", fs);
 
-    {
-        // step 2: Pre-create the first tracee (pid == 0)
-        let tracee = proot.create_tracee(0, fs);
-        println!("{:?}", &tracee);
+    // step 2: Pre-create the first tracee (pid == main pid)
+    proot.create_tracee(getpid(), fs);
+
+    // step 3: Start the first tracee
+    proot.launch_process();
+
+    if !proot.is_main_thread() {
+        // For any tracee process we end the program here,
+        // as what follows (event loop) is only for the main thread
+        return;
     }
 
+    // step 4: Listen to and deal with tracees events
+    proot.event_loop();
 
     println!("{:?}", proot);
 }
+

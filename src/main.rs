@@ -1,26 +1,21 @@
 extern crate nix;
 extern crate clap;
+mod bindings;
+mod fsnamespace;
 mod tracee;
-mod proot;
 mod cli;
+mod proot;
 
 use proot::PRoot;
-use tracee::FileSystemNameSpace;
-use nix::unistd::getpid;
+use fsnamespace::FileSystemNameSpace;
 
 fn main() {
-    // main memory of the program
-    let mut proot: PRoot = PRoot::new();
-    // memory for bindings and other struct
-    let mut fs: FileSystemNameSpace = FileSystemNameSpace::new();
-
     // step 1: CLI parsing
+    let mut fs: FileSystemNameSpace = FileSystemNameSpace::new();
     cli::get_config(&mut fs);
+    let mut proot: PRoot = PRoot::new(fs);
 
-    // step 2: Pre-create the first tracee (pid == main pid)
-    proot.create_tracee(getpid(), fs);
-
-    // step 3: Start the first tracee
+    // step 2: Start the first tracee
     proot.launch_process();
 
     if !proot.is_main_thread() {
@@ -29,10 +24,10 @@ fn main() {
         return;
     }
 
-    // step 4: Configure the signal actions
+    // step 3: Configure the signal actions
     proot.prepare_sigactions();
 
-    // step 5: Listen to and deal with tracees events
+    // step 4: Listen to and deal with tracees events
     proot.event_loop();
 
     println!("{:?}", proot);

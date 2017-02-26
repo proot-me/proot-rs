@@ -41,16 +41,11 @@ impl PRoot {
 
         match fork().expect("launch process") {
             ForkResult::Parent { child } => {
-                println!("parent {}", getpid());
-
                 // we keep track of the tracees's pid
                 self.register_alive_tracee(child);
 
-
             }
             ForkResult::Child => {
-                println!("child {}", getpid());
-
                 // Declare the tracee as ptraceable
                 ptrace(PTRACE_TRACEME, 0, null_mut(), null_mut()).expect("ptrace traceme");
 
@@ -68,16 +63,16 @@ impl PRoot {
         }
     }
 
-    pub fn event_loop(&self) {
+    /// Configures the action associated with specific signals.
+    /// All signals are blocked when the signal handler is called.
+    /// SIGINFO is used to know which process has signaled us and
+    /// RESTART is used to restart waitpid(2) seamlessly.
+    pub fn prepare_sigactions(&self) {
         let signal_set: SigSet = SigSet::all();
-        // all signal are blocked when the signal handler is called;
-        // SIGINFO is used to know which process has signaled us and
-        // RESTART is used to restart waitpid(2) seamlessly
         let sa_flags: SaFlags = SA_SIGINFO | SA_RESTART;
 
         for signal in Signal::iterator() {
             let mut signal_handler: SigHandler = SigHandler::SigIgn; // default action is ignoring
-            let signal_action: SigAction;
 
             // setting the action when receiving certain signals
             match signal {
@@ -89,9 +84,13 @@ impl PRoot {
                     // can be used for inter-process communication
                     signal_handler = SigHandler::Handler(show_info);
                 }
-                SIGCHLD | SIGCONT | SIGSTOP | SIGTSTP | SIGTTIN | SIGTTOU => {
+                SIGCHLD | SIGCONT | SIGTSTP | SIGTTIN | SIGTTOU => {
                     // these signals are related to tty and job control,
                     // so we keep the default action for them
+                    continue;
+                }
+                SIGSTOP | SIGKILL => {
+                    // these two signals cannot be used with sigaction
                     continue;
                 }
                 _ => {
@@ -99,7 +98,7 @@ impl PRoot {
                 }
             }
 
-            signal_action = SigAction::new(signal_handler, sa_flags, signal_set);
+            let signal_action = SigAction::new(signal_handler, sa_flags, signal_set);
             unsafe {
                 match sigaction(signal, &signal_action) {
                     Err(err) => {
@@ -109,6 +108,9 @@ impl PRoot {
                 }
             }
         }
+    }
+
+    pub fn event_loop(&self) {
     }
 
     /******** Utilities ****************/
@@ -147,7 +149,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn create_tracee() {
+    fn create_tracee_test() {
         let mut proot = PRoot::new();
         let fs = FileSystemNameSpace::new();
 
@@ -158,5 +160,13 @@ mod tests {
 
         // tracee 0 should exist
         assert!(proot.get_tracee(0).is_some());
+    }
+
+    #[test]
+    fn prepare_sigactions_test() {
+        let proot = PRoot::new();
+
+        // should pass without panicking
+        proot.prepare_sigactions();
     }
 }

@@ -29,7 +29,10 @@ fn main() {
         return;
     }
 
-    // step 4: Listen to and deal with tracees events
+    // step 4: Configure the signal actions
+    proot.prepare_sigactions();
+
+    // step 5: Listen to and deal with tracees events
     proot.event_loop();
 
     println!("{:?}", proot);

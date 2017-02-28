@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 use bindings::Binding;
 
+
 /// Information related to a file-system name-space.
 #[derive(Debug)]
 pub struct FileSystemNameSpace {

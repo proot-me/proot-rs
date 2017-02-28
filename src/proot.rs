@@ -4,7 +4,6 @@ use std::collections::HashMap;
 use std::ptr::null_mut;
 use std::ffi::CString;
 
-//// Nix
 // libc
 use nix::sys::ioctl::libc::{pid_t, siginfo_t, c_int, c_void};
 // ptrace
@@ -19,6 +18,7 @@ use nix::sys::signal::Signal::*;
 // event loop
 use nix::sys::wait::{waitpid, __WALL};
 use nix::sys::wait::WaitStatus::*;
+
 
 #[derive(Debug)]
 pub struct PRoot {
@@ -118,6 +118,8 @@ impl PRoot {
         }
     }
 
+    /// Infinite loop where PRoot will wait for tracees signals with `waitpid`.
+    /// Tracees are stopped when
     pub fn event_loop(&mut self) {
         loop {
             // free_terminated_tracees();

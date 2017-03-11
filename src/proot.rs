@@ -6,22 +6,36 @@ use std::ffi::CString;
 
 // libc
 use nix::sys::ioctl::libc::{pid_t, siginfo_t, c_int, c_void};
+// signals
+use nix::sys::signal::{kill, SIGSTOP, Signal};
 // ptrace
 use nix::sys::ptrace::ptrace;
 use nix::sys::ptrace::ptrace::PTRACE_TRACEME;
 // fork
 use nix::unistd::{getpid, fork, execvp, ForkResult};
-// signals
-use nix::sys::signal::{kill, sigaction, Signal, SigAction, SigSet, SigHandler};
-use nix::sys::signal::{SaFlags, SA_SIGINFO, SA_RESTART};
-use nix::sys::signal::Signal::*;
 // event loop
 use nix::sys::wait::{waitpid, __WALL};
 use nix::sys::wait::WaitStatus::*;
 
 
+/// Used to store global info common to all tracees,
+/// without having to lend the whole `PRoot` object.
+#[derive(Debug)]
+pub struct InfoBag {
+    pub deliver_sigtrap: bool
+}
+
+impl InfoBag {
+    pub fn new() -> InfoBag {
+        InfoBag {
+            deliver_sigtrap: false
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct PRoot {
+    info_bag: InfoBag,
     main_pid: pid_t,
     tracees: HashMap<pid_t, Tracee>,
     alive_tracees: Vec<pid_t>,
@@ -32,6 +46,7 @@ pub struct PRoot {
 impl PRoot {
     pub fn new(fs: FileSystemNameSpace) -> PRoot {
         PRoot {
+            info_bag: InfoBag::new(),
             main_pid: getpid(),
             tracees: HashMap::new(),
             alive_tracees: vec![],
@@ -44,13 +59,13 @@ impl PRoot {
     /// - a (first) tracee, the child thread,
     ///   that will declare itself as ptrace-able before executing the program.
     ///
-    /// Attention: `fork()` implies that the OS will apply copy-on-write
+    /// The `fork()` done here implies that the OS will apply copy-on-write
     /// on all the shared memory of the parent and child processes
     /// (heap, libraries...), so both of them will have their own (owned) version
-    /// of the PRoot memory (so the `fs`` field mainly)
+    /// of the PRoot memory (so the `fs` and `heap` field mainly).
     pub fn launch_process(&mut self) {
 
-        match fork().expect("launch process") {
+        match fork().expect("fork in launch process") {
             ForkResult::Parent { child } => {
                 // we create the first tracee
                 self.create_tracee(child);
@@ -73,53 +88,11 @@ impl PRoot {
         }
     }
 
-    /// Configures the action associated with specific signals.
-    /// All signals are blocked when the signal handler is called.
-    /// SIGINFO is used to know which process has signaled us and
-    /// RESTART is used to restart waitpid(2) seamlessly.
-    pub fn prepare_sigactions(&self) {
-        let signal_set: SigSet = SigSet::all();
-        let sa_flags: SaFlags = SA_SIGINFO | SA_RESTART;
-
-        for signal in Signal::iterator() {
-            let mut signal_handler: SigHandler = SigHandler::SigIgn; // default action is ignoring
-
-            // setting the action when receiving certain signals
-            match signal {
-                SIGQUIT | SIGILL | SIGABRT | SIGFPE | SIGSEGV => {
-                    // tracees on abnormal termination signals
-                    signal_handler = SigHandler::SigAction(stop_program);
-                }
-                SIGUSR1 | SIGUSR2 => {
-                    // can be used for inter-process communication
-                    signal_handler = SigHandler::Handler(show_info);
-                }
-                SIGCHLD | SIGCONT | SIGTSTP | SIGTTIN | SIGTTOU => {
-                    // these signals are related to tty and job control,
-                    // so we keep the default action for them
-                    continue;
-                }
-                SIGSTOP | SIGKILL => {
-                    // these two signals cannot be used with sigaction
-                    continue;
-                }
-                _ => {} // all other signals (even ^C) are ignored
-            }
-
-            let signal_action = SigAction::new(signal_handler, sa_flags, signal_set);
-            unsafe {
-                match sigaction(signal, &signal_action) {
-                    Err(err) => {
-                        println!("Warning: sigaction failed for signal {:?} : {:?}.", signal, err);
-                    }
-                    _ => {}
-                }
-            }
-        }
-    }
 
     /// Infinite loop where PRoot will wait for tracees signals with `waitpid`.
-    /// Tracees are stopped when
+    /// Tracees will be stopped when they use a system call.
+    /// The tracer will be notified through `waitpid` and will be able to alter
+    /// the parameters of the system call, before restarting the tracee.
     pub fn event_loop(&mut self) {
         loop {
             // free_terminated_tracees();
@@ -135,9 +108,9 @@ impl PRoot {
                 }
                 Stopped(pid, stop_signal) => {
                     println!("{}, Stopped", pid);
-                    let mut tracee = self.get_mut_tracee(pid).expect("get stopped tracee");
-
-                    tracee.handle_event(stop_signal);
+                    let (wrapped_tracee, info_bag) = self.get_mut_tracee_and_info(pid);
+                    let mut tracee = wrapped_tracee.expect("get stopped tracee");
+                    tracee.handle_event(info_bag, stop_signal);
                 }
                 _ => {}
             }
@@ -154,8 +127,9 @@ impl PRoot {
         self.tracees.get(&pid)
     }
 
-    pub fn get_tracee(&self, pid: pid_t) -> Option<&Tracee> { self.tracees.get(&pid)  }
-    fn get_mut_tracee(&mut self, pid: pid_t) -> Option<&mut Tracee> { self.tracees.get_mut(&pid) }
+    fn get_mut_tracee_and_info(&mut self, pid: pid_t) -> (Option<&mut Tracee>, &mut InfoBag) {
+        (self.tracees.get_mut(&pid), &mut self.info_bag)
+    }
 
     fn register_alive_tracee(&mut self, pid: pid_t) {
         self.alive_tracees.push(pid);
@@ -167,15 +141,14 @@ impl PRoot {
     }
 }
 
-
 /// Proot has received a fatal error from one of the tracee,
 /// and must therefore stop the program's execution.
-extern "C" fn stop_program(sig_num: c_int, _: *mut siginfo_t, _: *mut c_void) {
+pub extern "C" fn stop_program(sig_num: c_int, _: *mut siginfo_t, _: *mut c_void) {
     let signal = Signal::from_c_int(sig_num).unwrap();
     panic!("abnormal signal received: {:?}", signal);
 }
 
-extern "C" fn show_info(pid: pid_t) {
+pub extern "C" fn show_info(pid: pid_t) {
     println!("showing info pid {}", pid);
 }
 
@@ -184,25 +157,22 @@ mod tests {
     use super::*;
 
     #[test]
-    fn create_tracee_test() {
+    fn create_proot_and_tracee() {
         let fs = FileSystemNameSpace::new();
         let mut proot = PRoot::new(fs);
 
         // tracee 0 shouldn't exist
-        assert!(proot.get_tracee(0).is_none());
+        {
+            let (tracee, _) = proot.get_mut_tracee_and_info(0);
+            assert!(tracee.is_none());
+        }
 
         { proot.create_tracee(0); }
 
         // tracee 0 should exist
-        assert!(proot.get_tracee(0).is_some());
-    }
-
-    #[test]
-    fn prepare_sigactions_test() {
-        let fs = FileSystemNameSpace::new();
-        let proot = PRoot::new(fs);
-
-        // should pass without panicking
-        proot.prepare_sigactions();
+        {
+            let (tracee, _) = proot.get_mut_tracee_and_info(0);
+            assert!(tracee.is_some());
+        }
     }
 }

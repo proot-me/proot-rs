@@ -74,6 +74,7 @@ impl PRoot {
                 // Declare the tracee as ptraceable
                 ptrace(PTRACE_TRACEME, 0, null_mut(), null_mut()).expect("ptrace traceme");
 
+                println!("1. Stopping child for synchronisation");
                 // Synchronise with the parent's event loop by waiting until it's ready
                 // (otherwise the execvp is executed too quickly)
                 kill(getpid(), SIGSTOP).expect("first child synchronisation");
@@ -81,6 +82,7 @@ impl PRoot {
                 //if (getenv("PROOT_NO_SECCOMP") == NULL)
                 //    (void) enable_syscall_filtering(tracee);
 
+                println!("2. Executing child's execvp");
                 execvp(&CString::new("echo").unwrap(), &[CString::new(".").unwrap(), CString::new("TEST").unwrap()])
                     .expect("failed execvp");
                 //execvp(tracee->exe, argv[0] != NULL ? argv : default_argv);
@@ -88,31 +90,51 @@ impl PRoot {
         }
     }
 
-
     /// Infinite loop where PRoot will wait for tracees signals with `waitpid`.
     /// Tracees will be stopped when they use a system call.
     /// The tracer will be notified through `waitpid` and will be able to alter
     /// the parameters of the system call, before restarting the tracee.
     pub fn event_loop(&mut self) {
-        loop {
-            // free_terminated_tracees();
-
+        while !self.alive_tracees.is_empty() {
             match waitpid(-1, Some(__WALL)).expect("event loop waitpid") {
                 Exited(pid, exit_status) => {
-                    println!("{}, Exited with status: {}", pid, exit_status);
+                    println!("-- {}, Exited with status: {}", pid, exit_status);
                     self.register_tracee_finished(pid);
                 }
                 Signaled(pid, term_signal, dumped_core) => {
-                    println!("{}, Signaled with status: {:?}, and dump core: {}", pid, term_signal, dumped_core);
+                    println!("-- {}, Signaled with status: {:?}, and dump core: {}", pid, term_signal, dumped_core);
                     self.register_tracee_finished(pid);
                 }
                 Stopped(pid, stop_signal) => {
-                    println!("{}, Stopped", pid);
+                    println!("-- {}, Stopped, {:?}, {}", pid, stop_signal, stop_signal as c_int);
                     let (wrapped_tracee, info_bag) = self.get_mut_tracee_and_info(pid);
                     let mut tracee = wrapped_tracee.expect("get stopped tracee");
-                    tracee.handle_event(info_bag, stop_signal);
+
+                    tracee.handle_event(info_bag, Some(stop_signal));
+                    tracee.restart();
                 }
-                _ => {}
+                PtraceEvent(pid, signal, additional_signal) => {
+                    println!("-- ptrace event! {}, {:?}, {:?}", pid, signal, additional_signal);
+                    let (wrapped_tracee, info_bag) = self.get_mut_tracee_and_info(pid);
+                    let mut tracee = wrapped_tracee.expect("get stopped tracee");
+
+                    tracee.handle_event(info_bag, Some(signal));
+                    tracee.restart();
+                }
+                Continued(pid) => {
+                    println!("-- {}, Continued", pid);
+                }
+                PtraceSyscall(pid) => {
+                    println!("-- {}, Syscall", pid);
+                    let (wrapped_tracee, info_bag) = self.get_mut_tracee_and_info(pid);
+                    let mut tracee = wrapped_tracee.expect("get stopped tracee");
+
+                    tracee.handle_event(info_bag, None);
+                    tracee.restart();
+                }
+                StillAlive => {
+                    println!("-- Still alive");
+                }
             }
         }
     }

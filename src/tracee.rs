@@ -1,63 +1,158 @@
+use std::ptr::null_mut;
 use nix::sys::ioctl::libc::pid_t;
 use nix::sys::signal::Signal;
 use nix::sys::ptrace::ptrace_setoptions;
 use proot::InfoBag;
 use nix::sys::ptrace::ptrace::*;
+use nix::sys::ptrace::ptrace;
 use constants::ptrace::ptrace_events::*;
+use constants::tracee::{TraceeStatus, TraceeRestartMethod};
 
 #[derive(Debug)]
 pub struct Tracee {
     /// Process identifier.
-    pid: pid_t
+    pid: pid_t,
+    /// Whether the tracee is in the enter or exit stage
+    status: TraceeStatus,
+    /// The ptrace's restart method depends on the status (enter or exit) and seccomp on/off
+    restart_how: Option<TraceeRestartMethod>,
+    /// State of the seccomp acceleration for this tracee.
+    seccomp: bool,
+    /// Ensure the sysexit stage is always hit under seccomp.
+    sysexit_pending: bool
 }
 
 impl Tracee {
     pub fn new(pid: pid_t) -> Tracee {
         Tracee {
-            pid: pid
+            pid: pid,
+            seccomp: false,
+            status: TraceeStatus::SysEnter, // it always starts by the enter stage
+            restart_how: None,
+            sysexit_pending: false
         }
     }
 
-    pub fn handle_event(&mut self, info_bag: &mut InfoBag, stop_signal: Signal) {
+    /// The traced process is stopped; this function will either:
+    /// 1. in case of standard syscall: translate the system call's parameters and restart it
+    /// 2. in case of fork/clone event: create a new tracee
+    /// 3. in other cases: not much
+    pub fn handle_event(&mut self, info_bag: &mut InfoBag, stop_signal: Option<Signal>) {
         println!("stopped tracee: {:?}", self);
 
-        let signal: PTraceSignalEvent = stop_signal as PTraceSignalEvent;
+        let signal: PtraceSignalEvent = match stop_signal {
+            Some(sig)   => sig as PtraceSignalEvent,
+            None        => PTRACE_S_NORMAL_SIGTRAP
+        };
+
+        // the restart method might already have been set elsewhere
+        if self.restart_how.is_none() {
+            // When seccomp is enabled, all events are restarted in
+            // non-stop mode, but this default choice could be overwritten
+            // later if necessary.  The check against "sysexit_pending"
+            // ensures WithExitStage/PTRACE_SYSCALL (used to hit the exit stage under
+            // seccomp) is not cleared due to an event that would happen
+            // before the exit stage, eg. PTRACE_EVENT_EXEC for the exit
+            // stage of execve(2).
+            if self.seccomp && !self.sysexit_pending {
+                self.restart_how = Some(TraceeRestartMethod::WithoutExitStage);
+            } else {
+                self.restart_how = Some(TraceeRestartMethod::WithExitStage);
+            }
+        }
 
         match signal {
-            RAW_SIGTRAP_SIGNAL | NORMAL_SIGTRAP_SIGNAL => {
-                // it's either the first SIGTRAP signal, or a standard system call
-                if signal == RAW_SIGTRAP_SIGNAL {
-                    self.set_ptrace_options(info_bag);
-                }
-
-                self.translate_syscall();
-            }
-            SECCOMP_SIGNAL => {
-                println!("seccomp!");
-            }
-            VFORK_SIGNAL | FORK_SIGNAL | CLONE_SIGNAL => {
-                self.new_child(signal);
-            }
-            EXEC_SIGNAL | VFORK_DONE_SIGNAL => {
-                println!("signal 0?");
-            }
-            SIGSTOP_SIGNAL => {
-                println!("sigstop! {}", self.pid);
-            }
-            _ => {}
+            PTRACE_S_RAW_SIGTRAP| PTRACE_S_NORMAL_SIGTRAP => self.handle_sigtrap_event(info_bag, signal),
+            PTRACE_S_SECCOMP | PTRACE_S_SECCOMP2 => self.handle_seccomp_event(info_bag, signal),
+            PTRACE_S_VFORK | PTRACE_S_FORK | PTRACE_S_CLONE => self.new_child(signal),
+            PTRACE_S_EXEC | PTRACE_S_VFORK_DONE => println!("EXEC or VFORK DONE"),
+            PTRACE_S_SIGSTOP => println!("sigstop! {}", self.pid),
+            _ => ()
         }
     }
 
-    fn translate_syscall(&mut self) {}
+    /// Standard handling of either:
+    /// 1. the initial SIGTRAP signal
+    /// 2. a syscall that is then translated
+    fn handle_sigtrap_event(&mut self, info_bag: &mut InfoBag, signal: PtraceSignalEvent) {
+        if signal == PTRACE_S_RAW_SIGTRAP {
+            // it's the initial SIGTRAP signal
+            self.set_ptrace_options(info_bag)
+        }
+
+        // This tracee got signaled then freed during the
+        //  sysenter stage but the kernel reports the sysexit
+        //  stage; just discard this spurious tracee/event.
+        //if (tracee->exe == NULL) {
+        //    tracee->restart_how = PTRACE_CONT;
+        //    return 0;
+        //}
+
+        if self.seccomp {
+            match self.status {
+                TraceeStatus::SysEnter => {
+                    // sysenter: ensure the sysexit stage will be hit under seccomp.
+                    self.restart_how = Some(TraceeRestartMethod::WithExitStage);
+                    self.sysexit_pending = true;
+                }
+                TraceeStatus::SysExit => {
+                    // sysexit: the next sysenter will be notified by seccomp.
+                    self.restart_how = Some(TraceeRestartMethod::WithoutExitStage);
+                    self.sysexit_pending = false;
+                }
+            }
+        }
+        self.translate_syscall();
+    }
+
+    fn handle_seccomp_event(&mut self, info_bag: &mut InfoBag, signal: PtraceSignalEvent) {
+        println!("seccomp event! {:?}, {:?}", info_bag, signal);
+    }
+
+    fn new_child(&mut self, event: PtraceSignalEvent) {
+        println!("new child: {:?}", event);
+    }
+
+    fn translate_syscall(&mut self) {
+        match self.status {
+            TraceeStatus::SysEnter => {
+                self.status = TraceeStatus::SysExit;
+            }
+            TraceeStatus::SysExit => {
+                self.status = TraceeStatus::SysEnter;
+            }
+        }
+
+        //TODO continue translation
+    }
+
+    pub fn restart(&mut self) {
+        match self.restart_how {
+            Some(TraceeRestartMethod::WithoutExitStage) => ptrace(PTRACE_CONT, self.pid, null_mut(), null_mut()),
+            Some(TraceeRestartMethod::WithExitStage) => ptrace(PTRACE_SYSCALL, self.pid, null_mut(), null_mut()),
+            None => panic!("forgot to set restart method!")
+        };
+
+        // the restart method is reinitialised here
+        self.restart_how = None;
+    }
+
 
     /// Distinguish some events from others and
     /// automatically trace each new process with
     /// the same options.
+    ///
     /// Note that only the first bare SIGTRAP is
     /// related to the tracing loop, others SIGTRAP
     /// carry tracing information because of
     /// TRACE*FORK/CLONE/EXEC.
     fn set_ptrace_options(&self, info_bag: &mut InfoBag) {
+        if info_bag.deliver_sigtrap {
+            return;
+        } else {
+            info_bag.deliver_sigtrap = true;
+        }
+
         let default_options =
             PTRACE_O_TRACESYSGOOD |
                 PTRACE_O_TRACEFORK |
@@ -67,18 +162,8 @@ impl Tracee {
                 PTRACE_O_TRACECLONE |
                 PTRACE_O_TRACEEXIT;
 
-        if info_bag.deliver_sigtrap {
-            return;
-        } else {
-            info_bag.deliver_sigtrap = true;
-        }
-
         //TODO: seccomp
         ptrace_setoptions(self.pid, default_options).expect("set ptrace options");
-    }
-
-    fn new_child(&mut self, event: PTraceSignalEvent) {
-        println!("new child: {:?}", event);
     }
 
     #[cfg(test)]
@@ -138,6 +223,5 @@ mod tests {
                 kill(getpid(), SIGSTOP).expect("test child sigstop");
             }
         }
-
     }
 }

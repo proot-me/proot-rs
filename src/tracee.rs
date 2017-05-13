@@ -7,6 +7,7 @@ use nix::sys::ptrace::ptrace::*;
 use nix::sys::ptrace::ptrace;
 use constants::ptrace::ptrace_events::*;
 use constants::tracee::{TraceeStatus, TraceeRestartMethod};
+use regs::fetch_regs;
 
 #[derive(Debug)]
 pub struct Tracee {
@@ -38,8 +39,6 @@ impl Tracee {
     /// 2. in case of fork/clone event: create a new tracee
     /// 3. in other cases: not much
     pub fn handle_event(&mut self, info_bag: &mut InfoBag, stop_signal: Option<Signal>) {
-        println!("stopped tracee: {:?}", self);
-
         let signal: PtraceSignalEvent = match stop_signal {
             Some(sig)   => sig as PtraceSignalEvent,
             None        => PTRACE_S_NORMAL_SIGTRAP
@@ -65,8 +64,8 @@ impl Tracee {
             PTRACE_S_RAW_SIGTRAP| PTRACE_S_NORMAL_SIGTRAP => self.handle_sigtrap_event(info_bag, signal),
             PTRACE_S_SECCOMP | PTRACE_S_SECCOMP2 => self.handle_seccomp_event(info_bag, signal),
             PTRACE_S_VFORK | PTRACE_S_FORK | PTRACE_S_CLONE => self.new_child(signal),
-            PTRACE_S_EXEC | PTRACE_S_VFORK_DONE => println!("EXEC or VFORK DONE"),
-            PTRACE_S_SIGSTOP => println!("sigstop! {}", self.pid),
+            PTRACE_S_EXEC | PTRACE_S_VFORK_DONE => println!("EXEC or VFORK DONE"), //TODO: handle exec case
+            PTRACE_S_SIGSTOP => println!("sigstop! {}", self.pid), //TODO: handle sigstop case
             _ => ()
         }
     }
@@ -105,15 +104,10 @@ impl Tracee {
         self.translate_syscall();
     }
 
-    fn handle_seccomp_event(&mut self, info_bag: &mut InfoBag, signal: PtraceSignalEvent) {
-        println!("seccomp event! {:?}, {:?}", info_bag, signal);
-    }
-
-    fn new_child(&mut self, event: PtraceSignalEvent) {
-        println!("new child: {:?}", event);
-    }
-
     fn translate_syscall(&mut self) {
+        // fetch_regs
+        unsafe {fetch_regs(self.pid)};
+
         match self.status {
             TraceeStatus::SysEnter => {
                 self.status = TraceeStatus::SysExit;
@@ -123,13 +117,25 @@ impl Tracee {
             }
         }
 
-        //TODO continue translation
+        // push_regs
+    }
+
+
+
+    fn handle_seccomp_event(&mut self, info_bag: &mut InfoBag, signal: PtraceSignalEvent) {
+        println!("seccomp event! {:?}, {:?}", info_bag, signal);
+    }
+
+    fn new_child(&mut self, event: PtraceSignalEvent) {
+        println!("new child: {:?}", event);
     }
 
     pub fn restart(&mut self) {
         match self.restart_how {
-            Some(TraceeRestartMethod::WithoutExitStage) => ptrace(PTRACE_CONT, self.pid, null_mut(), null_mut()),
-            Some(TraceeRestartMethod::WithExitStage) => ptrace(PTRACE_SYSCALL, self.pid, null_mut(), null_mut()),
+            Some(TraceeRestartMethod::WithoutExitStage) => ptrace(PTRACE_CONT, self.pid, null_mut(), null_mut())
+                .expect("exit tracee without exit stage"),
+            Some(TraceeRestartMethod::WithExitStage) => ptrace(PTRACE_SYSCALL, self.pid, null_mut(), null_mut())
+                .expect("exit tracee with exit stage"),
             None => panic!("forgot to set restart method!")
         };
 
@@ -192,7 +198,7 @@ mod tests {
 
     #[test]
     /// This test tests that the set_ptrace_options runs without panicking.
-    /// It requires a traced child process to be apply on,
+    /// It requires a traced child process to be applied on,
     /// as using `ptrace(PTRACE_SETOPTIONS)` without preparation results in a Sys(ESRCH) error.
     fn create_set_ptrace_options() {
         match fork().expect("fork in set ptrace options tracee's test") {

@@ -4,5 +4,6 @@ version = "0.1.0"
 authors = ["vincenthage"]
 
 [dependencies]
+libc = "0.2.22"
 nix = "0.8.1"
 clap = "2.23.3"

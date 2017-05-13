@@ -5,7 +5,7 @@ use std::ptr::null_mut;
 use std::ffi::CString;
 
 // libc
-use nix::sys::ioctl::libc::{pid_t, siginfo_t, c_int, c_void};
+use libc::{pid_t, siginfo_t, c_int, c_void};
 // signals
 use nix::sys::signal::{kill, SIGSTOP, Signal};
 // ptrace
@@ -16,19 +16,26 @@ use nix::unistd::{getpid, fork, execvp, ForkResult};
 // event loop
 use nix::sys::wait::{waitpid, __WALL};
 use nix::sys::wait::WaitStatus::*;
+// regs
+use regs::REG_SIZE;
+use regs::regs_offset::get_regs_offsets;
 
 
 /// Used to store global info common to all tracees,
-/// without having to lend the whole `PRoot` object.
+/// without having to loose ownership on the whole `PRoot` object.
 #[derive(Debug)]
 pub struct InfoBag {
-    pub deliver_sigtrap: bool
+    /// Used to know if the first raw sigtrap has been processed
+    /// (and if the `set_ptrace_options` step is required).
+    pub deliver_sigtrap: bool,
+    pub regs_offsets: [usize; REG_SIZE]
 }
 
 impl InfoBag {
     pub fn new() -> InfoBag {
         InfoBag {
-            deliver_sigtrap: false
+            deliver_sigtrap: false,
+            regs_offsets: unsafe { get_regs_offsets() }
         }
     }
 }
@@ -79,12 +86,14 @@ impl PRoot {
                 // (otherwise the execvp is executed too quickly)
                 kill(getpid(), SIGSTOP).expect("first child synchronisation");
 
+                //TODO: seccomp
                 //if (getenv("PROOT_NO_SECCOMP") == NULL)
                 //    (void) enable_syscall_filtering(tracee);
 
                 println!("2. Executing child's execvp");
-                execvp(&CString::new("echo").unwrap(), &[CString::new(".").unwrap(), CString::new("TEST").unwrap()])
+                execvp(&CString::new("echo").unwrap(), &[CString::new(".").unwrap(), CString::new("TRACEE ECHO").unwrap()])
                     .expect("failed execvp");
+                //TODO: cli must handle command, or use 'sh' as default (like proot)
                 //execvp(tracee->exe, argv[0] != NULL ? argv : default_argv);
             }
         }
@@ -107,36 +116,32 @@ impl PRoot {
                 }
                 Stopped(pid, stop_signal) => {
                     println!("-- {}, Stopped, {:?}, {}", pid, stop_signal, stop_signal as c_int);
-                    let (wrapped_tracee, info_bag) = self.get_mut_tracee_and_info(pid);
-                    let mut tracee = wrapped_tracee.expect("get stopped tracee");
-
-                    tracee.handle_event(info_bag, Some(stop_signal));
-                    tracee.restart();
+                    self.handle_standard_event(pid, Some(stop_signal));
                 }
                 PtraceEvent(pid, signal, additional_signal) => {
-                    println!("-- ptrace event! {}, {:?}, {:?}", pid, signal, additional_signal);
-                    let (wrapped_tracee, info_bag) = self.get_mut_tracee_and_info(pid);
-                    let mut tracee = wrapped_tracee.expect("get stopped tracee");
-
-                    tracee.handle_event(info_bag, Some(signal));
-                    tracee.restart();
-                }
-                Continued(pid) => {
-                    println!("-- {}, Continued", pid);
+                    println!("-- {}, Ptrace event, {:?}, {:?}", pid, signal, additional_signal);
+                    self.handle_standard_event(pid, Some(signal));
                 }
                 PtraceSyscall(pid) => {
                     println!("-- {}, Syscall", pid);
-                    let (wrapped_tracee, info_bag) = self.get_mut_tracee_and_info(pid);
-                    let mut tracee = wrapped_tracee.expect("get stopped tracee");
-
-                    tracee.handle_event(info_bag, None);
-                    tracee.restart();
+                    self.handle_standard_event(pid, None);
+                }
+                Continued(pid) => {
+                    println!("-- {}, Continued", pid);
                 }
                 StillAlive => {
                     println!("-- Still alive");
                 }
             }
         }
+    }
+
+    fn handle_standard_event(&mut self, tracee_pid: pid_t, signal: Option<Signal>) {
+        let (wrapped_tracee, info_bag) = self.get_mut_tracee_and_info(tracee_pid);
+        let mut tracee = wrapped_tracee.expect("get stopped tracee");
+
+        tracee.handle_event(info_bag, signal);
+        tracee.restart();
     }
 
     /******** Utilities ****************/

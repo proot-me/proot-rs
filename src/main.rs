@@ -1,3 +1,5 @@
+extern crate libc;
+#[macro_use]
 extern crate nix;
 extern crate clap;
 mod constants;
@@ -7,6 +9,7 @@ mod tracee;
 mod cli;
 mod sigactions;
 mod proot;
+mod regs;
 
 use proot::{PRoot, stop_program, show_info};
 use fsnamespace::FileSystemNameSpace;

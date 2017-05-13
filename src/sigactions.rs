@@ -1,5 +1,5 @@
 // signals
-use nix::sys::ioctl::libc::{pid_t, siginfo_t, c_int, c_void};
+use libc::{pid_t, siginfo_t, c_int, c_void};
 use nix::sys::signal::{sigaction, Signal, SigAction, SigSet, SigHandler};
 use nix::sys::signal::{SaFlags, SA_SIGINFO, SA_RESTART};
 use nix::sys::signal::Signal::*;

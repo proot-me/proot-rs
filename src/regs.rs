@@ -75,7 +75,7 @@ macro_rules! offset_of {
 /// `[repr(C)]` ensures that it stays the same when transformed in a C struct.
 
 #[cfg(all(target_os = "linux", any(target_arch = "x86_64")))]
-mod regs_structs {
+pub mod regs_structs {
     unroll_and_structure_and_impl! {
         #[derive(Debug)]
         pub struct user_regs_struct {
@@ -162,12 +162,65 @@ pub mod regs_offset {
 use self::regs_structs::user_regs_struct;
 
 /// Copy all @tracee's general purpose registers into a dedicated cache.
-pub unsafe fn fetch_regs(pid: pid_t) {
+pub unsafe fn fetch_regs(pid: pid_t) -> user_regs_struct {
     let mut regs: user_regs_struct = user_regs_struct::new();
     let p_regs: *mut c_void = &mut regs as *mut _ as *mut c_void;
 
     ptrace(PTRACE_GETREGS, pid, null_mut(), p_regs).expect("get regs");
-    println!("{:?}", regs);
+    regs
+}
 
-    //TODO: convert regs into a more usable Rust structure, and return it
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::ptr::null_mut;
+    use nix::unistd::{getpid, fork, ForkResult};
+    use nix::sys::signal::{kill};
+    use nix::sys::signal::Signal::{SIGSTOP};
+    use nix::sys::ptrace::ptrace;
+    use nix::sys::ptrace::ptrace::PTRACE_TRACEME;
+    use nix::sys::wait::{wait, waitpid, __WALL};
+    use nix::sys::wait::WaitStatus::*;
+    use nix::sys::ptrace::ptrace::PTRACE_SYSCALL;
+
+    #[test]
+    fn fetch_regs_test() {
+        match fork().expect("fork in set ptrace options tracee's test") {
+            ForkResult::Parent { child } => {
+                // the parent will wait for the child's signal before calling set_ptrace_options
+                assert_eq!(waitpid(-1, Some(__WALL)).expect("event loop waitpid"), Stopped(child, SIGSTOP));
+
+                // This call must pass without panic
+                unsafe { fetch_regs(child); }
+
+                restart_and_end(child);
+            }
+            ForkResult::Child => {
+                ptrace(PTRACE_TRACEME, 0, null_mut(), null_mut()).expect("test ptrace traceme");
+                // we use a SIGSTOP to synchronise both processes
+                kill(getpid(), SIGSTOP).expect("test child sigstop");
+            }
+        }
+    }
+
+    /// Restarts a child process, and waits/restarts it until it stops.
+    fn restart_and_end(child: pid_t) {
+        ptrace(PTRACE_SYSCALL, child, null_mut(), null_mut()).expect("exit tracee with exit stage");
+        loop {
+            match waitpid(-1, Some(__WALL)).expect("waitpid") {
+                Exited(pid, exit_status) => {
+                    assert_eq!(pid, child);
+
+                    // the tracee should have exited with an OK status (exit code 0)
+                    assert_eq!(exit_status, 0);
+                    break;
+                }
+                _ => {
+                    // restarting the tracee
+                    ptrace(PTRACE_SYSCALL, child, null_mut(), null_mut()).expect("exit tracee with exit stage");
+                }
+            }
+        }
+    }
 }

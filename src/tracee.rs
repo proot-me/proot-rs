@@ -8,6 +8,7 @@ use nix::sys::ptrace::ptrace;
 use constants::ptrace::ptrace_events::*;
 use constants::tracee::{TraceeStatus, TraceeRestartMethod};
 use regs::fetch_regs;
+use regs::regs_structs::user_regs_struct;
 
 #[derive(Debug)]
 pub struct Tracee {
@@ -106,10 +107,15 @@ impl Tracee {
 
     fn translate_syscall(&mut self) {
         // fetch_regs
-        unsafe {fetch_regs(self.pid)};
+        let mut regs: user_regs_struct = unsafe {fetch_regs(self.pid)};
 
         match self.status {
             TraceeStatus::SysEnter => {
+
+                // save_current_regs(tracee, ORIGINAL);
+                // status = translate_syscall_enter(tracee);
+                // save_current_regs(tracee, MODIFIED);
+
                 self.status = TraceeStatus::SysExit;
             }
             TraceeStatus::SysExit => {
@@ -205,28 +211,43 @@ mod tests {
             ForkResult::Parent { child } => {
                 let info_bag = &mut InfoBag::new();
                 let tracee = Tracee::new(child);
-
                 assert_eq!(info_bag.deliver_sigtrap, false);
 
-                // The parent will wait for the child's signal before calling set_ptrace_options
-                match waitpid(-1, Some(__WALL)).expect("event loop waitpid") {
-                    Stopped(_, stop_signal) => {
-                        assert_eq!(stop_signal, SIGSTOP);
-                    }
-                    _ => {
-                        assert!(false);
-                    }
-                }
+                // The parent will wait for the child's stop signal before calling set_ptrace_options
+                assert_eq!(waitpid(-1, Some(__WALL)).expect("event loop waitpid"), Stopped(child, SIGSTOP));
+
                 // This call must pass without panic
                 tracee.set_ptrace_options(info_bag);
 
                 // if everything went right, this boolean should have become true
                 assert_eq!(info_bag.deliver_sigtrap, true);
+
+                restart_and_end(child);
             }
             ForkResult::Child => {
                 ptrace(PTRACE_TRACEME, 0, null_mut(), null_mut()).expect("test ptrace traceme");
                 // we use a SIGSTOP to synchronise both processes
                 kill(getpid(), SIGSTOP).expect("test child sigstop");
+            }
+        }
+    }
+
+    /// Restarts a child process, and waits/restarts it until it stops.
+    fn restart_and_end(child: pid_t) {
+        ptrace(PTRACE_SYSCALL, child, null_mut(), null_mut()).expect("exit tracee with exit stage");
+        loop {
+            match waitpid(-1, Some(__WALL)).expect("waitpid") {
+                Exited(pid, exit_status) => {
+                    assert_eq!(pid, child);
+
+                    // the tracee should have exited with an OK status (exit code 0)
+                    assert_eq!(exit_status, 0);
+                    break;
+                }
+                _ => {
+                    // restarting the tracee
+                    ptrace(PTRACE_SYSCALL, child, null_mut(), null_mut()).expect("exit tracee with exit stage");
+                }
             }
         }
     }

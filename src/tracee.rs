@@ -107,14 +107,26 @@ impl Tracee {
 
     fn translate_syscall(&mut self) {
         // fetch_regs
-        let mut regs: user_regs_struct = unsafe {fetch_regs(self.pid)};
+        let regs: user_regs_struct = unsafe {fetch_regs(self.pid)};
 
         match self.status {
             TraceeStatus::SysEnter => {
 
                 // save_current_regs(tracee, ORIGINAL);
-                // status = translate_syscall_enter(tracee);
+                self.translate_syscall_enter(&regs);
                 // save_current_regs(tracee, MODIFIED);
+
+                //TODO: error handling/propagation (which requires removing expect() everywhere)
+                /*
+                /* Remember the tracee status for the "exit" stage and
+                 * avoid the actual syscall if an error was reported
+                 * by the translation/extension. */
+                if (status < 0) {
+                    set_sysnum(tracee, PR_void);
+                    poke_reg(tracee, SYSARG_RESULT, (word_t) status);
+                    tracee->status = status;
+                }
+                */
 
                 self.status = TraceeStatus::SysExit;
             }
@@ -126,7 +138,13 @@ impl Tracee {
         // push_regs
     }
 
+    fn translate_syscall_enter(&mut self, regs: &user_regs_struct) {
+        //status = notify_extensions(tracee, SYSCALL_ENTER_START, 0, 0);
 
+        //let sysnum = translate_sysnum(get_abi(tracee), peek_reg(tracee, version, SYSARG_NUM));
+        let sysnum = get_reg!(regs, SysArgNum);
+        println!("Sysnum : {:?}", sysnum);
+    }
 
     fn handle_seccomp_event(&mut self, info_bag: &mut InfoBag, signal: PtraceSignalEvent) {
         println!("seccomp event! {:?}, {:?}", info_bag, signal);

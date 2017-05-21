@@ -16,10 +16,6 @@ use nix::unistd::{getpid, fork, execvp, ForkResult};
 // event loop
 use nix::sys::wait::{waitpid, __WALL};
 use nix::sys::wait::WaitStatus::*;
-// regs
-use regs::REG_SIZE;
-use regs::regs_offset::get_regs_offsets;
-
 
 /// Used to store global info common to all tracees,
 /// without having to loose ownership on the whole `PRoot` object.
@@ -27,15 +23,13 @@ use regs::regs_offset::get_regs_offsets;
 pub struct InfoBag {
     /// Used to know if the first raw sigtrap has been processed
     /// (and if the `set_ptrace_options` step is required).
-    pub deliver_sigtrap: bool,
-    pub regs_offsets: [usize; REG_SIZE]
+    pub deliver_sigtrap: bool
 }
 
 impl InfoBag {
     pub fn new() -> InfoBag {
         InfoBag {
-            deliver_sigtrap: false,
-            regs_offsets: unsafe { get_regs_offsets() }
+            deliver_sigtrap: false
         }
     }
 }
@@ -71,7 +65,6 @@ impl PRoot {
     /// (heap, libraries...), so both of them will have their own (owned) version
     /// of the PRoot memory (so the `fs` and `heap` field mainly).
     pub fn launch_process(&mut self) {
-
         match fork().expect("fork in launch process") {
             ForkResult::Parent { child } => {
                 // we create the first tracee
@@ -91,8 +84,10 @@ impl PRoot {
                 //    (void) enable_syscall_filtering(tracee);
 
                 println!("2. Executing child's execvp");
-                execvp(&CString::new("echo").unwrap(), &[CString::new(".").unwrap(), CString::new("TRACEE ECHO").unwrap()])
-                    .expect("failed execvp");
+                //execvp(&CString::new("echo").unwrap(), &[CString::new(".").unwrap(), CString::new("TRACEE ECHO").unwrap()])
+                //    .expect("failed execvp");
+                execvp(&CString::new("ls").unwrap(), &[CString::new(".").unwrap()])
+                    .expect("failed ls");
                 //TODO: cli must handle command, or use 'sh' as default (like proot)
                 //execvp(tracee->exe, argv[0] != NULL ? argv : default_argv);
             }

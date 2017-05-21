@@ -7,3 +7,4 @@ authors = ["vincenthage"]
 libc = "0.2.22"
 nix = "0.8.1"
 clap = "2.23.3"
+syscall = "0.2.1"

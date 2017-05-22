@@ -176,7 +176,7 @@ impl Tracee {
     /// related to the tracing loop, others SIGTRAP
     /// carry tracing information because of
     /// TRACE*FORK/CLONE/EXEC.
-    fn set_ptrace_options(&self, info_bag: &mut InfoBag) {
+    pub fn set_ptrace_options(&self, info_bag: &mut InfoBag) {
         if info_bag.deliver_sigtrap {
             return;
         } else {

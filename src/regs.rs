@@ -88,24 +88,23 @@ pub enum Reg {
 
 /// Specify the ABI registers (syscall argument passing, stack pointer).
 /// See sysdeps/unix/sysv/linux/${ARCH}/syscall.S from the GNU C Library.
-
 #[cfg(all(target_os = "linux", any(target_arch = "x86_64")))]
 #[macro_use]
 pub mod regs_offset {
     macro_rules! get_reg {
-        ($regs:ident, SysArgNum) =>     ($regs.orig_rax);
-        ($regs:ident, SysArg1) =>       ($regs.rdi);
-        ($regs:ident, SysArg2) =>       ($regs.rsi);
-        ($regs:ident, SysArg3) =>       ($regs.rdx);
-        ($regs:ident, SysArg4) =>       ($regs.r10);
-        ($regs:ident, SysArg5) =>       ($regs.r8);
-        ($regs:ident, SysArg6) =>       ($regs.r9);
-        ($regs:ident, SysArgResult) =>  ($regs.rax);
-        ($regs:ident, StackPointer) =>  ($regs.rsp);
-        ($regs:ident, InstrPointer) =>  ($regs.rip);
-        ($regs:ident, RtldFini) =>      ($regs.rdx);
-        ($regs:ident, StateFlags) =>    ($regs.eflags);
-        ($regs:ident, UserArg1) =>      ($regs.rdi);
+        ($regs:ident, SysArgNum)    => ($regs.orig_rax);
+        ($regs:ident, SysArg1)      => ($regs.rdi);
+        ($regs:ident, SysArg2)      => ($regs.rsi);
+        ($regs:ident, SysArg3)      => ($regs.rdx);
+        ($regs:ident, SysArg4)      => ($regs.r10);
+        ($regs:ident, SysArg5)      => ($regs.r8);
+        ($regs:ident, SysArg6)      => ($regs.r9);
+        ($regs:ident, SysArgResult) => ($regs.rax);
+        ($regs:ident, StackPointer) => ($regs.rsp);
+        ($regs:ident, InstrPointer) => ($regs.rip);
+        ($regs:ident, RtldFini)     => ($regs.rdx);
+        ($regs:ident, StateFlags)   => ($regs.eflags);
+        ($regs:ident, UserArg1)     => ($regs.rdi);
     }
 }
 
@@ -137,7 +136,8 @@ pub unsafe fn fetch_regs(pid: pid_t) -> user_regs_struct {
 mod tests {
     use super::*;
     use std::ptr::null_mut;
-    use nix::unistd::{getpid, fork, ForkResult};
+    use std::ffi::CString;
+    use nix::unistd::{getpid, fork, execvp, ForkResult};
     use nix::sys::signal::{kill};
     use nix::sys::signal::Signal::{SIGSTOP};
     use nix::sys::ptrace::ptrace;
@@ -145,10 +145,13 @@ mod tests {
     use nix::sys::wait::{waitpid, __WALL};
     use nix::sys::wait::WaitStatus::*;
     use nix::sys::ptrace::ptrace::PTRACE_SYSCALL;
+    use proot::InfoBag;
+    use tracee::Tracee;
+    use syscall::nr::NANOSLEEP;
 
     #[test]
     fn fetch_regs_test() {
-        match fork().expect("fork in set ptrace options tracee's test") {
+        match fork().expect("fork in test") {
             ForkResult::Parent { child } => {
                 // the parent will wait for the child's signal before calling set_ptrace_options
                 assert_eq!(waitpid(-1, Some(__WALL)).expect("event loop waitpid"), Stopped(child, SIGSTOP));
@@ -156,7 +159,8 @@ mod tests {
                 // This call must pass without panic
                 unsafe { fetch_regs(child); }
 
-                restart_and_end(child);
+                restart(child);
+                end(child);
             }
             ForkResult::Child => {
                 ptrace(PTRACE_TRACEME, 0, null_mut(), null_mut()).expect("test ptrace traceme");
@@ -166,9 +170,61 @@ mod tests {
         }
     }
 
-    /// Restarts a child process, and waits/restarts it until it stops.
-    fn restart_and_end(child: pid_t) {
+    #[test]
+    fn get_reg_sysnum_sleep_test() {
+        match fork().expect("fork in test") {
+            ForkResult::Parent { child } => {
+                let info_bag = &mut InfoBag::new();
+                let tracee = Tracee::new(child);
+
+                // the parent will wait for the child's signal before calling set_ptrace_options
+                assert_eq!(waitpid(-1, Some(__WALL)).expect("event loop waitpid"), Stopped(child, SIGSTOP));
+                tracee.set_ptrace_options(info_bag);
+
+                restart(child);
+
+                // we loop until the NANOSLEEP syscall is called
+                loop {
+                    match waitpid(-1, Some(__WALL)).expect("event loop waitpid") {
+                        PtraceSyscall(pid) => {
+                            assert_eq!(pid, child);
+                            let regs = unsafe { fetch_regs(child) };
+                            let sysnum = get_reg!(regs, SysArgNum);
+
+                            if sysnum == NANOSLEEP as u64 {
+                                break;
+                            }
+                        }
+                        Exited(_, _) => { assert!(false) }
+                        Signaled(_, _, _) => { assert!(false) }
+                        _ => {}
+                    }
+                    restart(child);
+                }
+
+                restart(child);
+                end(child);
+            }
+            ForkResult::Child => {
+                ptrace(PTRACE_TRACEME, 0, null_mut(), null_mut()).expect("test ptrace traceme");
+                // we use a SIGSTOP to synchronise both processes
+                kill(getpid(), SIGSTOP).expect("test child sigstop");
+
+                // calling the sleep function,
+                // which should call the NANOSLEEP syscall
+                execvp(&CString::new("sleep").unwrap(), &[CString::new(".").unwrap(), CString::new("0.0001").unwrap()])
+                    .expect("failed execvp sleep");
+            }
+        }
+    }
+
+    /// Restarts a child process
+    fn restart(child: pid_t) {
         ptrace(PTRACE_SYSCALL, child, null_mut(), null_mut()).expect("exit tracee with exit stage");
+    }
+
+    /// Waits/restarts a child process until it stops.
+    fn end(child: pid_t) {
         loop {
             match waitpid(-1, Some(__WALL)).expect("waitpid") {
                 Exited(pid, exit_status) => {

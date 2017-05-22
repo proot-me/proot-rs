@@ -74,7 +74,6 @@ impl PRoot {
                 // Declare the tracee as ptraceable
                 ptrace(PTRACE_TRACEME, 0, null_mut(), null_mut()).expect("ptrace traceme");
 
-                println!("1. Stopping child for synchronisation");
                 // Synchronise with the parent's event loop by waiting until it's ready
                 // (otherwise the execvp is executed too quickly)
                 kill(getpid(), SIGSTOP).expect("first child synchronisation");
@@ -83,11 +82,12 @@ impl PRoot {
                 //if (getenv("PROOT_NO_SECCOMP") == NULL)
                 //    (void) enable_syscall_filtering(tracee);
 
-                println!("2. Executing child's execvp");
+                execvp(&CString::new("sleep").unwrap(), &[CString::new(".").unwrap(), CString::new("1").unwrap()])
+                    .expect("failed execvp sleep");
                 //execvp(&CString::new("echo").unwrap(), &[CString::new(".").unwrap(), CString::new("TRACEE ECHO").unwrap()])
-                //    .expect("failed execvp");
-                execvp(&CString::new("ls").unwrap(), &[CString::new(".").unwrap()])
-                    .expect("failed ls");
+                //    .expect("failed execvp echo");
+                //execvp(&CString::new("ls").unwrap(), &[CString::new(".").unwrap()])
+                //   .expect("failed execvp ls");
                 //TODO: cli must handle command, or use 'sh' as default (like proot)
                 //execvp(tracee->exe, argv[0] != NULL ? argv : default_argv);
             }

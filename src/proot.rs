@@ -118,7 +118,7 @@ impl PRoot {
                     self.handle_standard_event(pid, Some(signal));
                 }
                 PtraceSyscall(pid) => {
-                    println!("-- {}, Syscall", pid);
+                    //println!("-- {}, Syscall", pid);
                     self.handle_standard_event(pid, None);
                 }
                 Continued(pid) => {

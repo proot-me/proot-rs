@@ -9,6 +9,8 @@ use constants::ptrace::ptrace_events::*;
 use constants::tracee::{TraceeStatus, TraceeRestartMethod};
 use regs::fetch_regs;
 use regs::regs_structs::user_regs_struct;
+// syscalls
+use syscalls::syscalltype::{SyscallType, syscall_type_from_sysnum};
 
 #[derive(Debug)]
 pub struct Tracee {
@@ -80,13 +82,13 @@ impl Tracee {
             self.set_ptrace_options(info_bag)
         }
 
-        // This tracee got signaled then freed during the
-        //  sysenter stage but the kernel reports the sysexit
-        //  stage; just discard this spurious tracee/event.
-        //if (tracee->exe == NULL) {
+        /* This tracee got signaled then freed during the
+           sysenter stage but the kernel reports the sysexit
+           stage; just discard this spurious tracee/event. */
+        // if (tracee->exe == NULL) {
         //    tracee->restart_how = PTRACE_CONT;
         //    return 0;
-        //}
+        // }
 
         if self.seccomp {
             match self.status {
@@ -105,32 +107,52 @@ impl Tracee {
         self.translate_syscall();
     }
 
+    /// Retrieves the registers,
+    /// handles either the enter or exit stage of the system call,
+    /// and pushes the registers.
     fn translate_syscall(&mut self) {
-        // fetch_regs
+        // We retrieve the registers of the current tracee.
+        // They contain the system call's number, arguments and other useful info.
         let regs: user_regs_struct = unsafe {fetch_regs(self.pid)};
 
         match self.status {
             TraceeStatus::SysEnter => {
+                /* Never restore original register values at the end
+                 * of this stage.  */
+                // tracee->restore_original_regs = false;
 
                 // save_current_regs(tracee, ORIGINAL);
                 self.translate_syscall_enter(&regs);
                 // save_current_regs(tracee, MODIFIED);
 
                 //TODO: error handling/propagation (which requires removing expect() everywhere)
-                /*
                 /* Remember the tracee status for the "exit" stage and
                  * avoid the actual syscall if an error was reported
                  * by the translation/extension. */
-                if (status < 0) {
-                    set_sysnum(tracee, PR_void);
-                    poke_reg(tracee, SYSARG_RESULT, (word_t) status);
-                    tracee->status = status;
-                }
-                */
-
+                // if (status < 0) {
+                //   set_sysnum(tracee, PR_void);
+                //   poke_reg(tracee, SYSARG_RESULT, (word_t) status);
+                //   tracee->status = status;
+                // }
+                // else
                 self.status = TraceeStatus::SysExit;
+
+                /* Restore tracee's stack pointer now if it won't hit
+                 * the sysexit stage (i.e. when seccomp is enabled and
+                 * there's nothing else to do).  */
+                // if (tracee->restart_how == PTRACE_CONT) {
+                //    tracee->status = 0;
+                //    poke_reg(tracee, STACK_POINTER, peek_reg(tracee, ORIGINAL, STACK_POINTER));
+                // }
             }
             TraceeStatus::SysExit => {
+                /* By default, restore original register values at the
+                 * end of this stage.  */
+                // tracee->restore_original_regs = true;
+
+                self.translate_syscall_exit(&regs);
+
+                // reset the tracee's status
                 self.status = TraceeStatus::SysEnter;
             }
         }
@@ -138,12 +160,274 @@ impl Tracee {
         // push_regs
     }
 
+
     fn translate_syscall_enter(&mut self, regs: &user_regs_struct) {
         //status = notify_extensions(tracee, SYSCALL_ENTER_START, 0, 0);
 
-        //let sysnum = translate_sysnum(get_abi(tracee), peek_reg(tracee, version, SYSARG_NUM));
+        let sysnum = get_reg!(regs, SysArgNum) as usize;
+        let systype = syscall_type_from_sysnum(sysnum);
+
+        match systype {
+            SyscallType::Execve => {
+                println!("execve");
+                //status = translate_execve_enter(tracee);
+            }
+            SyscallType::Ptrace => {
+                println!("ptrace");
+                //status = translate_ptrace_enter(tracee);
+            }
+            SyscallType::Wait => {
+                println!("wait4/waitpid");
+                //status = translate_wait_enter(tracee);
+            }
+            SyscallType::Brk => {
+                println!("brk");
+                //status = translate_brk_enter(tracee);
+            }
+            SyscallType::GetCwd => {
+                println!("getcwd");
+                //set_sysnum(tracee, PR_void);
+                //status = 0;
+            }
+            SyscallType::Chdir => {
+                println!("chdir");
+                //TODO: chdir path translation
+            }
+            SyscallType::BindConnect => {
+                println!("bind/connect");
+                //TODO: bind/connect => socketcall
+            }
+            SyscallType::Accept | SyscallType::GetSockOrPeerName => {
+                if systype == SyscallType::Accept {
+                    println!("accept");
+                    /* Nothing special to do if no sockaddr was specified.  */
+                    // if (peek_reg(tracee, ORIGINAL, SYSARG_2) == 0) {
+                    //     status = 0;
+                    //     break;
+                    // }
+                    // special = true;
+                } else {
+                    println!("getsockname/getpeername");
+                }
+
+                /* Remember: PEEK_WORD puts -errno in status and breaks if an
+                 * error occured.  */
+                // size = (int) PEEK_WORD(peek_reg(tracee, ORIGINAL, SYSARG_3), special ? -EINVAL : 0);
+
+                /* The "size" argument is both used as an input parameter
+                 * (max. size) and as an output parameter (actual size).  The
+                 * exit stage needs to know the max. size to not overwrite
+                 * anything, that's why it is copied in the 6th argument
+                 * (unused) before the kernel updates it.  */
+                // poke_reg(tracee, SYSARG_6, size);
+
+                // status = 0;
+            }
+            SyscallType::SocketCall => {
+                println!("socketcall");
+                //TODO: prepare socket variable and call translate socketcall
+            }
+            SyscallType::StandardTranslation => {
+                println!("standard syscall {:?}", sysnum);
+                // status = translate_sysarg(tracee, SYSARG_1, REGULAR);
+            }
+            SyscallType::Open => {
+                println!("open");
+//                 flags = peek_reg(tracee, CURRENT, SYSARG_2);
+//
+//                 if (   ((flags & O_NOFOLLOW) != 0)
+//                     || ((flags & O_EXCL) != 0 && (flags & O_CREAT) != 0))
+//                 status = translate_sysarg(tracee, SYSARG_1, SYMLINK);
+//                 else
+//                 status = translate_sysarg(tracee, SYSARG_1, REGULAR);
+            }
+            SyscallType::StatAt => {
+                println!("stat at");
+//                 dirfd = peek_reg(tracee, CURRENT, SYSARG_1);
+//
+//                 status = get_sysarg_path(tracee, path, SYSARG_2);
+//                 if (status < 0)
+//                 break;
+//
+//                 flags = (  syscall_number == PR_fchownat
+//                     || syscall_number == PR_name_to_handle_at)
+//                     ? peek_reg(tracee, CURRENT, SYSARG_5)
+//                     : peek_reg(tracee, CURRENT, SYSARG_4);
+//
+//                 if ((flags & AT_SYMLINK_NOFOLLOW) != 0)
+//                 status = translate_path2(tracee, dirfd, path, SYSARG_2, SYMLINK);
+//                 else
+//                 status = translate_path2(tracee, dirfd, path, SYSARG_2, REGULAR);
+//                 break;
+            }
+            SyscallType::ChmodAccessMkNodAt => {
+                println!("chmod access mknod at");
+//                 dirfd = peek_reg(tracee, CURRENT, SYSARG_1);
+//
+//                 status = get_sysarg_path(tracee, path, SYSARG_2);
+//                 if (status < 0)
+//                    break;
+//
+//                 status = translate_path2(tracee, dirfd, path, SYSARG_2, REGULAR);
+            }
+            SyscallType::InotifyAddWatch => {
+                println!("inotify");
+//                 flags = peek_reg(tracee, CURRENT, SYSARG_3);
+//
+//                 if ((flags & IN_DONT_FOLLOW) != 0)
+//                     status = translate_sysarg(tracee, SYSARG_2, SYMLINK);
+//                 else
+//                     status = translate_sysarg(tracee, SYSARG_2, REGULAR);
+
+            }
+            SyscallType::DirLinkAttr => {
+                println!("dir link attr");
+//                 status = translate_sysarg(tracee, SYSARG_1, SYMLINK);
+            }
+            SyscallType::PivotRoot => {
+                println!("pivot_root");
+//                 status = translate_sysarg(tracee, SYSARG_1, REGULAR);
+//                 if (status < 0)
+//                     break;
+//
+//                 status = translate_sysarg(tracee, SYSARG_2, REGULAR);
+            }
+            SyscallType::LinkAt => {
+                println!("linkat");
+
+//                 olddirfd = peek_reg(tracee, CURRENT, SYSARG_1);
+//                 newdirfd = peek_reg(tracee, CURRENT, SYSARG_3);
+//                 flags    = peek_reg(tracee, CURRENT, SYSARG_5);
+//
+//                 status = get_sysarg_path(tracee, oldpath, SYSARG_2);
+//                 if (status < 0)
+//                 break;
+//
+//                 status = get_sysarg_path(tracee, newpath, SYSARG_4);
+//                 if (status < 0)
+//                  break;
+//
+//                 if ((flags & AT_SYMLINK_FOLLOW) != 0)
+//                     status = translate_path2(tracee, olddirfd, oldpath, SYSARG_2, REGULAR);
+//                 else
+//                    status = translate_path2(tracee, olddirfd, oldpath, SYSARG_2, SYMLINK);
+//                 if (status < 0)
+//                 break;
+//                status = translate_path2(tracee, newdirfd, newpath, SYSARG_4, SYMLINK);
+
+            }
+            SyscallType::Mount => {
+                println!("mount");
+//                status = get_sysarg_path(tracee, path, SYSARG_1);
+//                if (status < 0)
+//                break;
+//
+//                /* The following check covers only 90% of the cases. */
+//                if (path[0] == '/' || path[0] == '.') {
+//                    status = translate_path2(tracee, AT_FDCWD, path, SYSARG_1, REGULAR);
+//                    if (status < 0)
+//                    break;
+//                }
+//
+//                status = translate_sysarg(tracee, SYSARG_2, REGULAR);
+
+            }
+            SyscallType::OpenAt => {
+                println!("openat");
+//                dirfd = peek_reg(tracee, CURRENT, SYSARG_1);
+//                flags = peek_reg(tracee, CURRENT, SYSARG_3);
+//
+//                status = get_sysarg_path(tracee, path, SYSARG_2);
+//                if (status < 0)
+//                break;
+//
+//                if (   ((flags & O_NOFOLLOW) != 0)
+//                || ((flags & O_EXCL) != 0 && (flags & O_CREAT) != 0))
+//                status = translate_path2(tracee, dirfd, path, SYSARG_2, SYMLINK);
+//                else
+//                status = translate_path2(tracee, dirfd, path, SYSARG_2, REGULAR);
+            }
+            SyscallType::DirLinkAt => {
+                println!("dir link at");
+//                dirfd = peek_reg(tracee, CURRENT, SYSARG_1);
+//
+//                status = get_sysarg_path(tracee, path, SYSARG_2);
+//                if (status < 0)
+//                break;
+//
+//                status = translate_path2(tracee, dirfd, path, SYSARG_2, SYMLINK);
+            }
+            SyscallType::LinkRename => {
+                println!("link rename");
+//                status = translate_sysarg(tracee, SYSARG_1, SYMLINK);
+//                if (status < 0)
+//                break;
+//
+//                status = translate_sysarg(tracee, SYSARG_2, SYMLINK);
+            }
+            SyscallType::RenameAt => {
+                println!("rename at");
+//                olddirfd = peek_reg(tracee, CURRENT, SYSARG_1);
+//                newdirfd = peek_reg(tracee, CURRENT, SYSARG_3);
+//
+//                status = get_sysarg_path(tracee, oldpath, SYSARG_2);
+//                if (status < 0)
+//                break;
+//
+//                status = get_sysarg_path(tracee, newpath, SYSARG_4);
+//                if (status < 0)
+//                break;
+//
+//                status = translate_path2(tracee, olddirfd, oldpath, SYSARG_2, SYMLINK);
+//                if (status < 0)
+//                break;
+//
+//                status = translate_path2(tracee, newdirfd, newpath, SYSARG_4, SYMLINK);
+            }
+            SyscallType::SymLink => {
+                println!("symlink");
+//                status = translate_sysarg(tracee, SYSARG_2, SYMLINK);
+
+            }
+            SyscallType::SymLinkAt => {
+                println!("symlink at");
+//                newdirfd = peek_reg(tracee, CURRENT, SYSARG_2);
+//
+//                status = get_sysarg_path(tracee, newpath, SYSARG_3);
+//                if (status < 0)
+//                break;
+//
+//                status = translate_path2(tracee, newdirfd, newpath, SYSARG_3, SYMLINK);
+            }
+            SyscallType::Ignored => {
+                println!("ignored {:?}", sysnum);
+            }
+        }
+        // status2 = notify_extensions(tracee, SYSCALL_ENTER_END, status, 0);
+    }
+
+    fn translate_syscall_exit(&mut self, regs: &user_regs_struct) {
+        // status = notify_extensions(tracee, SYSCALL_EXIT_START, 0, 0);
+        // if (status < 0) {
+        //     poke_reg(tracee, SYSARG_RESULT, (word_t) status);
+        //     goto end;
+        // }
+        // if (status > 0)
+        // return;
+
+        /* Set the tracee's errno if an error occured previously during
+         * the translation. */
+        // if (tracee->status < 0) {
+        // poke_reg(tracee, SYSARG_RESULT, (word_t) tracee->status);
+        // goto end;
+        // }
+
         let sysnum = get_reg!(regs, SysArgNum);
-        println!("Sysnum : {:?}", sysnum);
+        let syscall_result = get_reg!(regs, SysArgResult);
+
+        //TODO: huge switch(sysnum)
+
+        //println!("exit - Sysnum : {:?}, SysArgResult : {:?}", sysnum, syscall_result);
     }
 
     fn handle_seccomp_event(&mut self, info_bag: &mut InfoBag, signal: PtraceSignalEvent) {

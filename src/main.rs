@@ -5,6 +5,7 @@ extern crate syscall;
 mod constants;
 #[macro_use]
 mod regs;
+mod syscalls;
 mod bindings;
 mod fsnamespace;
 mod tracee;

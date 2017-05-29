@@ -3,17 +3,12 @@ use libc::{pid_t, c_void};
 use nix::sys::ptrace::ptrace;
 use nix::sys::ptrace::ptrace::PTRACE_GETREGS;
 
-macro_rules! __item {
-    ($i:item) => ($i)
-}
-
-
 /// Helper that transforms a Rust structure into a C structure
 /// by adding `#[repr(C)]` on top of it, and making it copyable and cloneable.
 /// The unroll part is there to gain (code) space by grouping fields
 /// that have the same type. For instance:
 /// pub [a, b, c] : u64
-/// will be translated to:
+/// will be translated into:
 /// pub a : u64,
 /// pub b : u64,
 /// pub c : u64.
@@ -24,11 +19,9 @@ macro_rules! unroll_and_structure {
             $(pub [ $( $field:ident ),* ]: $tt:ty),*
         }
     )*) => ($(
-        __item! {
-            #[repr(C)]
-            $(#[$attr])*
-            pub struct $i { $( $(pub $field: $tt),*),* }
-        }
+        #[repr(C)]
+        $(#[$attr])*
+        pub struct $i { $( $(pub $field: $tt),*),* }
         impl $i {
             pub fn new() -> $i {
                 $i {
@@ -67,6 +60,8 @@ mod regs_structs {
 #[cfg(all(target_os = "linux", any(target_arch = "arm")))]
 mod regs_structs {
 }
+
+use self::regs_structs::user_regs_struct;
 
 /*
 pub enum Reg {
@@ -119,9 +114,6 @@ pub mod regs_offset {
 pub mod regs_offset {
     //TODO: arm ABI correspondence
 }
-
-use self::regs_structs::user_regs_struct;
-
 
 /// Copy all @tracee's general purpose registers into a dedicated cache.
 pub unsafe fn fetch_regs(pid: pid_t) -> user_regs_struct {
@@ -212,7 +204,7 @@ mod tests {
 
                 // calling the sleep function,
                 // which should call the NANOSLEEP syscall
-                execvp(&CString::new("sleep").unwrap(), &[CString::new(".").unwrap(), CString::new("0.0001").unwrap()])
+                execvp(&CString::new("sleep").unwrap(), &[CString::new(".").unwrap(), CString::new("0").unwrap()])
                     .expect("failed execvp sleep");
             }
         }

@@ -1,6 +1,5 @@
 
 pub fn enter() {
-    println!("symlink at");
     //                newdirfd = peek_reg(tracee, CURRENT, SYSARG_2);
     //
     //                status = get_sysarg_path(tracee, newpath, SYSARG_3);

@@ -1,6 +1,5 @@
 
 pub fn enter() {
-    println!("stat at");
     //                 dirfd = peek_reg(tracee, CURRENT, SYSARG_1);
     //
     //                 status = get_sysarg_path(tracee, path, SYSARG_2);

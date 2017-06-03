@@ -1,6 +1,5 @@
 
 pub fn enter() {
-    println!("openat");
     //                dirfd = peek_reg(tracee, CURRENT, SYSARG_1);
     //                flags = peek_reg(tracee, CURRENT, SYSARG_3);
     //

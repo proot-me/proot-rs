@@ -1,5 +1,6 @@
 
 pub fn enter() {
-    println!("execve");
 }
 
+pub fn exit() {
+}

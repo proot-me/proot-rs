@@ -1,6 +1,5 @@
 
 pub fn enter() {
-    println!("open");
     //                 flags = peek_reg(tracee, CURRENT, SYSARG_2);
     //
     //                 if (   ((flags & O_NOFOLLOW) != 0)

@@ -1,7 +1,5 @@
 
 pub fn enter() {
-    println!("linkat");
-
     //                 olddirfd = peek_reg(tracee, CURRENT, SYSARG_1);
     //                 newdirfd = peek_reg(tracee, CURRENT, SYSARG_3);
     //                 flags    = peek_reg(tracee, CURRENT, SYSARG_5);

@@ -1,4 +1,6 @@
 
 pub fn enter() {
-    println!("wait4/waitpid");
+}
+
+pub fn exit() {
 }

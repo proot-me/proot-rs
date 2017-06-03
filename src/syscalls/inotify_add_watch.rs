@@ -1,6 +1,5 @@
 
 pub fn enter() {
-    println!("inotify");
     //                 flags = peek_reg(tracee, CURRENT, SYSARG_3);
     //
     //                 if ((flags & IN_DONT_FOLLOW) != 0)

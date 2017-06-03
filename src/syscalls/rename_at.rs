@@ -1,6 +1,6 @@
+use syscalls::link_rename;
 
 pub fn enter() {
-    println!("rename at");
     //                olddirfd = peek_reg(tracee, CURRENT, SYSARG_1);
     //                newdirfd = peek_reg(tracee, CURRENT, SYSARG_3);
     //
@@ -17,4 +17,8 @@ pub fn enter() {
     //                break;
     //
     //                status = translate_path2(tracee, newdirfd, newpath, SYSARG_4, SYMLINK);
+}
+
+pub fn exit() {
+    link_rename::exit();
 }

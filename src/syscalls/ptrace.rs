@@ -1,5 +1,7 @@
 
 pub fn enter() {
-    println!("ptrace");
 
+}
+
+pub fn exit() {
 }

@@ -1,6 +1,5 @@
 
 pub fn enter() {
-    println!("mount");
     //                status = get_sysarg_path(tracee, path, SYSARG_1);
     //                if (status < 0)
     //                break;

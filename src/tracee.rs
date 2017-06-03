@@ -10,6 +10,7 @@ use constants::tracee::{TraceeStatus, TraceeRestartMethod};
 use regs::fetch_regs;
 use regs::regs_structs::user_regs_struct;
 use syscalls::syscall_enter::translate_syscall_enter;
+use syscalls::syscall_exit::translate_syscall_exit;
 
 #[derive(Debug)]
 pub struct Tracee {
@@ -185,7 +186,7 @@ impl Tracee {
          let sysnum = get_reg!(regs, SysArgNum);
          let syscall_result = get_reg!(regs, SysArgResult);
 
-        //TODO: huge switch(sysnum)
+        translate_syscall_exit(regs);
 
         //println!("exit - Sysnum : {:?}, SysArgResult : {:?}", sysnum, syscall_result);
     }

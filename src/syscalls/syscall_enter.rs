@@ -1,4 +1,4 @@
-use syscalls::syscalltype::{SyscallType, syscall_type_from_sysnum};
+use syscalls::syscall_type::{SyscallType, syscall_type_from_sysnum};
 use regs::regs_structs::user_regs_struct;
 use syscalls::*;
 
@@ -6,32 +6,37 @@ pub fn translate_syscall_enter(regs: &user_regs_struct) {
     let sysnum = get_reg!(regs, SysArgNum) as usize;
     let systype = syscall_type_from_sysnum(sysnum);
 
+    println!("enter  \t({:?}, \t{:?}) ", sysnum, systype);
+
     match systype {
-        SyscallType::Execve             => execve::enter(),
-        SyscallType::Ptrace             => ptrace::enter(),
-        SyscallType::Wait               => wait::enter(),
-        SyscallType::Brk                => brk::enter(),
-        SyscallType::GetCwd             => getcwd::enter(),
-        SyscallType::Chdir              => chdir::enter(),
-        SyscallType::BindConnect        => bind_connect::enter(),
         SyscallType::Accept             => accept::enter(),
-        SyscallType::GetSockOrPeerName  => get_sockorpeer_name::enter(),
-        SyscallType::SocketCall         => socketcall::enter(),
-        SyscallType::StandardSyscall    => standard_syscall::enter(sysnum),
-        SyscallType::Open               => open::enter(),
-        SyscallType::StatAt             => stat_at::enter(),
+        SyscallType::BindConnect        => bind_connect::enter(),
+        SyscallType::Brk                => brk::enter(),
+        SyscallType::Chdir              => chdir::enter(),
         SyscallType::ChmodAccessMkNodAt => chmod_access_mknod_at::enter(),
-        SyscallType::InotifyAddWatch    => inotify_add_watch::enter(),
         SyscallType::DirLinkAttr        => dir_link_attr::enter(),
-        SyscallType::PivotRoot          => pivot_root::enter(),
+        SyscallType::Execve             => execve::enter(),
+        SyscallType::GetCwd             => getcwd::enter(),
+        SyscallType::GetSockOrPeerName  => get_sockorpeer_name::enter(),
+        SyscallType::InotifyAddWatch    => inotify_add_watch::enter(),
+        SyscallType::Link               => link_rename::enter(),
         SyscallType::LinkAt             => link_at::enter(),
         SyscallType::Mount              => mount::enter(),
+        SyscallType::Open               => open::enter(),
         SyscallType::OpenAt             => open_at::enter(),
-        SyscallType::DirLinkAt          => dir_link_at::enter(),
-        SyscallType::LinkRename         => link_rename::enter(),
+        SyscallType::PivotRoot          => pivot_root::enter(),
+        SyscallType::Ptrace             => ptrace::enter(),
+        SyscallType::ReadLink           => standard_syscall::enter(sysnum),
+        SyscallType::ReadLinkAt         => readlink_at::enter(),
+        SyscallType::Rename             => link_rename::enter(),
         SyscallType::RenameAt           => rename_at::enter(),
+        SyscallType::SocketCall         => socketcall::enter(),
+        SyscallType::StandardSyscall    => standard_syscall::enter(sysnum),
+        SyscallType::StatAt             => stat_at::enter(),
         SyscallType::SymLink            => sym_link::enter(),
         SyscallType::SymLinkAt          => sym_link_at::enter(),
-        SyscallType::Ignored            => println!("ignored {:?}", sysnum)
+        SyscallType::Wait               => wait::enter(),
+        SyscallType::UnlinkMkdirAt      => unlink_mkdir_at::enter(),
+        _                               => {},
     }
 }

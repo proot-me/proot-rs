@@ -6,11 +6,28 @@ use proot::InfoBag;
 use nix::sys::ptrace::ptrace::*;
 use nix::sys::ptrace::ptrace;
 use constants::ptrace::ptrace_events::*;
-use constants::tracee::{TraceeStatus, TraceeRestartMethod};
 use regs::fetch_regs;
 use regs::regs_structs::user_regs_struct;
 use syscalls::syscall_enter::translate_syscall_enter;
 use syscalls::syscall_exit::translate_syscall_exit;
+
+#[derive(Debug)]
+pub enum TraceeStatus {
+    /// Enter stage
+    SysEnter,
+    /// Exit stage
+    SysExit,
+    /*/// Errno*/
+    //Some(Error)
+}
+
+#[derive(Debug)]
+pub enum TraceeRestartMethod {
+    /// Restart the tracee, without going through the exit stage
+    WithoutExitStage,   // PTRACE_CONT
+    /// Restart the tracee, with the exit stage
+    WithExitStage       // PTRACE_SYSCALL
+}
 
 #[derive(Debug)]
 pub struct Tracee {
@@ -112,8 +129,11 @@ impl Tracee {
     /// and pushes the registers.
     fn translate_syscall(&mut self) {
         // We retrieve the registers of the current tracee.
-        // They contain the system call's number, arguments and other useful info.
-        let regs: user_regs_struct = unsafe {fetch_regs(self.pid)};
+        // They contain the system call's number, arguments and other register's info.
+        let regs = match fetch_regs(self.pid) {
+            Ok(regs) => regs,
+            Err(_)  => return
+        };
 
         match self.status {
             TraceeStatus::SysEnter => {
@@ -137,13 +157,13 @@ impl Tracee {
                 // else
                 self.status = TraceeStatus::SysExit;
 
-                /* Restore tracee's stack pointer now if it won't hit
-                 * the sysexit stage (i.e. when seccomp is enabled and
-                 * there's nothing else to do).  */
-                // if (tracee->restart_how == PTRACE_CONT) {
-                //    tracee->status = 0;
-                //    poke_reg(tracee, STACK_POINTER, peek_reg(tracee, ORIGINAL, STACK_POINTER));
-                // }
+                // Restore tracee's stack pointer now if it won't hit
+                // the sysexit stage (i.e. when seccomp is enabled and
+                // there's nothing else to do).
+                if let Some(TraceeRestartMethod::WithoutExitStage) = self.restart_how {
+                    self.status = TraceeStatus::SysEnter;
+                    // poke_reg(tracee, STACK_POINTER, peek_reg(tracee, ORIGINAL, STACK_POINTER));
+                }
             }
             TraceeStatus::SysExit => {
                 /* By default, restore original register values at the
@@ -162,9 +182,15 @@ impl Tracee {
 
 
     fn translate_syscall_enter(&mut self, regs: &user_regs_struct) {
-        //status = notify_extensions(tracee, SYSCALL_ENTER_START, 0, 0);
+        // status = notify_extensions(tracee, SYSCALL_ENTER_START, 0, 0);
+
         translate_syscall_enter(regs);
+
         // status2 = notify_extensions(tracee, SYSCALL_ENTER_END, status, 0);
+        // if (status2 < 0)
+        //     status = status2;
+
+        // return status;
     }
 
     fn translate_syscall_exit(&mut self, regs: &user_regs_struct) {
@@ -183,12 +209,15 @@ impl Tracee {
         // goto end;
         // }
 
-         let sysnum = get_reg!(regs, SysArgNum);
-         let syscall_result = get_reg!(regs, SysArgResult);
-
         translate_syscall_exit(regs);
 
-        //println!("exit - Sysnum : {:?}, SysArgResult : {:?}", sysnum, syscall_result);
+        //TODO: if not skipping status reassign:
+        // poke_reg(tracee, SYSARG_RESULT, (word_t) status);
+
+
+        // status = notify_extensions(tracee, SYSCALL_EXIT_END, 0, 0);
+        // if (status < 0)
+        //     poke_reg(tracee, SYSARG_RESULT, (word_t) status);
     }
 
     fn handle_seccomp_event(&mut self, info_bag: &mut InfoBag, signal: PtraceSignalEvent) {

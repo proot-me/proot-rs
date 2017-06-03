@@ -1,5 +1,6 @@
 use std::ptr::null_mut;
 use libc::{pid_t, c_void};
+use nix::Result;
 use nix::sys::ptrace::ptrace;
 use nix::sys::ptrace::ptrace::PTRACE_GETREGS;
 
@@ -116,12 +117,16 @@ pub mod regs_offset {
 }
 
 /// Copy all @tracee's general purpose registers into a dedicated cache.
-pub unsafe fn fetch_regs(pid: pid_t) -> user_regs_struct {
+/// Returns either `Ok(regs)` or `Err(Sys(errno))` or `Err(InvalidPath)`.
+pub fn fetch_regs(pid: pid_t) -> Result<user_regs_struct> {
     let mut regs: user_regs_struct = user_regs_struct::new();
     let p_regs: *mut c_void = &mut regs as *mut _ as *mut c_void;
 
-    ptrace(PTRACE_GETREGS, pid, null_mut(), p_regs).expect("get regs");
-    regs
+    let ret = ptrace(PTRACE_GETREGS, pid, null_mut(), p_regs);
+
+    // The Ok(_) signal (Ok(0) usually) is mapped to the registers,
+    // otherwise the error is directly returned.
+    ret.map(|_| regs)
 }
 
 #[cfg(test)]
@@ -148,8 +153,8 @@ mod tests {
                 // the parent will wait for the child's signal before calling set_ptrace_options
                 assert_eq!(waitpid(-1, Some(__WALL)).expect("event loop waitpid"), Stopped(child, SIGSTOP));
 
-                // This call must pass without panic
-                unsafe { fetch_regs(child); }
+                let ret = fetch_regs(child);
+                assert!(ret.is_ok());
 
                 restart(child);
                 end(child);
@@ -160,6 +165,11 @@ mod tests {
                 kill(getpid(), SIGSTOP).expect("test child sigstop");
             }
         }
+    }
+    #[test]
+    fn fetch_regs_should_fail_test() {
+        let ret = fetch_regs(-1);
+        assert!(ret.is_err());
     }
 
     #[test]
@@ -180,10 +190,17 @@ mod tests {
                     match waitpid(-1, Some(__WALL)).expect("event loop waitpid") {
                         PtraceSyscall(pid) => {
                             assert_eq!(pid, child);
-                            let regs = unsafe { fetch_regs(child) };
-                            let sysnum = get_reg!(regs, SysArgNum);
+                            let maybe_regs = fetch_regs(child);
+                            assert!(maybe_regs.is_ok());
 
-                            if sysnum == NANOSLEEP as u64 {
+                            if maybe_regs.is_ok() {
+                                let regs = maybe_regs.unwrap();
+                                let sysnum = get_reg!(regs, SysArgNum);
+
+                                if sysnum == NANOSLEEP as u64 {
+                                    break;
+                                }
+                            } else {
                                 break;
                             }
                         }

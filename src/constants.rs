@@ -20,26 +20,3 @@ pub mod ptrace {
         // pub const EXIT_SIGNAL:               PTraceSignalEvent = SIGTRAP | PTRACE_EVENT_EXIT << 8;
     }
 }
-
-pub mod cli {
-    pub const DEFAULT_ROOTFS: &'static str = "/";
-    pub const DEFAULT_CWD: &'static str = ".";
-}
-
-pub mod tracee {
-    #[derive(Debug)]
-    pub enum TraceeStatus {
-        /// Enter stage
-        SysEnter,
-        /// Exit stage
-        SysExit
-    }
-
-    #[derive(Debug)]
-    pub enum TraceeRestartMethod {
-        /// Restart the tracee, without going through the exit stage
-        WithoutExitStage,   // PTRACE_CONT
-        /// Restart the tracee, with the exit stage
-        WithExitStage       // PTRACE_SYSCALL
-    }
-}

@@ -2,7 +2,9 @@ use clap::{App, Arg};
 use fsnamespace::{FileSystemNameSpace};
 use bindings::Binding;
 use bindings::validators::{binding_validator, path_validator};
-use constants::cli::{DEFAULT_CWD, DEFAULT_ROOTFS};
+
+pub const DEFAULT_ROOTFS: &'static str = "/";
+pub const DEFAULT_CWD: &'static str = ".";
 
 pub fn get_config(fs: &mut FileSystemNameSpace) {
     let matches = App::new("proot_rust")

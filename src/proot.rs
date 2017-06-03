@@ -82,7 +82,7 @@ impl PRoot {
                 //if (getenv("PROOT_NO_SECCOMP") == NULL)
                 //    (void) enable_syscall_filtering(tracee);
 
-                execvp(&CString::new("sleep").unwrap(), &[CString::new(".").unwrap(), CString::new("1").unwrap()])
+                execvp(&CString::new("sleep").unwrap(), &[CString::new(".").unwrap(), CString::new("0").unwrap()])
                     .expect("failed execvp sleep");
                 //execvp(&CString::new("echo").unwrap(), &[CString::new(".").unwrap(), CString::new("TRACEE ECHO").unwrap()])
                 //    .expect("failed execvp echo");

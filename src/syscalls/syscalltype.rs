@@ -17,7 +17,7 @@ pub enum SyscallType {
     GetSockOrPeerName,
     #[allow(dead_code)]
     SocketCall,
-    StandardTranslation,
+    StandardSyscall, // syscalls that only require their path arguments to be translated
     Open,
     StatAt,
     ChmodAccessMkNodAt,
@@ -47,7 +47,7 @@ pub fn syscall_type_from_sysnum(sysnum: usize) -> SyscallType {
         ACCEPT | ACCEPT4 => SyscallType::Accept,
         GETSOCKNAME | GETPEERNAME => SyscallType::GetSockOrPeerName,
         /* SOCKETCALL => SyscallType::SocketCall, */
-        ACCESS | ACCT | CHMOD | CHOWN /*| CHOWN32*/ | CHROOT | GETXATTR | LISTXATTR | MKNOD | /*OLDSTAT |*/ CREAT | REMOVEXATTR | SETXATTR | STAT /*| STAT64*/ /*| STATSFS64*/ | SWAPOFF | SWAPON | TRUNCATE /*| TRUNCATE64*/ /*| UMOUNT*/ | UMOUNT2 | USELIB | UTIME | UTIMES => SyscallType::StandardTranslation,
+        ACCESS | ACCT | CHMOD | CHOWN /*| CHOWN32*/ | CHROOT | GETXATTR | LISTXATTR | MKNOD | /*OLDSTAT |*/ CREAT | REMOVEXATTR | SETXATTR | STAT /*| STAT64*/ /*| STATSFS64*/ | SWAPOFF | SWAPON | TRUNCATE /*| TRUNCATE64*/ /*| UMOUNT*/ | UMOUNT2 | USELIB | UTIME | UTIMES => SyscallType::StandardSyscall,
         OPEN => SyscallType::Open,
         FCHOWNAT /*| FSTATAT64*/ | NEWFSTATAT | UTIMENSAT | NAME_TO_HANDLE_AT => SyscallType::StatAt,
         FCHMODAT | FACCESSAT | FUTIMESAT | MKNODAT => SyscallType::ChmodAccessMkNodAt,

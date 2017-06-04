@@ -1,4 +1,5 @@
 use syscalls::link_rename;
+use syscalls::syscall_exit::SyscallExitResult;
 
 pub fn enter() {
     //                olddirfd = peek_reg(tracee, CURRENT, SYSARG_1);
@@ -19,6 +20,6 @@ pub fn enter() {
     //                status = translate_path2(tracee, newdirfd, newpath, SYSARG_4, SYMLINK);
 }
 
-pub fn exit() {
-    link_rename::exit();
+pub fn exit() -> SyscallExitResult {
+    link_rename::exit()
 }

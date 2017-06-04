@@ -1,8 +1,9 @@
 use syscalls::syscall_type::{SyscallType, syscall_type_from_sysnum};
 use regs::regs_structs::user_regs_struct;
 use syscalls::*;
+use nix::Result;
 
-pub fn translate_syscall_enter(regs: &user_regs_struct) {
+pub fn translate(regs: &user_regs_struct) -> Result<()> {
     let sysnum = get_reg!(regs, SysArgNum) as usize;
     let systype = syscall_type_from_sysnum(sysnum);
 
@@ -37,6 +38,8 @@ pub fn translate_syscall_enter(regs: &user_regs_struct) {
         SyscallType::SymLinkAt          => sym_link_at::enter(),
         SyscallType::Wait               => wait::enter(),
         SyscallType::UnlinkMkdirAt      => unlink_mkdir_at::enter(),
-        _                               => {},
+        _                               => {}
     }
+
+    Ok(())
 }

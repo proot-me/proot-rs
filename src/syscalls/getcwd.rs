@@ -1,10 +1,13 @@
+use syscalls::syscall_exit::SyscallExitResult;
 
 pub fn enter() {
     //set_sysnum(tracee, PR_void);
     //status = 0;
 }
 
-pub fn exit() {
+pub fn exit() -> SyscallExitResult {
+    let new_size = 0;
+
 //    char path[PATH_MAX];
 //    size_t new_size;
 //    size_t size;
@@ -33,8 +36,5 @@ pub fn exit() {
 //    if (status < 0)
 //        break;
 //
-//    /* The value of "status" is used to update the returned value
-//     * in translate_syscall_exit().  */
-//    status = new_size;
-//    break;
+    SyscallExitResult::Value(new_size)
 }

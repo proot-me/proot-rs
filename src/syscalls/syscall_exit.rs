@@ -1,8 +1,32 @@
 use syscalls::syscall_type::{SyscallType, syscall_type_from_sysnum};
 use regs::regs_structs::user_regs_struct;
 use syscalls::*;
+use libc::c_int;
 
-pub fn translate_syscall_exit(regs: &user_regs_struct) {
+pub enum SyscallExitResult {
+    /// The SYSARG_RESULT register will be poked and changed to the c_int value.
+    Value(c_int),
+    /// The SYSARG_RESULT register won't be changed.
+    None
+}
+
+impl SyscallExitResult {
+    pub fn is_none(&self) -> bool {
+        match *self {
+            SyscallExitResult::None => true,
+            _ => false
+        }
+    }
+
+    pub fn get_value(&self) -> c_int {
+        match *self {
+            SyscallExitResult::Value(value) => value,
+            SyscallExitResult::None => panic!("asked for value, but syscall exit result is none")
+        }
+    }
+}
+
+pub fn translate(regs: &user_regs_struct) -> SyscallExitResult {
     let sysnum = get_reg!(regs, SysArgNum) as usize;
     let systype = syscall_type_from_sysnum(sysnum);
 
@@ -24,6 +48,6 @@ pub fn translate_syscall_exit(regs: &user_regs_struct) {
         SyscallType::Execve             => execve::exit(),
         SyscallType::Ptrace             => ptrace::exit(),
         SyscallType::Wait               => wait::exit(),
-        _                               => {},
+        _                               => SyscallExitResult::None
     }
 }

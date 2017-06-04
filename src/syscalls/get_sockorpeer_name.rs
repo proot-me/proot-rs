@@ -1,3 +1,4 @@
+use syscalls::syscall_exit::SyscallExitResult;
 
 pub fn enter() {
 //    /* Remember: PEEK_WORD puts -errno in status and breaks if an
@@ -14,14 +15,14 @@ pub fn enter() {
 //    // status = 0;
 }
 
-pub fn exit() {
+pub fn exit() -> SyscallExitResult {
 //    word_t sock_addr;
 //    word_t size_addr;
 //    word_t max_size;
 //
 //    /* Error reported by the kernel.  */
 //    if ((int) syscall_result < 0)
-//        goto end;
+//        return SyscallExitResult::None;
 //
 //    sock_addr = peek_reg(tracee, ORIGINAL, SYSARG_2);
 //    size_addr = peek_reg(tracee, MODIFIED, SYSARG_3);
@@ -29,8 +30,8 @@ pub fn exit() {
 //
 //    status = translate_socketcall_exit(tracee, sock_addr, size_addr, max_size);
 //    if (status < 0)
-//        break;
+//        return SyscallExitResult::Value(status);
 //
-//    /* Don't overwrite the syscall result.  */
-//    goto end;
+    // Don't overwrite the syscall result.
+    SyscallExitResult::None
 }

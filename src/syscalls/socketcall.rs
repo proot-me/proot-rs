@@ -1,3 +1,4 @@
+use syscalls::syscall_exit::SyscallExitResult;
 
 pub fn enter() {
 //    word_t args_addr;
@@ -69,7 +70,7 @@ pub fn enter() {
 //    break;
 }
 
-pub fn exit() {
+pub fn exit() -> SyscallExitResult {
 //    word_t args_addr;
 //    word_t sock_addr;
 //    word_t size_addr;
@@ -83,7 +84,7 @@ pub fn exit() {
 //        /* Nothing special to do if no sockaddr was specified.  */
 //        sock_addr = PEEK_WORD(SYSARG_ADDR(2));
 //        if (sock_addr == 0)
-//            goto end;
+//            return SyscallExitResult::None;
 //        /* Fall through.  */
 //    case SYS_GETSOCKNAME:
 //    case SYS_GETPEERNAME:
@@ -110,11 +111,11 @@ pub fn exit() {
 //
 //    /* Error reported by the kernel or there's nothing else to do.  */
 //    if ((int) syscall_result < 0 || status == 0)
-//        goto end;
+//        return SyscallExitResult::None;
 //
 //    /* An error occured in SYS_BIND or SYS_CONNECT.  */
 //    if (status < 0)
-//        break;
+//        return SyscallExitResult::Value(status);
 //
 //    /* Remember: PEEK_WORD puts -errno in status and breaks if an
 //     * error occured.  */
@@ -124,8 +125,8 @@ pub fn exit() {
 //
 //    status = translate_socketcall_exit(tracee, sock_addr, size_addr, max_size);
 //    if (status < 0)
-//        break;
+//        return SyscallExitResult::Value(status);
 //
-//    /* Don't overwrite the syscall result.  */
-//    goto end;
+    // Don't overwrite the syscall result.
+    SyscallExitResult::None
 }

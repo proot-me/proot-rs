@@ -122,11 +122,11 @@ pub fn fetch_regs(pid: pid_t) -> Result<user_regs_struct> {
     let mut regs: user_regs_struct = user_regs_struct::new();
     let p_regs: *mut c_void = &mut regs as *mut _ as *mut c_void;
 
-    let ret = ptrace(PTRACE_GETREGS, pid, null_mut(), p_regs);
+    // Notice the ? at the end, which is the equivalent of `try!`.
+    // It will return the error if there is one.
+    ptrace(PTRACE_GETREGS, pid, null_mut(), p_regs) ?;
 
-    // The Ok(_) signal (Ok(0) usually) is mapped to the registers,
-    // otherwise the error is directly returned.
-    ret.map(|_| regs)
+    Ok(regs)
 }
 
 #[cfg(test)]

@@ -1,10 +1,12 @@
 use syscalls::unlink_mkdir_at;
+use syscalls::syscall_exit::SyscallExitResult;
 
 pub fn enter() {
     unlink_mkdir_at::enter();
 }
 
-pub fn exit() {
+pub fn exit() -> SyscallExitResult {
+    let new_size = 0;
 //    char referee[PATH_MAX];
 //    char referer[PATH_MAX];
 //    size_t old_size;
@@ -15,7 +17,7 @@ pub fn exit() {
 //
 //    /* Error reported by the kernel.  */
 //    if ((int) syscall_result < 0)
-//        goto end;
+//        return SyscallExitResult::None;
 //
 //    old_size = syscall_result;
 //
@@ -34,8 +36,7 @@ pub fn exit() {
 //        max_size = PATH_MAX;
 //
 //    if (max_size == 0) {
-//        status = -EINVAL;
-//        break;
+//        return SyscallExitResult::Value(-EINVAL);
 //    }
 //
 //    /* The kernel does NOT put the NULL terminating byte for
@@ -48,21 +49,20 @@ pub fn exit() {
 //    /* Not optimal but safe (path is fully translated).  */
 //    status = read_path(tracee, referer, input);
 //    if (status < 0)
-//        break;
+//        return SyscallExitResult::Value(status);
 //
 //    if (status >= PATH_MAX) {
-//        status = -ENAMETOOLONG;
-//        break;
+//        return SyscallExitResult::Value(-ENAMETOOLONG);
 //    }
 //
 //    status = detranslate_path(tracee, referee, referer);
 //    if (status < 0)
-//        break;
+//        return SyscallExitResult::Value(status);
 //
 //    /* The original path doesn't require any transformation, i.e
 //     * it is a symetric binding.  */
 //    if (status == 0)
-//        goto end;
+//        return SyscallExitResult::None;
 //
 //    /* Overwrite the path.  Note: the output buffer might be
 //     * initialized with zeros but it was updated with the kernel
@@ -79,10 +79,8 @@ pub fn exit() {
 //        status = write_data(tracee, output, referee, max_size);
 //    }
 //    if (status < 0)
-//        break;
+//        return SyscallExitResult::Value(status);
 //
-//    /* The value of "status" is used to update the returned value
-//     * in translate_syscall_exit().  */
-//    status = new_size;
-//    break;
+    // The value of "status" is used to update the returned value in translate_syscall_exit().
+    SyscallExitResult::Value(new_size)
 }

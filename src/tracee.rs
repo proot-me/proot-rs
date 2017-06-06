@@ -30,12 +30,14 @@ impl TraceeStatus {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum TraceeRestartMethod {
     /// Restart the tracee, without going through the exit stage
     WithoutExitStage,   // PTRACE_CONT
     /// Restart the tracee, with the exit stage
-    WithExitStage       // PTRACE_SYSCALL
+    WithExitStage,       // PTRACE_SYSCALL,
+    /// Do not restart the tracee
+    None
 }
 
 #[derive(Debug)]
@@ -45,7 +47,7 @@ pub struct Tracee {
     /// Whether the tracee is in the enter or exit stage
     status: TraceeStatus,
     /// The ptrace's restart method depends on the status (enter or exit) and seccomp on/off
-    restart_how: Option<TraceeRestartMethod>,
+    restart_how: TraceeRestartMethod,
     /// State of the seccomp acceleration for this tracee.
     seccomp: bool,
     /// Ensure the sysexit stage is always hit under seccomp.
@@ -58,8 +60,8 @@ impl Tracee {
             pid: pid,
             seccomp: false,
             status: TraceeStatus::SysEnter, // it always starts by the enter stage
-            restart_how: None,
-            sysexit_pending: false
+            restart_how: TraceeRestartMethod::None,
+            sysexit_pending: false,
         }
     }
 
@@ -74,7 +76,7 @@ impl Tracee {
         };
 
         // the restart method might already have been set elsewhere
-        if self.restart_how.is_none() {
+        if self.restart_how == TraceeRestartMethod::None {
             // When seccomp is enabled, all events are restarted in
             // non-stop mode, but this default choice could be overwritten
             // later if necessary.  The check against "sysexit_pending"
@@ -83,9 +85,9 @@ impl Tracee {
             // before the exit stage, eg. PTRACE_EVENT_EXEC for the exit
             // stage of execve(2).
             if self.seccomp && !self.sysexit_pending {
-                self.restart_how = Some(TraceeRestartMethod::WithoutExitStage);
+                self.restart_how = TraceeRestartMethod::WithoutExitStage;
             } else {
-                self.restart_how = Some(TraceeRestartMethod::WithExitStage);
+                self.restart_how = TraceeRestartMethod::WithExitStage;
             }
         }
 
@@ -93,10 +95,26 @@ impl Tracee {
             PTRACE_S_RAW_SIGTRAP| PTRACE_S_NORMAL_SIGTRAP => self.handle_sigtrap_event(info_bag, signal),
             PTRACE_S_SECCOMP | PTRACE_S_SECCOMP2 => self.handle_seccomp_event(info_bag, signal),
             PTRACE_S_VFORK | PTRACE_S_FORK | PTRACE_S_CLONE => self.new_child(signal),
-            PTRACE_S_EXEC | PTRACE_S_VFORK_DONE => println!("EXEC or VFORK DONE"), //TODO: handle exec case
-            PTRACE_S_SIGSTOP => println!("sigstop! {}", self.pid), //TODO: handle sigstop case
-            _ => ()
+            PTRACE_S_EXEC | PTRACE_S_VFORK_DONE => self.handle_exec_vfork_event(),
+            PTRACE_S_SIGSTOP => self.handle_sigstop_event(),
+            _ => {}
         }
+    }
+
+    fn handle_sigstop_event(&mut self) {
+        println!("sigstop! {}", self.pid);
+
+        // Stop this tracee until PRoot has received
+        // the EVENT_*FORK|CLONE notification.
+        //if (tracee->exe == NULL) {
+        //    tracee->sigstop = SIGSTOP_PENDING;
+        //    self.restart_how = TraceeRestartMethod::None;
+        //    return TraceeRestartSignal::Stopped;
+        //}
+    }
+
+    fn handle_exec_vfork_event(&mut self) {
+        println!("EXEC or VFORK event");
     }
 
     /// Standard handling of either:
@@ -105,27 +123,27 @@ impl Tracee {
     fn handle_sigtrap_event(&mut self, info_bag: &mut InfoBag, signal: PtraceSignalEvent) {
         if signal == PTRACE_S_RAW_SIGTRAP {
             // it's the initial SIGTRAP signal
-            self.set_ptrace_options(info_bag)
+            self.set_ptrace_options(info_bag);
         }
 
         /* This tracee got signaled then freed during the
            sysenter stage but the kernel reports the sysexit
            stage; just discard this spurious tracee/event. */
         // if (tracee->exe == NULL) {
-        //    tracee->restart_how = PTRACE_CONT;
-        //    return 0;
+        //    self.restart_how = Some(TraceeRestartMethod::WithoutExitStage);
+        //    return TraceeRestartSignal::Signal(0);
         // }
 
         if self.seccomp {
             match self.status {
                 TraceeStatus::SysEnter => {
                     // sysenter: ensure the sysexit stage will be hit under seccomp.
-                    self.restart_how = Some(TraceeRestartMethod::WithExitStage);
+                    self.restart_how = TraceeRestartMethod::WithExitStage;
                     self.sysexit_pending = true;
                 }
                 TraceeStatus::SysExit | TraceeStatus::Error(_)  => {
                     // sysexit: the next sysenter will be notified by seccomp.
-                    self.restart_how = Some(TraceeRestartMethod::WithoutExitStage);
+                    self.restart_how = TraceeRestartMethod::WithoutExitStage;
                     self.sysexit_pending = false;
                 }
             }
@@ -168,7 +186,7 @@ impl Tracee {
                 // Restore tracee's stack pointer now if it won't hit
                 // the sysexit stage (i.e. when seccomp is enabled and
                 // there's nothing else to do).
-                if let Some(TraceeRestartMethod::WithoutExitStage) = self.restart_how {
+                if self.restart_how == TraceeRestartMethod::WithoutExitStage  {
                     self.status = TraceeStatus::SysEnter;
                     // poke_reg(tracee, STACK_POINTER, peek_reg(tracee, ORIGINAL, STACK_POINTER));
                 }
@@ -239,15 +257,17 @@ impl Tracee {
 
     pub fn restart(&mut self) {
         match self.restart_how {
-            Some(TraceeRestartMethod::WithoutExitStage) => ptrace(PTRACE_CONT, self.pid, null_mut(), null_mut())
-                .expect("exit tracee without exit stage"),
-            Some(TraceeRestartMethod::WithExitStage) => ptrace(PTRACE_SYSCALL, self.pid, null_mut(), null_mut())
-                .expect("exit tracee with exit stage"),
-            None => panic!("forgot to set restart method!")
+            TraceeRestartMethod::WithoutExitStage => {
+                ptrace(PTRACE_CONT, self.pid, null_mut(), null_mut()).expect("exit tracee without exit stage");
+            },
+            TraceeRestartMethod::WithExitStage => {
+                ptrace(PTRACE_SYSCALL, self.pid, null_mut(), null_mut()).expect("exit tracee with exit stage");
+            },
+            TraceeRestartMethod::None => {}
         };
 
         // the restart method is reinitialised here
-        self.restart_how = None;
+        self.restart_how = TraceeRestartMethod::None;
     }
 
 

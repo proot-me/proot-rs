@@ -1,5 +1,5 @@
 use syscalls::syscall_type::{SyscallType, syscall_type_from_sysnum};
-use regs::regs_structs::user_regs_struct;
+use libc::user_regs_struct;
 use syscalls::*;
 use nix::Result;
 

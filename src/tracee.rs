@@ -1,15 +1,14 @@
 use std::ptr::null_mut;
-use nix::sys::ioctl::libc::pid_t;
+use libc::{pid_t, user_regs_struct};
 use nix::sys::signal::Signal;
 use nix::sys::ptrace::ptrace_setoptions;
-use proot::InfoBag;
 use nix::{Result, Error};
 use nix::sys::ptrace::ptrace::*;
 use nix::sys::ptrace::ptrace;
 use constants::ptrace::ptrace_events::*;
-use regs::fetch_regs;
-use regs::regs_structs::user_regs_struct;
 use syscalls::{syscall_enter, syscall_exit};
+use proot::InfoBag;
+use regs::fetch_regs;
 
 #[derive(Debug)]
 pub enum TraceeStatus {

@@ -1,86 +1,9 @@
 use std::ptr::null_mut;
-use libc::{pid_t, c_void};
+use std::mem;
+use libc::{pid_t, c_void, user_regs_struct};
 use nix::Result;
 use nix::sys::ptrace::ptrace;
 use nix::sys::ptrace::ptrace::PTRACE_GETREGS;
-
-/// Helper that transforms a Rust structure into a C structure
-/// by adding `#[repr(C)]` on top of it, and making it copyable and cloneable.
-/// The unroll part is there to gain (code) space by grouping fields
-/// that have the same type. For instance:
-/// pub [a, b, c] : u64
-/// will be translated into:
-/// pub a : u64,
-/// pub b : u64,
-/// pub c : u64.
-/// It also implements the new() method (though it only works if none of the fields are arrays).
-macro_rules! unroll_and_structure {
-    ($($(#[$attr:meta])*
-        pub struct $i:ident {
-            $(pub [ $( $field:ident ),* ]: $tt:ty),*
-        }
-    )*) => ($(
-        #[repr(C)]
-        $(#[$attr])*
-        pub struct $i { $( $(pub $field: $tt),*),* }
-        impl $i {
-            pub fn new() -> $i {
-                $i {
-                    $( $( $field: 0),*),*
-                }
-            }
-        }
-        impl Copy for $i {}
-        impl Clone for $i {
-            fn clone(&self) -> $i { *self }
-        }
-    )*)
-}
-
-/// The following structures are there to get the offset of the register's fields
-/// (syscall number, arg1, arg2, etc...) in the current architecture's structures.
-///
-/// Reminder: the order in which the fields are declared is paramount.
-/// `[repr(C)]` ensures that it stays the same when transformed in a C struct.
-
-#[cfg(all(target_os = "linux", any(target_arch = "x86_64")))]
-pub mod regs_structs {
-    unroll_and_structure! {
-        #[derive(Debug)]
-        pub struct user_regs_struct {
-            pub [r15, r14, r13, r12, rbp, rbx, r11, r10, r9, r8, rax, rcx, rdx, rsi, rdi, orig_rax,
-            rip, cs, eflags, rsp, ss, fs_base, gs_base, ds, es, fs, gs]: u64
-        }
-    }
-}
-
-#[cfg(all(target_os = "linux", any(target_arch = "x86")))]
-mod regs_structs {
-}
-
-#[cfg(all(target_os = "linux", any(target_arch = "arm")))]
-mod regs_structs {
-}
-
-use self::regs_structs::user_regs_struct;
-
-/*
-pub enum Reg {
-    SysArgNum = 0,
-    SysArg1,
-    SysArg2,
-    SysArg3,
-    SysArg4,
-    SysArg5,
-    SysArg6,
-    SysArgResult,
-    StackPointer,
-    InstrPointer,
-    RtldFini,
-    StateFlags,
-    UserArg1,
-}
-*/
 
 /// Specify the ABI registers (syscall argument passing, stack pointer).
 /// See sysdeps/unix/sysv/linux/${ARCH}/syscall.S from the GNU C Library.
@@ -102,24 +25,34 @@ pub mod regs_offset {
         ($regs:ident, StateFlags)   => ($regs.eflags);
         ($regs:ident, UserArg1)     => ($regs.rdi);
     }
+
+    //todo: variant in case tracee->_regs[version].cs == 0x23
 }
 
 #[cfg(all(target_os = "linux", any(target_arch = "x86")))]
 #[macro_use]
 pub mod regs_offset {
-    //TODO: x86 ABI correspondence
-}
-
-#[cfg(all(target_os = "linux", any(target_arch = "arm")))]
-#[macro_use]
-pub mod regs_offset {
-    //TODO: arm ABI correspondence
+    macro_rules! get_reg {
+        ($regs:ident, SysArgNum)    => ($regs.orig_eax);
+        ($regs:ident, SysArg1)      => ($regs.ebx);
+        ($regs:ident, SysArg2)      => ($regs.ecx);
+        ($regs:ident, SysArg3)      => ($regs.edx);
+        ($regs:ident, SysArg4)      => ($regs.esi);
+        ($regs:ident, SysArg5)      => ($regs.edi);
+        ($regs:ident, SysArg6)      => ($regs.ebp);
+        ($regs:ident, SysArgResult) => ($regs.eax);
+        ($regs:ident, StackPointer) => ($regs.esp);
+        ($regs:ident, InstrPointer) => ($regs.eip);
+        ($regs:ident, RtldFini)     => ($regs.edx);
+        ($regs:ident, StateFlags)   => ($regs.eflags);
+        ($regs:ident, UserArg1)     => ($regs.eax);
+    }
 }
 
 /// Copy all @tracee's general purpose registers into a dedicated cache.
 /// Returns either `Ok(regs)` or `Err(Sys(errno))` or `Err(InvalidPath)`.
 pub fn fetch_regs(pid: pid_t) -> Result<user_regs_struct> {
-    let mut regs: user_regs_struct = user_regs_struct::new();
+    let mut regs: user_regs_struct = unsafe {mem::zeroed()};
     let p_regs: *mut c_void = &mut regs as *mut _ as *mut c_void;
 
     // Notice the ? at the end, which is the equivalent of `try!`.
@@ -173,7 +106,9 @@ mod tests {
     }
 
     #[test]
-    fn get_reg_sysnum_sleep_test() {
+    /// Tests that `fetch_regs` works on a simple syscall;
+    /// the test is a success if the NANOSLEEP syscall is detected (with its corresponding signum).
+    fn fetch_regs_sysnum_sleep_test() {
         match fork().expect("fork in test") {
             ForkResult::Parent { child } => {
                 let info_bag = &mut InfoBag::new();

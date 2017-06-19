@@ -1,7 +1,6 @@
 use syscalls::syscall_type::{SyscallType, syscall_type_from_sysnum};
-use regs::regs_structs::user_regs_struct;
 use syscalls::*;
-use libc::c_int;
+use libc::{c_int, user_regs_struct};
 
 pub enum SyscallExitResult {
     /// The SYSARG_RESULT register will be poked and changed to the c_int value.

@@ -17,12 +17,14 @@ impl SyscallExitResult {
         }
     }
 
+    /*
     pub fn get_value(&self) -> c_int {
         match *self {
             SyscallExitResult::Value(value) => value,
             SyscallExitResult::None => panic!("asked for value, but syscall exit result is none")
         }
     }
+    */
 }
 
 pub fn translate(regs: &user_regs_struct) -> SyscallExitResult {

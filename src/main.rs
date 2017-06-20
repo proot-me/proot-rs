@@ -25,11 +25,8 @@ fn main() {
     // step 2: Start the first tracee
     proot.launch_process();
 
-    if !proot.is_main_thread() {
-        // For any tracee process we end the program here,
-        // as what follows (event loop) is only for the main thread.
-        return;
-    }
+    // what follows (event loop) is only for the main thread,
+    // as the child thread will stop after executing the execve command
 
     // step 3: Configure the signal actions
     sigactions::prepare_sigactions(stop_program, show_info);

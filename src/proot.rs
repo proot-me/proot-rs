@@ -37,7 +37,6 @@ impl InfoBag {
 #[derive(Debug)]
 pub struct PRoot {
     info_bag: InfoBag,
-    main_pid: pid_t,
     tracees: HashMap<pid_t, Tracee>,
     alive_tracees: Vec<pid_t>,
     /// Information related to a file-system name-space.
@@ -48,7 +47,6 @@ impl PRoot {
     pub fn new(fs: FileSystemNameSpace) -> PRoot {
         PRoot {
             info_bag: InfoBag::new(),
-            main_pid: getpid(),
             tracees: HashMap::new(),
             alive_tracees: vec![],
             fs: fs
@@ -63,7 +61,7 @@ impl PRoot {
     /// The `fork()` done here implies that the OS will apply copy-on-write
     /// on all the shared memory of the parent and child processes
     /// (heap, libraries...), so both of them will have their own (owned) version
-    /// of the PRoot memory (so the `fs` and `heap` field mainly).
+    /// of the PRoot memory.
     pub fn launch_process(&mut self) {
         match fork().expect("fork in launch process") {
             ForkResult::Parent { child } => {
@@ -140,8 +138,6 @@ impl PRoot {
     }
 
     /******** Utilities ****************/
-
-    pub fn is_main_thread(&self) -> bool { getpid() == self.main_pid }
 
     pub fn create_tracee(&mut self, pid: pid_t) -> Option<&Tracee> {
         self.tracees.insert(pid, Tracee::new(pid));

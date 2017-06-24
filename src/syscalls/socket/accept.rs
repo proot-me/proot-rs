@@ -1,4 +1,4 @@
-use syscalls::get_sockorpeer_name;
+use syscalls::socket::get_sockorpeer_name;
 use syscalls::syscall_exit::SyscallExitResult;
 
 pub fn enter() {

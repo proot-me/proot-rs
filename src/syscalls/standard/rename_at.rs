@@ -1,4 +1,4 @@
-use syscalls::link_rename;
+use syscalls::standard::link_rename;
 use syscalls::syscall_exit::SyscallExitResult;
 
 pub fn enter() {

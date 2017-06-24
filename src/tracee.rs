@@ -82,7 +82,7 @@ impl Tracee {
             // ensures WithExitStage/PTRACE_SYSCALL (used to hit the exit stage under
             // seccomp) is not cleared due to an event that would happen
             // before the exit stage, eg. PTRACE_EVENT_EXEC for the exit
-            // stage of execve(2).
+            // stage of syscalls.execve(2).
             if self.seccomp && !self.sysexit_pending {
                 self.restart_how = TraceeRestartMethod::WithoutExitStage;
             } else {

@@ -1,10 +1,16 @@
 use syscalls::syscall_type::{SyscallType, syscall_type_from_sysnum};
 use libc::user_regs_struct;
-use syscalls::*;
+use syscalls::execve;
+use syscalls::heap::*;
+use syscalls::ptrace::*;
+use syscalls::socket::*;
+use syscalls::standard::*;
 use nix::Result;
+use regs::regs_offset::get_reg;
+use regs::Reg;
 
 pub fn translate(regs: &user_regs_struct) -> Result<()> {
-    let sysnum = get_reg!(regs, SysArgNum) as usize;
+    let sysnum = get_reg(regs, Reg::SysArgNum) as usize;
     let systype = syscall_type_from_sysnum(sysnum);
 
     println!("enter  \t({:?}, \t{:?}) ", sysnum, systype);

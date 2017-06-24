@@ -31,11 +31,11 @@ pub fn enter() {
 //		 * tracee calls brk(2), although an address was specified.
 //		 * This is not supposed to happen the first time.  It is
 //		 * likely because this tracee is the very first child of PRoot
-//		 * but the first execve(2) didn't happen yet (so this is not
+//		 * but the first syscalls.execve(2) didn't happen yet (so this is not
 //		 * its first call to brk(2)).  For instance, the installation
 //		 * of seccomp filters is made after this very first process is
 //		 * traced, and might call malloc(3) before the first
-//		 * execve(2).  */
+//		 * syscalls.execve(2).  */
 //		if (new_brk_address != 0) {
 //			if (tracee->verbose > 0)
 //				note(tracee, WARNING, INTERNAL,

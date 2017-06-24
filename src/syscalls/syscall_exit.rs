@@ -1,6 +1,12 @@
 use syscalls::syscall_type::{SyscallType, syscall_type_from_sysnum};
-use syscalls::*;
+use syscalls::execve;
+use syscalls::heap::*;
+use syscalls::ptrace::*;
+use syscalls::socket::*;
+use syscalls::standard::*;
 use libc::{c_int, user_regs_struct};
+use regs::regs_offset::get_reg;
+use regs::Reg;
 
 pub enum SyscallExitResult {
     /// The SYSARG_RESULT register will be poked and changed to the c_int value.
@@ -28,7 +34,7 @@ impl SyscallExitResult {
 }
 
 pub fn translate(regs: &user_regs_struct) -> SyscallExitResult {
-    let sysnum = get_reg!(regs, SysArgNum) as usize;
+    let sysnum = get_reg(regs, Reg::SysArgNum) as usize;
     let systype = syscall_type_from_sysnum(sysnum);
 
     println!("exit  \t({:?}, \t{:?})", sysnum, systype);

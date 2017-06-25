@@ -1,5 +1,8 @@
+use nix::Result;
 
-pub fn enter() {
+pub fn enter() -> Result<()> {
+    Ok(())
+
     //                 flags = peek_reg(tracee, CURRENT, SYSARG_2);
     //
     //                 if (   ((flags & O_NOFOLLOW) != 0)

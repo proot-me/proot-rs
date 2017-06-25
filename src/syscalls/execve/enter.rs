@@ -1,5 +1,13 @@
+use libc::{pid_t, user_regs_struct};
+use nix::Result;
+use syscalls::sysarg::get_sysarg_path;
+use regs::Word;
 
-pub fn translate() {
+pub fn translate(pid: pid_t, regs: &user_regs_struct) -> Result<()> {
+    let user_path = get_sysarg_path(pid, get_reg!(regs, SysArg1) as *mut Word) ?;
+
+    println!("translate: {:?}", user_path);
+
 //	char user_path[PATH_MAX];
 //	char host_path[PATH_MAX];
 //	char new_exe[PATH_MAX];
@@ -107,4 +115,6 @@ pub fn translate() {
 //	tracee->as_ptracee.ignore_loader_syscalls = true;
 //
 //	return 0;
+
+    Ok(())
 }

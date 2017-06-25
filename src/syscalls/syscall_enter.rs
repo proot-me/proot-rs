@@ -1,16 +1,14 @@
 use syscalls::syscall_type::{SyscallType, syscall_type_from_sysnum};
-use libc::user_regs_struct;
+use libc::{pid_t, user_regs_struct};
 use syscalls::execve;
 use syscalls::heap::*;
 use syscalls::ptrace::*;
 use syscalls::socket::*;
 use syscalls::standard::*;
 use nix::Result;
-use regs::regs_offset::get_reg;
-use regs::Reg;
 
-pub fn translate(regs: &user_regs_struct) -> Result<()> {
-    let sysnum = get_reg(regs, Reg::SysArgNum) as usize;
+pub fn translate(pid: pid_t, regs: &user_regs_struct) -> Result<()> {
+    let sysnum = get_reg!(regs, SysArgNum) as usize;
     let systype = syscall_type_from_sysnum(sysnum);
 
     println!("enter  \t({:?}, \t{:?}) ", sysnum, systype);
@@ -22,7 +20,7 @@ pub fn translate(regs: &user_regs_struct) -> Result<()> {
         SyscallType::Chdir              => chdir::enter(),
         SyscallType::ChmodAccessMkNodAt => chmod_access_mknod_at::enter(),
         SyscallType::DirLinkAttr        => dir_link_attr::enter(),
-        SyscallType::Execve             => execve::enter(),
+        SyscallType::Execve             => execve::enter(pid, regs),
         SyscallType::GetCwd             => getcwd::enter(),
         SyscallType::GetSockOrPeerName  => get_sockorpeer_name::enter(),
         SyscallType::InotifyAddWatch    => inotify_add_watch::enter(),
@@ -44,8 +42,6 @@ pub fn translate(regs: &user_regs_struct) -> Result<()> {
         SyscallType::SymLinkAt          => sym_link_at::enter(),
         SyscallType::Wait               => wait::enter(),
         SyscallType::UnlinkMkdirAt      => unlink_mkdir_at::enter(),
-        _                               => {}
+        _                               => Ok(())
     }
-
-    Ok(())
 }

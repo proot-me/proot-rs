@@ -1,6 +1,9 @@
 use syscalls::syscall_exit::SyscallExitResult;
+use nix::Result;
 
-pub fn enter() {
+pub fn enter() -> Result<()> {
+    Ok(())
+
 //    /* Remember: PEEK_WORD puts -errno in status and breaks if an
 //     * error occured.  */
 //    // size = (int) PEEK_WORD(peek_reg(tracee, ORIGINAL, SYSARG_3), special ? -EINVAL : 0);

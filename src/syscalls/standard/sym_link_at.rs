@@ -1,5 +1,8 @@
+use nix::Result;
 
-pub fn enter() {
+pub fn enter() -> Result<()> {
+    Ok(())
+
     //                newdirfd = peek_reg(tracee, CURRENT, SYSARG_2);
     //
     //                status = get_sysarg_path(tracee, newpath, SYSARG_3);

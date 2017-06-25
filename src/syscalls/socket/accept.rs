@@ -1,7 +1,10 @@
 use syscalls::socket::get_sockorpeer_name;
 use syscalls::syscall_exit::SyscallExitResult;
+use nix::Result;
 
-pub fn enter() {
+pub fn enter() -> Result<()> {
+    get_sockorpeer_name::enter()
+
     /* Nothing special to do if no sockaddr was specified.  */
     // if (peek_reg(tracee, ORIGINAL, SYSARG_2) == 0) {
     //     status = 0;
@@ -9,7 +12,6 @@ pub fn enter() {
     // }
     // special = true;
 
-    get_sockorpeer_name::enter();
 }
 
 pub fn exit() -> SyscallExitResult {

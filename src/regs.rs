@@ -1,80 +1,57 @@
 use std::ptr::null_mut;
 use std::mem;
-use libc::{pid_t, c_void, user_regs_struct};
+use libc::{pid_t, c_void, c_long, user_regs_struct};
 use nix::Result;
 use nix::sys::ptrace::ptrace;
 use nix::sys::ptrace::ptrace::PTRACE_GETREGS;
 
-pub enum Reg {
-    SysArgNum,
-    SysArg1,
-    SysArg2,
-    SysArg3,
-    SysArg4,
-    SysArg5,
-    SysArg6,
-    SysArgResult,
-    StackPointer,
-    InstrPointer,
-    RtldFini,
-    StateFlags,
-    UserArg1
-}
+pub type Word = c_long;
 
 /// Specify the ABI registers (syscall argument passing, stack pointer).
 /// See sysdeps/unix/sysv/linux/${ARCH}/syscall.S from the GNU C Library.
 #[cfg(all(target_os = "linux", any(target_arch = "x86_64")))]
+#[macro_use]
 pub mod regs_offset {
-    use super::*;
-
-    pub fn get_reg(regs: &user_regs_struct, reg: Reg) -> u64 {
-        match reg {
-            Reg::SysArgNum      => regs.orig_rax,
-            Reg::SysArg1        => regs.rdi,
-            Reg::SysArg2        => regs.rsi,
-            Reg::SysArg3        => regs.rdx,
-            Reg::SysArg4        => regs.r10,
-            Reg::SysArg5        => regs.r8,
-            Reg::SysArg6        => regs.r9,
-            Reg::SysArgResult   => regs.rax,
-            Reg::StackPointer   => regs.rsp,
-            Reg::InstrPointer   => regs.rip,
-            Reg::RtldFini       => regs.rdx,
-            Reg::StateFlags     => regs.eflags,
-            Reg::UserArg1       => regs.rdi,
-        }
-        //todo: variant in case tracee->_regs[version].cs == 0x23
+    macro_rules! get_reg {
+        ($regs:ident, SysArgNum)    => ($regs.orig_rax);
+        ($regs:ident, SysArg1)      => ($regs.rdi);
+        ($regs:ident, SysArg2)      => ($regs.rsi);
+        ($regs:ident, SysArg3)      => ($regs.rdx);
+        ($regs:ident, SysArg4)      => ($regs.r10);
+        ($regs:ident, SysArg5)      => ($regs.r8);
+        ($regs:ident, SysArg6)      => ($regs.r9);
+        ($regs:ident, SysArgResult) => ($regs.rax);
+        ($regs:ident, StackPointer) => ($regs.rsp);
+        ($regs:ident, InstrPointer) => ($regs.rip);
+        ($regs:ident, RtldFini)     => ($regs.rdx);
+        ($regs:ident, StateFlags)   => ($regs.eflags);
+        ($regs:ident, UserArg1)     => ($regs.rdi);
     }
 }
-
 
 #[cfg(all(target_os = "linux", any(target_arch = "x86")))]
+#[macro_use]
 pub mod regs_offset {
-    use super::*;
-
-    pub fn get_reg(regs: &user_regs_struct, reg: Reg) -> u64 {
-        match reg {
-            Reg::SysArgNum      => regs.orig_eax,
-            Reg::SysArg1        => regs.ebx,
-            Reg::SysArg2        => regs.ecx,
-            Reg::SysArg3        => regs.edx,
-            Reg::SysArg4        => regs.esi,
-            Reg::SysArg5        => regs.edi,
-            Reg::SysArg6        => regs.ebp,
-            Reg::SysArgResult   => regs.eax,
-            Reg::StackPointer   => regs.esp,
-            Reg::InstrPointer   => regs.eip,
-            Reg::RtldFini   => regs.edx,
-            Reg::StateFlags     => regs.eflags,
-            Reg::UserArg1       => regs.eax,
-        }
+    macro_rules! get_reg {
+        ($regs:ident, SysArgNum)    => ($regs.orig_eax);
+        ($regs:ident, SysArg1)      => ($regs.ebx);
+        ($regs:ident, SysArg2)      => ($regs.ecx);
+        ($regs:ident, SysArg3)      => ($regs.edx);
+        ($regs:ident, SysArg4)      => ($regs.esi);
+        ($regs:ident, SysArg5)      => ($regs.edi);
+        ($regs:ident, SysArg6)      => ($regs.ebp);
+        ($regs:ident, SysArgResult) => ($regs.eax);
+        ($regs:ident, StackPointer) => ($regs.esp);
+        ($regs:ident, InstrPointer) => ($regs.eip);
+        ($regs:ident, RtldFini)     => ($regs.edx);
+        ($regs:ident, StateFlags)   => ($regs.eflags);
+        ($regs:ident, UserArg1)     => ($regs.eax);
     }
 }
-
-use self::regs_offset::get_reg;
 
 /// Copy all @tracee's general purpose registers into a dedicated cache.
 /// Returns either `Ok(regs)` or `Err(Sys(errno))` or `Err(InvalidPath)`.
+#[inline]
 pub fn fetch_regs(pid: pid_t) -> Result<user_regs_struct> {
     let mut regs: user_regs_struct = unsafe {mem::zeroed()};
     let p_regs: *mut c_void = &mut regs as *mut _ as *mut c_void;
@@ -149,17 +126,10 @@ mod tests {
                     match waitpid(-1, Some(__WALL)).expect("event loop waitpid") {
                         PtraceSyscall(pid) => {
                             assert_eq!(pid, child);
-                            let maybe_regs = fetch_regs(child);
-                            assert!(maybe_regs.is_ok());
+                            let regs = fetch_regs(child).expect("fetch regs");
+                            let sysnum = get_reg!(regs, SysArgNum);
 
-                            if maybe_regs.is_ok() {
-                                let regs = maybe_regs.unwrap();
-                                let sysnum = get_reg(&regs, Reg::SysArgNum);
-
-                                if sysnum == NANOSLEEP as u64 {
-                                    break;
-                                }
-                            } else {
+                            if sysnum == NANOSLEEP as u64 {
                                 break;
                             }
                         }

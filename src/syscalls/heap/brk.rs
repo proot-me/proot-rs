@@ -1,6 +1,9 @@
 use syscalls::syscall_exit::SyscallExitResult;
+use nix::Result;
 
-pub fn enter() {
+pub fn enter() -> Result<()> {
+    Ok(())
+
 //	word_t new_brk_address;
 //	size_t old_heap_size;
 //	size_t new_heap_size;

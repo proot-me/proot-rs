@@ -212,7 +212,7 @@ impl Tracee {
         // if (status > 0)
         //     return 0;
 
-        let status = syscall_enter::translate(regs);
+        let status = syscall_enter::translate(self.pid, regs);
 
         // status2 = notify_extensions(tracee, SYSCALL_ENTER_END, status, 0);
         // if (status2 < 0)

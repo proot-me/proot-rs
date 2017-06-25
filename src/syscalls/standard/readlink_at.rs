@@ -1,8 +1,9 @@
 use syscalls::standard::unlink_mkdir_at;
 use syscalls::syscall_exit::SyscallExitResult;
+use nix::Result;
 
-pub fn enter() {
-    unlink_mkdir_at::enter();
+pub fn enter() -> Result<()> {
+    unlink_mkdir_at::enter()
 }
 
 pub fn exit() -> SyscallExitResult {

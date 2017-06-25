@@ -1,8 +1,11 @@
 use syscalls::syscall_exit::SyscallExitResult;
+use nix::Result;
 
 /// Translates link and rename syscalls
-pub fn enter() {
-//    status = translate_sysarg(tracee, SYSARG_1, SYMLINK);
+pub fn enter() -> Result<()> {
+    Ok(())
+
+    //    status = translate_sysarg(tracee, SYSARG_1, SYMLINK);
 //    if (status < 0)
 //        break;
 //

@@ -1,7 +1,10 @@
 use syscalls::standard::link_rename;
 use syscalls::syscall_exit::SyscallExitResult;
+use nix::Result;
 
-pub fn enter() {
+pub fn enter() -> Result<()> {
+    Ok(())
+
     //                olddirfd = peek_reg(tracee, CURRENT, SYSARG_1);
     //                newdirfd = peek_reg(tracee, CURRENT, SYSARG_3);
     //

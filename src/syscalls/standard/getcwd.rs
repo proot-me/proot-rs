@@ -1,6 +1,9 @@
 use syscalls::syscall_exit::SyscallExitResult;
+use nix::Result;
 
-pub fn enter() {
+pub fn enter() -> Result<()> {
+    Ok(())
+
     //set_sysnum(tracee, PR_void);
     //status = 0;
 }

@@ -1,5 +1,8 @@
+use nix::Result;
 
-pub fn enter() {
+pub fn enter() -> Result<()> {
+    Ok(())
+
     //                status = get_sysarg_path(tracee, path, SYSARG_1);
     //                if (status < 0)
     //                break;

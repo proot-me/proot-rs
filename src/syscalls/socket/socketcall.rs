@@ -1,6 +1,9 @@
 use syscalls::syscall_exit::SyscallExitResult;
+use nix::Result;
 
-pub fn enter() {
+pub fn enter() -> Result<()> {
+    Ok(())
+
 //    word_t args_addr;
 //    word_t sock_addr_saved;
 //    word_t sock_addr;

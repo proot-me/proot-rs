@@ -118,18 +118,10 @@ mod tests {
     use super::*;
     use std::ptr::null_mut;
     use std::ffi::CString;
-    use nix::unistd::{getpid, fork, execvp, ForkResult};
-    use nix::sys::signal::{kill};
-    use nix::sys::signal::Signal::{SIGSTOP};
-    use nix::sys::ptrace::ptrace;
-    use nix::sys::ptrace::ptrace::PTRACE_TRACEME;
-    use nix::sys::wait::{waitpid, __WALL};
-    use nix::sys::wait::WaitStatus::*;
-    use nix::sys::ptrace::ptrace::PTRACE_SYSCALL;
-    use proot::InfoBag;
-    use tracee::Tracee;
+    use nix::unistd::execvp;
+    use utils::tests::fork_test;
     use syscall::nr::MKDIR;
-    use regs::{Word, fetch_regs};
+    use regs::Word;
 
     #[test]
     fn convert_word_to_bytes_test() {
@@ -147,9 +139,9 @@ mod tests {
     #[test]
     fn get_sysarg_path_return_empty_if_given_null_src_test() {
         let path = get_sysarg_path(0, null_mut()).unwrap();
+
         assert_eq!(path.to_str().unwrap(), "");
     }
-
 
     #[test]
     /// Tests that `get_sysarg_path`, `read_path` and `read_string` all work on a simple syscall,
@@ -160,81 +152,30 @@ mod tests {
     fn get_sysarg_path_for_mkdir_test() {
         let test_path = "my/impossible/test/path";
 
-        match fork().expect("fork in test") {
-            ForkResult::Parent { child } => {
-                let info_bag = &mut InfoBag::new();
-                let tracee = Tracee::new(child);
+        fork_test(
+            // expecting an error (because the path doesn't exit)
+            1,
+            // parent
+            |pid, regs| {
+                if get_reg!(regs, SysArgNum) == MKDIR as u64 {
+                    let dir_path = get_sysarg_path(pid, get_reg!(regs, SysArg1) as *mut Word).unwrap();
 
-                // the parent will wait for the child's signal before calling set_ptrace_options
-                assert_eq!(waitpid(-1, Some(__WALL)).expect("event loop waitpid"), Stopped(child, SIGSTOP));
-                tracee.set_ptrace_options(info_bag);
+                    // we're checking that the string read in the tracee's memory
+                    // corresponds to what has been given to the execve command
+                    assert_eq!(dir_path.to_str().unwrap(), test_path);
 
-                restart(child);
-
-                // we loop until the MKDIR syscall is called
-                loop {
-                    match waitpid(-1, Some(__WALL)).expect("event loop waitpid") {
-                        PtraceSyscall(pid) => {
-                            assert_eq!(pid, child);
-                            let regs = fetch_regs(child).expect("fetch regs");
-                            let sysnum = get_reg!(regs, SysArgNum);
-
-                            if sysnum == MKDIR as u64 {
-                                let dir_path = get_sysarg_path(pid, get_reg!(regs, SysArg1) as *mut Word).unwrap();
-
-                                // we're checking that the string read in the tracee's memory
-                                // corresponds to what has been given to the execve command
-                                assert_eq!(dir_path.to_str().unwrap(), test_path);
-
-                                break;
-                            }
-                        }
-                        Exited(_, _) => { assert!(false) }
-                        Signaled(_, _, _) => { assert!(false) }
-                        _ => {}
-                    }
-                    restart(child);
+                    // we can stop here
+                    return true;
+                } else {
+                    return false;
                 }
-
-                restart(child);
-                // we're expecting an error from mkdir:
-                // `cannot create directory ‘my/impossible/test/path’: No such file or directory`
-                end(child, 1);
-            }
-            ForkResult::Child => {
-                ptrace(PTRACE_TRACEME, 0, null_mut(), null_mut()).expect("test ptrace traceme");
-                // we use a SIGSTOP to synchronise both processes
-                kill(getpid(), SIGSTOP).expect("test child sigstop");
-
-                // calling the sleep function,
-                // which should call the MKDIR syscall
+            },
+            // child
+            || {
+                // calling the mkdir function, which should call the MKDIR syscall
                 execvp(&CString::new("mkdir").unwrap(), &[CString::new(".").unwrap(), CString::new(test_path).unwrap()])
                     .expect("failed execvp mkdir");
             }
-        }
-    }
-
-    /// Restarts a child process
-    fn restart(child: pid_t) {
-        ptrace(PTRACE_SYSCALL, child, null_mut(), null_mut()).expect("exit tracee with exit stage");
-    }
-
-    /// Waits/restarts a child process until it stops.
-    fn end(child: pid_t, expected_status: i8) {
-        loop {
-            match waitpid(-1, Some(__WALL)).expect("waitpid") {
-                Exited(pid, exit_status) => {
-                    assert_eq!(pid, child);
-
-                    // the tracee should have exited with an OK status (exit code 0)
-                    assert_eq!(exit_status, expected_status);
-                    break;
-                }
-                _ => {
-                    // restarting the tracee
-                    ptrace(PTRACE_SYSCALL, child, null_mut(), null_mut()).expect("exit tracee with exit stage");
-                }
-            }
-        }
+        );
     }
 }

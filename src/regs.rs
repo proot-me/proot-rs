@@ -66,40 +66,11 @@ pub fn fetch_regs(pid: pid_t) -> Result<user_regs_struct> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::ptr::null_mut;
     use std::ffi::CString;
-    use nix::unistd::{getpid, fork, execvp, ForkResult};
-    use nix::sys::signal::{kill};
-    use nix::sys::signal::Signal::{SIGSTOP};
-    use nix::sys::ptrace::ptrace;
-    use nix::sys::ptrace::ptrace::PTRACE_TRACEME;
-    use nix::sys::wait::{waitpid, __WALL};
-    use nix::sys::wait::WaitStatus::*;
-    use nix::sys::ptrace::ptrace::PTRACE_SYSCALL;
-    use proot::InfoBag;
-    use tracee::Tracee;
+    use nix::unistd::execvp;
     use syscall::nr::NANOSLEEP;
+    use utils::tests::fork_test;
 
-    #[test]
-    fn fetch_regs_test() {
-        match fork().expect("fork in test") {
-            ForkResult::Parent { child } => {
-                // the parent will wait for the child's signal before calling set_ptrace_options
-                assert_eq!(waitpid(-1, Some(__WALL)).expect("event loop waitpid"), Stopped(child, SIGSTOP));
-
-                let ret = fetch_regs(child);
-                assert!(ret.is_ok());
-
-                restart(child);
-                end(child);
-            }
-            ForkResult::Child => {
-                ptrace(PTRACE_TRACEME, 0, null_mut(), null_mut()).expect("test ptrace traceme");
-                // we use a SIGSTOP to synchronise both processes
-                kill(getpid(), SIGSTOP).expect("test child sigstop");
-            }
-        }
-    }
     #[test]
     fn fetch_regs_should_fail_test() {
         let ret = fetch_regs(-1);
@@ -107,76 +78,43 @@ mod tests {
     }
 
     #[test]
+    fn fetch_regs_test() {
+        fork_test(
+            // expecting a normal execution
+            0,
+            // parent
+            |_, _| {
+                // we stop on the first syscall;
+                // the fact that no panic was sparked until now means that the regs were OK
+                return true;
+            },
+            // child
+            || {
+                // calling the sleep function, which should call the NANOSLEEP syscall
+                execvp(&CString::new("sleep").unwrap(), &[CString::new(".").unwrap(), CString::new("0").unwrap()])
+                    .expect("failed execvp sleep");
+            });
+    }
+
+    #[test]
     /// Tests that `fetch_regs` works on a simple syscall;
     /// the test is a success if the NANOSLEEP syscall is detected (with its corresponding signum).
     fn fetch_regs_sysnum_sleep_test() {
-        match fork().expect("fork in test") {
-            ForkResult::Parent { child } => {
-                let info_bag = &mut InfoBag::new();
-                let tracee = Tracee::new(child);
+        fork_test(
+            // expecting a normal execution
+            0,
+            // parent
+            |_, regs| {
+                let sysnum = get_reg!(regs, SysArgNum);
 
-                // the parent will wait for the child's signal before calling set_ptrace_options
-                assert_eq!(waitpid(-1, Some(__WALL)).expect("event loop waitpid"), Stopped(child, SIGSTOP));
-                tracee.set_ptrace_options(info_bag);
-
-                restart(child);
-
-                // we loop until the NANOSLEEP syscall is called
-                loop {
-                    match waitpid(-1, Some(__WALL)).expect("event loop waitpid") {
-                        PtraceSyscall(pid) => {
-                            assert_eq!(pid, child);
-                            let regs = fetch_regs(child).expect("fetch regs");
-                            let sysnum = get_reg!(regs, SysArgNum);
-
-                            if sysnum == NANOSLEEP as u64 {
-                                break;
-                            }
-                        }
-                        Exited(_, _) => { assert!(false) }
-                        Signaled(_, _, _) => { assert!(false) }
-                        _ => {}
-                    }
-                    restart(child);
-                }
-
-                restart(child);
-                end(child);
-            }
-            ForkResult::Child => {
-                ptrace(PTRACE_TRACEME, 0, null_mut(), null_mut()).expect("test ptrace traceme");
-                // we use a SIGSTOP to synchronise both processes
-                kill(getpid(), SIGSTOP).expect("test child sigstop");
-
-                // calling the sleep function,
-                // which should call the NANOSLEEP syscall
+                // we only stop when the NANOSLEEP syscall is detected
+                return sysnum == NANOSLEEP as u64;
+            },
+            // child
+            || {
+                // calling the sleep function, which should call the NANOSLEEP syscall
                 execvp(&CString::new("sleep").unwrap(), &[CString::new(".").unwrap(), CString::new("0").unwrap()])
                     .expect("failed execvp sleep");
-            }
-        }
-    }
-
-    /// Restarts a child process
-    fn restart(child: pid_t) {
-        ptrace(PTRACE_SYSCALL, child, null_mut(), null_mut()).expect("exit tracee with exit stage");
-    }
-
-    /// Waits/restarts a child process until it stops.
-    fn end(child: pid_t) {
-        loop {
-            match waitpid(-1, Some(__WALL)).expect("waitpid") {
-                Exited(pid, exit_status) => {
-                    assert_eq!(pid, child);
-
-                    // the tracee should have exited with an OK status (exit code 0)
-                    assert_eq!(exit_status, 0);
-                    break;
-                }
-                _ => {
-                    // restarting the tracee
-                    ptrace(PTRACE_SYSCALL, child, null_mut(), null_mut()).expect("exit tracee with exit stage");
-                }
-            }
-        }
+            });
     }
 }

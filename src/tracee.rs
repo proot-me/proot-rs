@@ -306,15 +306,7 @@ impl Tracee {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use proot::InfoBag;
-    use std::ptr::null_mut;
-    use nix::unistd::{getpid, fork, ForkResult};
-    use nix::sys::signal::{kill};
-    use nix::sys::signal::Signal::{SIGSTOP};
-    use nix::sys::ptrace::ptrace;
-    use nix::sys::ptrace::ptrace::PTRACE_TRACEME;
-    use nix::sys::wait::{waitpid, __WALL};
-    use nix::sys::wait::WaitStatus::*;
+    use utils::tests::fork_test;
 
     #[test]
     fn create_tracee() {
@@ -327,48 +319,17 @@ mod tests {
     /// It requires a traced child process to be applied on,
     /// as using `ptrace(PTRACE_SETOPTIONS)` without preparation results in a Sys(ESRCH) error.
     fn create_set_ptrace_options() {
-        match fork().expect("fork in set ptrace options tracee's test") {
-            ForkResult::Parent { child } => {
-                let info_bag = &mut InfoBag::new();
-                let tracee = Tracee::new(child);
-                assert_eq!(info_bag.deliver_sigtrap, false);
-
-                // The parent will wait for the child's stop signal before calling set_ptrace_options
-                assert_eq!(waitpid(-1, Some(__WALL)).expect("event loop waitpid"), Stopped(child, SIGSTOP));
-
-                // This call must pass without panic
-                tracee.set_ptrace_options(info_bag);
-
-                // if everything went right, this boolean should have become true
-                assert_eq!(info_bag.deliver_sigtrap, true);
-
-                restart_and_end(child);
-            }
-            ForkResult::Child => {
-                ptrace(PTRACE_TRACEME, 0, null_mut(), null_mut()).expect("test ptrace traceme");
-                // we use a SIGSTOP to synchronise both processes
-                kill(getpid(), SIGSTOP).expect("test child sigstop");
-            }
-        }
-    }
-
-    /// Restarts a child process, and waits/restarts it until it stops.
-    fn restart_and_end(child: pid_t) {
-        ptrace(PTRACE_SYSCALL, child, null_mut(), null_mut()).expect("exit tracee with exit stage");
-        loop {
-            match waitpid(-1, Some(__WALL)).expect("waitpid") {
-                Exited(pid, exit_status) => {
-                    assert_eq!(pid, child);
-
-                    // the tracee should have exited with an OK status (exit code 0)
-                    assert_eq!(exit_status, 0);
-                    break;
-                }
-                _ => {
-                    // restarting the tracee
-                    ptrace(PTRACE_SYSCALL, child, null_mut(), null_mut()).expect("exit tracee with exit stage");
-                }
-            }
-        }
+        fork_test(
+            // expecting a normal execution
+            0,
+            // parent
+            |_, _| {
+                // we stop on the first syscall;
+                // the fact that no panic was sparked until now
+                // means that the set_trace_options call was OK
+                return true;
+            },
+            // child
+            || {});
     }
 }

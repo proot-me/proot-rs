@@ -4,15 +4,15 @@ use bindings::Binding;
 
 /// Information related to a file-system name-space.
 #[derive(Debug)]
-pub struct FileSystemNameSpace {
+pub struct FileSystemNamespace {
     bindings: Vec<Binding>,
     /// Current working directory, à la /proc/self/pwd.
     cwd: PathBuf
 }
 
-impl FileSystemNameSpace {
-    pub fn new() -> FileSystemNameSpace {
-        FileSystemNameSpace {
+impl FileSystemNamespace {
+    pub fn new() -> FileSystemNamespace {
+        FileSystemNamespace {
             bindings: vec![],
             cwd: PathBuf::from(".")
         }

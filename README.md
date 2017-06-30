@@ -1,9 +1,55 @@
-# proot-rust
-Rust implementation of PRoot, a ptrace-based sandbox
+# proot_rust
+Rust implementation of PRoot, a ptrace-based sandbox. 
+_(Work in progress)_
+
+`proot_rust` works by intercepting all Linux system calls that use paths (`execve`, `mkdir`, `ls`, ...)
+and translating these with the specified path bindings, in order to simulate `chroot`,
+and all this without requiring admin rights (`ptrace` do not require any special rights).
+
+So for instance, this command:
+```
+proot_rust -R /home/user/myfolder mkdir /subfolder
+```
+will be equivalent to:
+```
+mkdir /home/user/myfolder/subfolder
+```
+
+Hence, you can apply `proot_rust` to a whole program in order sandbox it.
+More concretely, you can for instance download a docker image, extract it, 
+and run it, without needing docker:
+```
+proot_rust -R ./my-docker-image /bin/sh
+```
+
+
+# Usage
+No usable for now _(work in progress)_.
 
 # Requirements
-Use the nightly Rust channel for rustc (``cargo default nightly``).
+Use the nightly Rust channel for rustc:
+```
+cargo default nightly
+```
+Some dependencies (like `syscall`) depend on features (`asm` in this case) that are not 
+on the stable channel yet.
+
+# Build
+The recommended way is to use _rustup/cargo_:
+
+```text
+cargo build
+```
+It will install all the dependencies and compile it (in debug mode).
+
+To generate the release binary (it takes longer, but the binary generated is quicker):
+
+```text
+cargo build --release
+```
 
 # Tests
-Use ``RUST_TEST_THREADS=1`` before ``cargo test``, as a lot of tests are multi-thread,
-and cargo runs them concurrently by default.
+Simply run:
+```
+cargo test
+```

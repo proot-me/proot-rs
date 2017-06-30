@@ -3,6 +3,7 @@ extern crate nix;
 extern crate clap;
 extern crate syscall;
 mod constants;
+mod utils;
 #[macro_use]
 mod regs;
 mod syscalls;
@@ -14,11 +15,11 @@ mod sigactions;
 mod proot;
 
 use proot::{PRoot, stop_program, show_info};
-use fsnamespace::FileSystemNameSpace;
+use fsnamespace::FileSystemNamespace;
 
 fn main() {
     // step 1: CLI parsing
-    let mut fs: FileSystemNameSpace = FileSystemNameSpace::new();
+    let mut fs: FileSystemNamespace = FileSystemNamespace::new();
     cli::get_config(&mut fs);
     let mut proot: PRoot = PRoot::new(fs);
 

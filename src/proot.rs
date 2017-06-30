@@ -1,5 +1,5 @@
 use tracee::Tracee;
-use fsnamespace::FileSystemNameSpace;
+use fsnamespace::FileSystemNamespace;
 use std::collections::HashMap;
 use std::ptr::null_mut;
 use std::ffi::CString;
@@ -40,11 +40,11 @@ pub struct PRoot {
     tracees: HashMap<pid_t, Tracee>,
     alive_tracees: Vec<pid_t>,
     /// Information related to a file-system name-space.
-    fs: FileSystemNameSpace
+    fs: FileSystemNamespace
 }
 
 impl PRoot {
-    pub fn new(fs: FileSystemNameSpace) -> PRoot {
+    pub fn new(fs: FileSystemNamespace) -> PRoot {
         PRoot {
             info_bag: InfoBag::new(),
             tracees: HashMap::new(),
@@ -176,7 +176,7 @@ mod tests {
 
     #[test]
     fn create_proot_and_tracee() {
-        let fs = FileSystemNameSpace::new();
+        let fs = FileSystemNamespace::new();
         let mut proot = PRoot::new(fs);
 
         // tracee 0 shouldn't exist

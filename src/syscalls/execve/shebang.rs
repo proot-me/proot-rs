@@ -1,4 +1,3 @@
-use std::path::PathBuf;
 use syscalls::execve::path::translate_and_check_exec;
 use nix::Result;
 

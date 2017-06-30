@@ -47,10 +47,11 @@ fn read_path(pid: pid_t, src_path: *mut Word) -> Result<CString> {
 /// It uses `ptrace(PEEK_DATA)` to read it word by word
 /// (1 word = 1 c_long = 1 u64 = 8 u8 = 8 char).
 /// The copy stops when a null character `\0` is encountered,
-/// The bytes contained in the address are returned in a slice of u8.
+/// The bytes contained at the string's address are returned as a Vector of u8.
 ///
 /// * `pid` is the pid of the tracee.
-/// * `src_string` is the address of the string (for instance, the return value of `get_reg`).
+/// * `src_string` is the address of the string in tracee's memory space
+///     (obtained for instance with `get_reg`).
 /// * `max_size` is the maximum number of bytes copied from memory.
 fn read_string(pid: pid_t, src_string: *mut Word, max_size: usize) -> Result<Vec<u8>> {
     let mut bytes: Vec<u8> = Vec::with_capacity(max_size);
@@ -73,11 +74,10 @@ fn read_string(pid: pid_t, src_string: *mut Word, max_size: usize) -> Result<Vec
         for &letter in &letters {
             if letter as char == '\0' {
                 // Stop once an end-of-string is detected.
+                // No need to add the \0 null character now,
+                // as it will be added when converting the bytes in a CString.
                 return Ok(bytes);
             }
-
-            // no need to add the \0 null character now,
-            // as it will be added when converting the bytes in a CString
             bytes.push(letter);
         }
     }

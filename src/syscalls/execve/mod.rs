@@ -1,5 +1,7 @@
 pub mod enter;
 pub mod exit;
+pub mod path;
+pub mod shebang;
 
 use libc::{pid_t, user_regs_struct};
 use nix::Result;

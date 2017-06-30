@@ -2,41 +2,38 @@ use libc::{pid_t, user_regs_struct};
 use nix::Result;
 use syscalls::sysarg::get_sysarg_path;
 use regs::Word;
+use syscalls::execve::shebang::expand_shebang;
 
 pub fn translate(pid: pid_t, regs: &user_regs_struct) -> Result<()> {
-    let user_path = get_sysarg_path(pid, get_reg!(regs, SysArg1) as *mut Word) ?;
+    //	char user_path[PATH_MAX];
+    //	char host_path[PATH_MAX];
+    //	char new_exe[PATH_MAX];
+    //	char *raw_path;
+    //	const char *loader_path;
+    //	int status;
+    //
+    //	if (IS_NOTIFICATION_PTRACED_LOAD_DONE(tracee)) {
+    //		/* Syscalls can now be reported to its ptracer.  */
+    //		tracee->as_ptracee.ignore_loader_syscalls = false;
+    //
+    //		/* Cancel this spurious syscalls.execve, it was only used as a
+    //		 * notification.  */
+    //		set_sysnum(tracee, PR_void);
+    //		return 0;
+    //	}
+
+    let user_path = get_sysarg_path(pid, get_reg!(regs, SysArg1) as *mut Word)?;
 
     println!("translate: {:?}", user_path);
 
-//	char user_path[PATH_MAX];
-//	char host_path[PATH_MAX];
-//	char new_exe[PATH_MAX];
-//	char *raw_path;
-//	const char *loader_path;
-//	int status;
-//
-//	if (IS_NOTIFICATION_PTRACED_LOAD_DONE(tracee)) {
-//		/* Syscalls can now be reported to its ptracer.  */
-//		tracee->as_ptracee.ignore_loader_syscalls = false;
-//
-//		/* Cancel this spurious syscalls.execve, it was only used as a
-//		 * notification.  */
-//		set_sysnum(tracee, PR_void);
-//		return 0;
-//	}
-//
-//	status = get_sysarg_path(tracee, user_path, SYSARG_1);
-//	if (status < 0)
-//		return status;
-//
-//	/* Remember the user path before it is overwritten by
-//	 * expand_shebang().  This "raw" path is useful to fix the
-//	 * value of AT_EXECFN and /proc/{@tracee->pid}/comm.  */
-//	raw_path = talloc_strdup(tracee->ctx, user_path);
-//	if (raw_path == NULL)
-//		return -ENOMEM;
-//
-//	status = expand_shebang(tracee, host_path, user_path);
+    //	/* Remember the user path before it is overwritten by
+    //	 * expand_shebang().  This "raw" path is useful to fix the
+    //	 * value of AT_EXECFN and /proc/{@tracee->pid}/comm.  */
+    //	raw_path = talloc_strdup(tracee->ctx, user_path);
+    //	if (raw_path == NULL)
+    //		return -ENOMEM;
+
+    let host_path = expand_shebang()?;
 //	if (status < 0)
 //		/* The Linux kernel actually returns -EACCES when
 //		 * trying to execute a directory.  */

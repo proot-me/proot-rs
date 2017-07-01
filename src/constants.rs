@@ -16,7 +16,7 @@ pub mod ptrace {
         pub const PTRACE_S_CLONE:             PtraceSignalEvent = SIGTRAP | PTRACE_EVENT_CLONE << 8;
         pub const PTRACE_S_EXEC:              PtraceSignalEvent = SIGTRAP | PTRACE_EVENT_EXEC << 8;
         pub const PTRACE_S_SECCOMP:           PtraceSignalEvent = SIGTRAP | PTRACE_EVENT_SECCOMP << 8;
-        pub const PTRACE_S_SECCOMP2:          PtraceSignalEvent = SIGTRAP | PTRACE_EVENT_SECCOMP + 1 << 8;
+        pub const PTRACE_S_SECCOMP2:          PtraceSignalEvent = SIGTRAP | (PTRACE_EVENT_SECCOMP + 1) << 8;
         // unreachable pattern?
         // pub const EXIT_SIGNAL:               PTraceSignalEvent = SIGTRAP | PTRACE_EVENT_EXIT << 8;
     }

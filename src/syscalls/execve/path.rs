@@ -1,6 +1,6 @@
 use nix::Result;
 
-/// Translate @user_path into @host_path and check if this latter exists, is
+/// Translate 'user_path' into 'host_path' and check if this latter exists, is
 /// executable and is a regular file.  This function returns -errno if
 /// an error occured, 0 otherwise.
 // int translate_and_check_exec(Tracee *tracee, char host_path[PATH_MAX], const char *user_path)

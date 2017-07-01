@@ -218,7 +218,7 @@ impl Tracee {
         // if (status2 < 0)
         //     status = status2;
 
-        return status;
+        status
     }
 
     fn translate_syscall_exit(&mut self, regs: &user_regs_struct) {

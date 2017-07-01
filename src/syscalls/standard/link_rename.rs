@@ -12,7 +12,7 @@ pub fn enter() -> Result<()> {
 //    status = translate_sysarg(tracee, SYSARG_2, SYMLINK);
 }
 
-/// Translates rename and rename_at syscalls
+/// Translates `rename` and `rename_at` syscalls
 pub fn exit() -> SyscallExitResult {
 //    char old_path[PATH_MAX];
 //		char new_path[PATH_MAX];

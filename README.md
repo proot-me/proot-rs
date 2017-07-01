@@ -24,7 +24,7 @@ proot_rust -R ./my-docker-image /bin/sh
 
 
 # Usage
-No usable for now _(work in progress)_.
+Not usable for now _(work in progress)_.
 
 # Requirements
 Use the nightly Rust channel for rustc:

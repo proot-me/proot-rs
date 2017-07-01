@@ -28,26 +28,20 @@ pub fn prepare_sigactions(
                 // can be used for inter-process communication
                 signal_handler = SigHandler::Handler(show_info);
             }
-            SIGCHLD | SIGCONT | SIGTSTP | SIGTTIN | SIGTTOU => {
+            SIGCHLD | SIGCONT | SIGTSTP | SIGTTIN | SIGTTOU | SIGSTOP | SIGKILL => {
                 // these signals are related to tty and job control,
+                // or cannot be used with sigaction (stop and kill),
                 // so we keep the default action for them
-                continue;
-            }
-            SIGSTOP | SIGKILL => {
-                // these two signals cannot be used with sigaction
                 continue;
             }
             _ => {} // all other signals (even ^C) are ignored
         }
 
         let signal_action = SigAction::new(signal_handler, sa_flags, signal_set);
-        unsafe {
-            match sigaction(signal, &signal_action) {
-                Err(err) => {
-                    println!("Warning: sigaction failed for signal {:?} : {:?}.", signal, err);
-                }
-                _ => {}
-            }
+        let sigaction_result = unsafe {sigaction(signal, &signal_action)};
+
+        if let Err(err) = sigaction_result {
+            println!("Warning: sigaction failed for signal {:?} : {:?}.", signal, err);
         }
     }
 }

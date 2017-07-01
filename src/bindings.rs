@@ -20,10 +20,10 @@ pub mod validators {
 
     /// Check whether a path is of the type ```host_path:guest_path``` and that the host.
     pub fn binding_validator(binding_paths: String) -> Result<(), String> {
-        let parts: Vec<&str> = binding_paths.split_terminator(":").collect();
+        let parts: Vec<&str> = binding_paths.split_terminator(':').collect();
 
         if parts.len() != 2 {
-            Err(("should be: path_host:path_guest".to_string()))
+            Err("should be: path_host:path_guest".to_string())
         } else {
             let host_path: &str = parts[0];
 

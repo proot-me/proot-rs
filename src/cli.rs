@@ -36,17 +36,14 @@ pub fn get_config(fs: &mut FileSystemNamespace) {
     fs.add_binding(Binding::new(rootfs, "/", true, true));
 
     // option(s) -b
-    match matches.values_of("bind") {
-        Some(b_bindings) => {
-            let raw_bindings_str: Vec<&str> = b_bindings.collect::<Vec<&str>>();
+    if let Some(bindings) = matches.values_of("bind") {
+        let raw_bindings_str: Vec<&str> = bindings.collect::<Vec<&str>>();
 
-            for raw_binding_str in &raw_bindings_str {
-                let parts: Vec<&str> = raw_binding_str.split_terminator(":").collect();
-                fs.add_binding(Binding::new(parts[0], parts[1], true, true));
-            }
-        },
-        None    => ()
-    };
+        for raw_binding_str in &raw_bindings_str {
+            let parts: Vec<&str> = raw_binding_str.split_terminator(':').collect();
+            fs.add_binding(Binding::new(parts[0], parts[1], true, true));
+        }
+    }
 
     // option -w
     let cwd: &str = matches.value_of("cwd").unwrap();

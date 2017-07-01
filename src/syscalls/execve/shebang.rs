@@ -1,12 +1,12 @@
 use syscalls::execve::path::translate_and_check_exec;
 use nix::Result;
 
-/// Expand in argv[] the shebang of @user_path, if any.  This function
+/// Expand in argv[] the shebang of `user_path`, if any.  This function
 /// returns -errno if an error occurred, 1 if a shebang was found and
-/// extracted, otherwise 0.  On success, both @host_path and @user_path
+/// extracted, otherwise 0.  On success, both `host_path` and `user_path`
 /// point to the program to execute (respectively from host
 /// point-of-view and as-is), and @tracee's argv[] (pointed to by
-/// SYSARG_2) is correctly updated.
+/// `SYSARG_2`) is correctly updated.
 // int expand_shebang(Tracee *tracee, char host_path[PATH_MAX], char user_path[PATH_MAX])
 pub fn expand_shebang() -> Result<()> {
 //  ArrayOfXPointers *argv = NULL;
@@ -112,7 +112,7 @@ pub fn expand_shebang() -> Result<()> {
 //	return (has_shebang ? 1 : 0);
 }
 
-/// Extract into @user_path and @argument the shebang from @host_path.
+/// Extract into `user_path` and `argument` the shebang from @host_path.
 /// This function returns -errno if an error occured, 1 if a shebang
 /// was found and extracted, otherwise 0.
 ///

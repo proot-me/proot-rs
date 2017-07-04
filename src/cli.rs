@@ -1,7 +1,7 @@
 use clap::{App, Arg};
-use fsnamespace::{FileSystemNamespace};
-use bindings::Binding;
-use bindings::validators::{binding_validator, path_validator};
+use filesystem::fsnamespace::FileSystemNamespace;
+use filesystem::bindings::Binding;
+use filesystem::validators::{binding_validator, path_validator};
 
 pub const DEFAULT_ROOTFS: &'static str = "/";
 pub const DEFAULT_CWD: &'static str = ".";
@@ -33,7 +33,7 @@ pub fn get_config(fs: &mut FileSystemNamespace) {
     // option -r
     let rootfs: &str = matches.value_of("rootfs").unwrap();
     // -r *path* is equivalent to -b *path*:/
-    fs.add_binding(Binding::new(rootfs, "/", true, true));
+    fs.set_root(rootfs);
 
     // option(s) -b
     if let Some(bindings) = matches.values_of("bind") {
@@ -41,7 +41,7 @@ pub fn get_config(fs: &mut FileSystemNamespace) {
 
         for raw_binding_str in &raw_bindings_str {
             let parts: Vec<&str> = raw_binding_str.split_terminator(':').collect();
-            fs.add_binding(Binding::new(parts[0], parts[1], true, true));
+            fs.add_binding(Binding::new(parts[0], parts[1], true));
         }
     }
 

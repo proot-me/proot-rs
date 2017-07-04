@@ -1,5 +1,5 @@
 use tracee::Tracee;
-use fsnamespace::FileSystemNamespace;
+use filesystem::fsnamespace::FileSystemNamespace;
 use std::collections::HashMap;
 use std::ptr::null_mut;
 use std::ffi::CString;

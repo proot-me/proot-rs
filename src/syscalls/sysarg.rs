@@ -83,7 +83,7 @@ fn read_string(pid: pid_t, src_string: *mut Word, max_size: usize) -> Result<Vec
     }
 
     //todo: add trailing bytes processing (when necessary, need an example where it's actually used)
-    panic!("trailing bytes not supported!")
+    unimplemented!("trailing bytes not supported!")
 
     /*
 

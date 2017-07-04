@@ -2,20 +2,18 @@ extern crate libc;
 extern crate nix;
 extern crate clap;
 extern crate syscall;
-mod constants;
 mod utils;
 #[macro_use]
 mod regs;
 mod syscalls;
-mod bindings;
-mod fsnamespace;
+mod filesystem;
 mod tracee;
 mod cli;
 mod sigactions;
 mod proot;
 
 use proot::{PRoot, stop_program, show_info};
-use fsnamespace::FileSystemNamespace;
+use filesystem::fsnamespace::FileSystemNamespace;
 
 fn main() {
     // step 1: CLI parsing

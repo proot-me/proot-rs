@@ -1,7 +1,7 @@
 use clap::{App, Arg};
 use filesystem::fsnamespace::FileSystemNamespace;
-use filesystem::bindings::Binding;
-use filesystem::validators::{binding_validator, path_validator};
+use filesystem::binding::Binding;
+use filesystem::validation::{binding_validator, path_validator};
 
 pub const DEFAULT_ROOTFS: &'static str = "/";
 pub const DEFAULT_CWD: &'static str = ".";

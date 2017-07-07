@@ -1,4 +1,6 @@
-pub mod bindings;
+pub mod binding;
 pub mod fsnamespace;
-pub mod proc_path;
-pub mod validators;
+pub mod validation;
+pub mod canon;
+pub mod translation;
+pub mod substitution;

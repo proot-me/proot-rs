@@ -5,8 +5,8 @@ pub mod tests {
     use std::ops::Fn;
     use libc::{pid_t, user_regs_struct};
     use nix::unistd::{getpid, fork, ForkResult};
-    use nix::sys::signal::{kill};
-    use nix::sys::signal::Signal::{SIGSTOP};
+    use nix::sys::signal::kill;
+    use nix::sys::signal::Signal::SIGSTOP;
     use nix::sys::ptrace::ptrace;
     use nix::sys::ptrace::ptrace::PTRACE_TRACEME;
     use nix::sys::wait::{waitpid, __WALL};
@@ -23,10 +23,10 @@ pub mod tests {
             Ok(ForkResult::Child) => {
                 func();
             }
-            Ok(ForkResult::Parent{child}) => {
+            Ok(ForkResult::Parent { child }) => {
                 assert_eq!(waitpid(child, None), Ok(Exited(child, 0)))
             }
-            Err(_) => panic!("Error: fork")
+            Err(_) => panic!("Error: fork"),
         }
     }
 
@@ -35,7 +35,10 @@ pub mod tests {
     /// The parent process will wait and loop for events from the tracee (child process).
     /// It only stops when the parent function (1st arg) returns true.
     pub fn fork_test<FuncParent: Fn(pid_t, &user_regs_struct) -> bool, FuncChild: Fn()>(
-        expected_exit_signal: i8, func_parent: FuncParent, func_child:FuncChild) {
+        expected_exit_signal: i8,
+        func_parent: FuncParent,
+        func_child: FuncChild,
+    ) {
 
         test_in_subprocess(|| {
             match fork().expect("fork in test") {
@@ -44,14 +47,17 @@ pub mod tests {
                     let tracee = Tracee::new(child);
 
                     // the parent will wait for the child's signal before calling set_ptrace_options
-                    assert_eq!(waitpid(-1, Some(__WALL)).expect("event loop waitpid"), Stopped(child, SIGSTOP));
+                    assert_eq!(
+                        waitpid(-1, Some(__WALL)).expect("event loop waitpid"),
+                        Stopped(child, SIGSTOP)
+                    );
                     tracee.set_ptrace_options(info_bag);
 
                     restart(child);
 
                     // we loop until the parent function decides to stop
                     loop {
-                        match waitpid(-1, Some(__WALL)).expect("event loop waitpid") {
+                        match waitpid(child, Some(__WALL)).expect("event loop waitpid") {
                             PtraceSyscall(pid) => {
                                 assert_eq!(pid, child);
                                 let regs = fetch_regs(child).expect("fetch regs");
@@ -60,8 +66,8 @@ pub mod tests {
                                     break;
                                 }
                             }
-                            Exited(_, _) => { assert!(false) }
-                            Signaled(_, _, _) => { assert!(false) }
+                            Exited(_, _) => assert!(false),
+                            Signaled(_, _, _) => assert!(false),
                             _ => {}
                         }
                         restart(child);
@@ -89,7 +95,7 @@ pub mod tests {
     /// Waits/restarts a child process until it stops.
     fn end(child: pid_t, expected_status: i8) {
         loop {
-            match waitpid(-1, Some(__WALL)).expect("waitpid") {
+            match waitpid(child, Some(__WALL)).expect("waitpid") {
                 Exited(pid, exit_status) => {
                     assert_eq!(pid, child);
 

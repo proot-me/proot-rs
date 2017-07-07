@@ -16,16 +16,16 @@ mod ptrace_events {
 
     pub type PtraceSignalEvent = c_int;
 
-    pub const PTRACE_S_SIGSTOP:           PtraceSignalEvent = SIGSTOP;
-    pub const PTRACE_S_RAW_SIGTRAP:       PtraceSignalEvent = SIGTRAP;
-    pub const PTRACE_S_NORMAL_SIGTRAP:    PtraceSignalEvent = SIGTRAP | 0x80;
-    pub const PTRACE_S_VFORK:             PtraceSignalEvent = SIGTRAP | PTRACE_EVENT_VFORK << 8;
-    pub const PTRACE_S_VFORK_DONE:        PtraceSignalEvent = SIGTRAP | PTRACE_EVENT_VFORK_DONE << 8;
-    pub const PTRACE_S_FORK:              PtraceSignalEvent = SIGTRAP | PTRACE_EVENT_FORK << 8;
-    pub const PTRACE_S_CLONE:             PtraceSignalEvent = SIGTRAP | PTRACE_EVENT_CLONE << 8;
-    pub const PTRACE_S_EXEC:              PtraceSignalEvent = SIGTRAP | PTRACE_EVENT_EXEC << 8;
-    pub const PTRACE_S_SECCOMP:           PtraceSignalEvent = SIGTRAP | PTRACE_EVENT_SECCOMP << 8;
-    pub const PTRACE_S_SECCOMP2:          PtraceSignalEvent = SIGTRAP | (PTRACE_EVENT_SECCOMP + 1) << 8;
+    pub const PTRACE_S_SIGSTOP: PtraceSignalEvent = SIGSTOP;
+    pub const PTRACE_S_RAW_SIGTRAP: PtraceSignalEvent = SIGTRAP;
+    pub const PTRACE_S_NORMAL_SIGTRAP: PtraceSignalEvent = SIGTRAP | 0x80;
+    pub const PTRACE_S_VFORK: PtraceSignalEvent = SIGTRAP | PTRACE_EVENT_VFORK << 8;
+    pub const PTRACE_S_VFORK_DONE: PtraceSignalEvent = SIGTRAP | PTRACE_EVENT_VFORK_DONE << 8;
+    pub const PTRACE_S_FORK: PtraceSignalEvent = SIGTRAP | PTRACE_EVENT_FORK << 8;
+    pub const PTRACE_S_CLONE: PtraceSignalEvent = SIGTRAP | PTRACE_EVENT_CLONE << 8;
+    pub const PTRACE_S_EXEC: PtraceSignalEvent = SIGTRAP | PTRACE_EVENT_EXEC << 8;
+    pub const PTRACE_S_SECCOMP: PtraceSignalEvent = SIGTRAP | PTRACE_EVENT_SECCOMP << 8;
+    pub const PTRACE_S_SECCOMP2: PtraceSignalEvent = SIGTRAP | (PTRACE_EVENT_SECCOMP + 1) << 8;
     // unreachable pattern?
     // pub const EXIT_SIGNAL:               PTraceSignalEvent = SIGTRAP | PTRACE_EVENT_EXIT << 8;
 }
@@ -38,14 +38,14 @@ pub enum TraceeStatus {
     /// Exit syscall with no error
     SysExit,
     /// Exit syscall with error
-    Error(Error)
+    Error(Error),
 }
 
 impl TraceeStatus {
     pub fn is_err(&self) -> bool {
         match *self {
             TraceeStatus::Error(_) => true,
-            _ => false
+            _ => false,
         }
     }
 }
@@ -53,11 +53,11 @@ impl TraceeStatus {
 #[derive(Debug, PartialEq)]
 pub enum TraceeRestartMethod {
     /// Restart the tracee, without going through the exit stage
-    WithoutExitStage,   // PTRACE_CONT
+    WithoutExitStage, // PTRACE_CONT
     /// Restart the tracee, with the exit stage
-    WithExitStage,       // PTRACE_SYSCALL,
+    WithExitStage, // PTRACE_SYSCALL,
     /// Do not restart the tracee
-    None
+    None,
 }
 
 #[derive(Debug)]
@@ -71,7 +71,7 @@ pub struct Tracee {
     /// State of the seccomp acceleration for this tracee.
     seccomp: bool,
     /// Ensure the sysexit stage is always hit under seccomp.
-    sysexit_pending: bool
+    sysexit_pending: bool,
 }
 
 impl Tracee {
@@ -91,8 +91,8 @@ impl Tracee {
     /// 3. in other cases: not much
     pub fn handle_event(&mut self, info_bag: &mut InfoBag, stop_signal: Option<Signal>) {
         let signal: PtraceSignalEvent = match stop_signal {
-            Some(sig)   => sig as PtraceSignalEvent,
-            None        => PTRACE_S_NORMAL_SIGTRAP
+            Some(sig) => sig as PtraceSignalEvent,
+            None => PTRACE_S_NORMAL_SIGTRAP,
         };
 
         // the restart method might already have been set elsewhere
@@ -112,11 +112,14 @@ impl Tracee {
         }
 
         match signal {
-            PTRACE_S_RAW_SIGTRAP| PTRACE_S_NORMAL_SIGTRAP   => self.handle_sigtrap_event(info_bag, signal),
-            PTRACE_S_SECCOMP | PTRACE_S_SECCOMP2            => self.handle_seccomp_event(info_bag, signal),
+            PTRACE_S_RAW_SIGTRAP |
+            PTRACE_S_NORMAL_SIGTRAP => self.handle_sigtrap_event(info_bag, signal),
+            PTRACE_S_SECCOMP |
+            PTRACE_S_SECCOMP2 => self.handle_seccomp_event(info_bag, signal),
             PTRACE_S_VFORK | PTRACE_S_FORK | PTRACE_S_CLONE => self.new_child(signal),
-            PTRACE_S_EXEC | PTRACE_S_VFORK_DONE             => self.handle_exec_vfork_event(),
-            PTRACE_S_SIGSTOP                                => self.handle_sigstop_event(),
+            PTRACE_S_EXEC |
+            PTRACE_S_VFORK_DONE => self.handle_exec_vfork_event(),
+            PTRACE_S_SIGSTOP => self.handle_sigstop_event(),
             _ => {}
         }
     }
@@ -161,7 +164,8 @@ impl Tracee {
                     self.restart_how = TraceeRestartMethod::WithExitStage;
                     self.sysexit_pending = true;
                 }
-                TraceeStatus::SysExit | TraceeStatus::Error(_)  => {
+                TraceeStatus::SysExit |
+                TraceeStatus::Error(_) => {
                     // sysexit: the next sysenter will be notified by seccomp.
                     self.restart_how = TraceeRestartMethod::WithoutExitStage;
                     self.sysexit_pending = false;
@@ -179,7 +183,7 @@ impl Tracee {
         // They contain the system call's number, arguments and other register's info.
         let regs = match fetch_regs(self.pid) {
             Ok(regs) => regs,
-            Err(_)  => return
+            Err(_) => return,
         };
 
         match self.status {
@@ -206,12 +210,13 @@ impl Tracee {
                 // Restore tracee's stack pointer now if it won't hit
                 // the sysexit stage (i.e. when seccomp is enabled and
                 // there's nothing else to do).
-                if self.restart_how == TraceeRestartMethod::WithoutExitStage  {
+                if self.restart_how == TraceeRestartMethod::WithoutExitStage {
                     self.status = TraceeStatus::SysEnter;
                     // poke_reg(tracee, STACK_POINTER, peek_reg(tracee, ORIGINAL, STACK_POINTER));
                 }
             }
-            TraceeStatus::SysExit | TraceeStatus::Error(_) => {
+            TraceeStatus::SysExit |
+            TraceeStatus::Error(_) => {
                 /* By default, restore original register values at the
                  * end of this stage.  */
                 // tracee->restore_original_regs = true;
@@ -278,11 +283,13 @@ impl Tracee {
     pub fn restart(&mut self) {
         match self.restart_how {
             TraceeRestartMethod::WithoutExitStage => {
-                ptrace(PTRACE_CONT, self.pid, null_mut(), null_mut()).expect("exit tracee without exit stage");
-            },
+                ptrace(PTRACE_CONT, self.pid, null_mut(), null_mut())
+                    .expect("exit tracee without exit stage");
+            }
             TraceeRestartMethod::WithExitStage => {
-                ptrace(PTRACE_SYSCALL, self.pid, null_mut(), null_mut()).expect("exit tracee with exit stage");
-            },
+                ptrace(PTRACE_SYSCALL, self.pid, null_mut(), null_mut())
+                    .expect("exit tracee with exit stage");
+            }
             TraceeRestartMethod::None => {}
         };
 
@@ -306,21 +313,19 @@ impl Tracee {
             info_bag.deliver_sigtrap = true;
         }
 
-        let default_options =
-            PTRACE_O_TRACESYSGOOD |
-                PTRACE_O_TRACEFORK |
-                PTRACE_O_TRACEVFORK |
-                PTRACE_O_TRACEVFORKDONE |
-                PTRACE_O_TRACEEXEC |
-                PTRACE_O_TRACECLONE |
-                PTRACE_O_TRACEEXIT;
+        let default_options = PTRACE_O_TRACESYSGOOD | PTRACE_O_TRACEFORK | PTRACE_O_TRACEVFORK |
+            PTRACE_O_TRACEVFORKDONE |
+            PTRACE_O_TRACEEXEC | PTRACE_O_TRACECLONE |
+            PTRACE_O_TRACEEXIT;
 
         //TODO: seccomp
         ptrace_setoptions(self.pid, default_options).expect("set ptrace options");
     }
 
     #[cfg(test)]
-    pub fn get_pid(&self) -> pid_t { self.pid }
+    pub fn get_pid(&self) -> pid_t {
+        self.pid
+    }
 }
 
 
@@ -351,6 +356,7 @@ mod tests {
                 return true;
             },
             // child
-            || {});
+            || {},
+        );
     }
 }

@@ -33,13 +33,15 @@ pub fn get_sysarg_path(pid: pid_t, src_sysarg: *mut Word) -> Result<CString> {
 /// It also checks that the number of bytes isn't too long.
 #[inline]
 fn read_path(pid: pid_t, src_path: *mut Word) -> Result<CString> {
-    let bytes = read_string(pid, src_path, PATH_MAX as usize) ?;
+    let bytes = read_string(pid, src_path, PATH_MAX as usize)?;
 
     if bytes.len() >= PATH_MAX as usize {
         return Err(Sys(ENAMETOOLONG));
     }
 
-    Ok(CString::new(bytes.into_iter().collect::<Vec<u8>>()).unwrap())
+    Ok(
+        CString::new(bytes.into_iter().collect::<Vec<u8>>()).unwrap(),
+    )
 }
 
 /// Reads a string from the memory space of a tracee.
@@ -56,8 +58,8 @@ fn read_path(pid: pid_t, src_path: *mut Word) -> Result<CString> {
 fn read_string(pid: pid_t, src_string: *mut Word, max_size: usize) -> Result<Vec<u8>> {
     let mut bytes: Vec<u8> = Vec::with_capacity(max_size);
 
-	// if (belongs_to_heap_prealloc(tracee, dest_tracee))
-	//	return -EFAULT;
+    // if (belongs_to_heap_prealloc(tracee, dest_tracee))
+    //	return -EFAULT;
 
     //todo: HAVE_PROCESS_VM (when necessary)
 
@@ -68,7 +70,12 @@ fn read_string(pid: pid_t, src_string: *mut Word, max_size: usize) -> Result<Vec
     // Copy one word by one word, except for the last one.
     for i in 0..nb_full_words {
         // ptrace returns a c_long/Word that we will interpret as an 8-letters word
-        let word = ptrace(PTRACE_PEEKDATA, pid, unsafe{src_string.offset(i) as *mut c_void}, null_mut())?;
+        let word = ptrace(
+            PTRACE_PEEKDATA,
+            pid,
+            unsafe { src_string.offset(i) as *mut c_void },
+            null_mut(),
+        )?;
         let letters: [u8; 8] = convert_word_to_bytes(word);
 
         for &letter in &letters {
@@ -109,7 +116,7 @@ fn read_string(pid: pid_t, src_string: *mut Word, max_size: usize) -> Result<Vec
 
 #[inline]
 fn convert_word_to_bytes(value_to_convert: Word) -> [u8; 8] {
-    unsafe {transmute(value_to_convert)}
+    unsafe { transmute(value_to_convert) }
 }
 
 
@@ -125,15 +132,24 @@ mod tests {
 
     #[test]
     fn convert_word_to_bytes_test() {
-        let number: Word =
-            'h' as i64
-            + 'e' as i64 *256
-            + 'l' as i64 *256*256
-            + 'l' as i64 *256*256*256
-            + 'o' as i64 *256*256*256*256;
+        let number: Word = 'h' as i64 + 'e' as i64 * 256 + 'l' as i64 * 256 * 256 +
+            'l' as i64 * 256 * 256 * 256 +
+            'o' as i64 * 256 * 256 * 256 * 256;
         let bytes = convert_word_to_bytes(number);
 
-        assert_eq!(bytes, ['h' as u8, 'e' as u8, 'l' as u8, 'l' as u8, 'o' as u8, 0, 0, 0]);
+        assert_eq!(
+            bytes,
+            [
+                'h' as u8,
+                'e' as u8,
+                'l' as u8,
+                'l' as u8,
+                'o' as u8,
+                0,
+                0,
+                0,
+            ]
+        );
     }
 
     #[test]
@@ -158,7 +174,8 @@ mod tests {
             // parent
             |pid, regs| {
                 if get_reg!(regs, SysArgNum) == MKDIR as u64 {
-                    let dir_path = get_sysarg_path(pid, get_reg!(regs, SysArg1) as *mut Word).unwrap();
+                    let dir_path = get_sysarg_path(pid, get_reg!(regs, SysArg1) as *mut Word)
+                        .unwrap();
 
                     // we're checking that the string read in the tracee's memory
                     // corresponds to what has been given to the execve command
@@ -173,9 +190,11 @@ mod tests {
             // child
             || {
                 // calling the mkdir function, which should call the MKDIR syscall
-                execvp(&CString::new("mkdir").unwrap(), &[CString::new(".").unwrap(), CString::new(test_path).unwrap()])
-                    .expect("failed execvp mkdir");
-            }
+                execvp(
+                    &CString::new("mkdir").unwrap(),
+                    &[CString::new(".").unwrap(), CString::new(test_path).unwrap()],
+                ).expect("failed execvp mkdir");
+            },
         );
     }
 }

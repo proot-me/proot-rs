@@ -35,10 +35,10 @@ pub enum SyscallType {
     SymLink,
     SymLinkAt,
     Uname,
-    UnlinkMkdirAt
+    UnlinkMkdirAt,
 }
 
-#[cfg(all(target_os="linux", target_arch="x86_64"))]
+#[cfg(all(target_os = "linux", target_arch = "x86_64"))]
 pub fn syscall_type_from_sysnum(sysnum: usize) -> SyscallType {
     match sysnum {
         EXECVE                                      => SyscallType::Execve,

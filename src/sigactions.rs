@@ -8,7 +8,7 @@ use nix::sys::signal::Signal::*;
 /// All signals are blocked when the signal handler is called.
 pub fn prepare_sigactions(
     stop_program: extern "C" fn(c_int, *mut siginfo_t, *mut c_void),
-    show_info: extern "C" fn(pid: pid_t)
+    show_info: extern "C" fn(pid: pid_t),
 ) {
     let signal_set: SigSet = SigSet::all();
     // SIGINFO is used to know which process has signaled us and
@@ -38,10 +38,14 @@ pub fn prepare_sigactions(
         }
 
         let signal_action = SigAction::new(signal_handler, sa_flags, signal_set);
-        let sigaction_result = unsafe {sigaction(signal, &signal_action)};
+        let sigaction_result = unsafe { sigaction(signal, &signal_action) };
 
         if let Err(err) = sigaction_result {
-            println!("Warning: sigaction failed for signal {:?} : {:?}.", signal, err);
+            println!(
+                "Warning: sigaction failed for signal {:?} : {:?}.",
+                signal,
+                err
+            );
         }
     }
 }

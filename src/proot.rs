@@ -23,14 +23,12 @@ use nix::sys::wait::WaitStatus::*;
 pub struct InfoBag {
     /// Used to know if the first raw sigtrap has been processed
     /// (and if the `set_ptrace_options` step is required).
-    pub deliver_sigtrap: bool
+    pub deliver_sigtrap: bool,
 }
 
 impl InfoBag {
     pub fn new() -> InfoBag {
-        InfoBag {
-            deliver_sigtrap: false
-        }
+        InfoBag { deliver_sigtrap: false }
     }
 }
 
@@ -40,7 +38,7 @@ pub struct PRoot {
     tracees: HashMap<pid_t, Tracee>,
     alive_tracees: Vec<pid_t>,
     /// Information related to a file-system name-space.
-    fs: FileSystemNamespace
+    fs: FileSystemNamespace,
 }
 
 impl PRoot {
@@ -49,7 +47,7 @@ impl PRoot {
             info_bag: InfoBag::new(),
             tracees: HashMap::new(),
             alive_tracees: vec![],
-            fs: fs
+            fs: fs,
         }
     }
 
@@ -80,8 +78,10 @@ impl PRoot {
                 //if (getenv("PROOT_NO_SECCOMP") == NULL)
                 //    (void) enable_syscall_filtering(tracee);
 
-                execvp(&CString::new("sleep").unwrap(), &[CString::new(".").unwrap(), CString::new("0").unwrap()])
-                    .expect("failed execvp sleep");
+                execvp(
+                    &CString::new("sleep").unwrap(),
+                    &[CString::new(".").unwrap(), CString::new("0").unwrap()],
+                ).expect("failed execvp sleep");
                 //execvp(&CString::new("echo").unwrap(), &[CString::new(".").unwrap(), CString::new("TRACEE ECHO").unwrap()])
                 //    .expect("failed execvp echo");
                 //execvp(&CString::new("ls").unwrap(), &[CString::new(".").unwrap()])
@@ -104,15 +104,30 @@ impl PRoot {
                     self.register_tracee_finished(pid);
                 }
                 Signaled(pid, term_signal, dumped_core) => {
-                    println!("-- {}, Signaled with status: {:?}, and dump core: {}", pid, term_signal, dumped_core);
+                    println!(
+                        "-- {}, Signaled with status: {:?}, and dump core: {}",
+                        pid,
+                        term_signal,
+                        dumped_core
+                    );
                     self.register_tracee_finished(pid);
                 }
                 Stopped(pid, stop_signal) => {
-                    println!("-- {}, Stopped, {:?}, {}", pid, stop_signal, stop_signal as c_int);
+                    println!(
+                        "-- {}, Stopped, {:?}, {}",
+                        pid,
+                        stop_signal,
+                        stop_signal as c_int
+                    );
                     self.handle_standard_event(pid, Some(stop_signal));
                 }
                 PtraceEvent(pid, signal, additional_signal) => {
-                    println!("-- {}, Ptrace event, {:?}, {:?}", pid, signal, additional_signal);
+                    println!(
+                        "-- {}, Ptrace event, {:?}, {:?}",
+                        pid,
+                        signal,
+                        additional_signal
+                    );
                     self.handle_standard_event(pid, Some(signal));
                 }
                 PtraceSyscall(pid) => {
@@ -185,7 +200,9 @@ mod tests {
             assert!(tracee.is_none());
         }
 
-        { proot.create_tracee(0); }
+        {
+            proot.create_tracee(0);
+        }
 
         // tracee 0 should exist
         {

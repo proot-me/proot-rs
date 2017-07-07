@@ -14,8 +14,8 @@ pub struct FileSystemNamespace {
     bindings: Vec<Binding>,
     /// Working directory, à la `/proc/self/pwd`.
     cwd: PathBuf,
-    /// Host root (the binding associated to `/`)
-    root: PathBuf
+    /// Guest root (the binding associated to `/`)
+    root: PathBuf,
 }
 
 #[allow(dead_code)]
@@ -25,7 +25,7 @@ impl FileSystemNamespace {
         FileSystemNamespace {
             bindings: vec![],
             cwd: PathBuf::from("."),
-            root: PathBuf::from("/")
+            root: PathBuf::from("/"),
         }
     }
 
@@ -40,10 +40,6 @@ impl FileSystemNamespace {
         self.cwd = PathBuf::from(cwd);
     }
 
-    pub fn get_cwd(&self) -> &PathBuf {
-        &self.cwd
-    }
-
     pub fn set_root(&mut self, root: &str) {
         self.root = PathBuf::from(root);
         self.add_binding(Binding::new(root, "/", true));
@@ -52,7 +48,7 @@ impl FileSystemNamespace {
     /// Retrieves the first appropriate binding for a path translation.
     ///
     /// * `path` is the path which content will be tested on each binding
-    /// * `side` indicates whether the starting side of the translation (guest for guest -> host)
+    /// * `side` indicates the starting side of the translation (ie. guest for guest -> host)
     pub fn get_binding(&self, path: &Path, side: Side) -> Option<&Binding> {
         for binding in self.bindings.iter() {
             let binding_path = binding.get_path(side);
@@ -79,7 +75,7 @@ impl FileSystemNamespace {
     /// Finds a suitable binding for the given path,
     /// and changes its prefix from one side to another, if it can.
     ///
-    /// Returns returns the substituted path,
+    /// Returns the substituted path,
     /// or `None` if the path wasn't modified.
     ///
     /// * `path` is the path that will be modified. Must be canonicalized.
@@ -106,7 +102,7 @@ impl FileSystemNamespace {
 
         if !user_path_is_absolute {
             // It is relative to the current working directory.
-            result.push(self.get_cwd());
+            result.push(self.cwd.to_path_buf());
 
             //TODO: dir_fd != AT_FDCWD
         }
@@ -127,18 +123,22 @@ impl FileSystemNamespace {
         Ok(result)
     }
 
-    /// Translate a path from `guest` to `host`.
+    /// Translates a path from `guest` to `host`.
     /// Remove/substitute the leading part of a "translated" `path`.
     ///
     /// Returns
     /// * `Ok(None)` if no translation is required (ie. symmetric binding).
     /// * `Ok(PathBuf)` is the path was translated.
     /// * An error otherwise.
-    pub fn detranslate_path(&self, path: &Path, referrer: Option<&Path>) -> Result<Option<PathBuf>> {
+    pub fn detranslate_path(
+        &self,
+        path: &Path,
+        referrer: Option<&Path>,
+    ) -> Result<Option<PathBuf>> {
         // Don't try to detranslate relative paths (typically
         // the target of a relative symbolic link).
         if path.is_relative() {
-            return Ok(None)
+            return Ok(None);
         }
 
         let mut follow_binding = true;
@@ -166,8 +166,8 @@ impl FileSystemNamespace {
                 // guest rootfs namespace for consistency
                 // reasons.
                 if let Some(binding_referree) = maybe_binding_referree {
-                    follow_binding =
-                        binding_referree.get_path(Host) == binding_referrer.get_path(Host);
+                    follow_binding = binding_referree.get_path(Host) ==
+                        binding_referrer.get_path(Host);
                 }
             }
         }
@@ -181,15 +181,15 @@ impl FileSystemNamespace {
 
         // otherwise, we simply try to strip the (guest) root
         if let Ok(stripped_path) = path.strip_prefix(&self.root) {
-            Ok(Some(PathBuf::from("/").join(stripped_path)))
-        } else {
-            Ok(None)
+            return Ok(Some(PathBuf::from("/").join(stripped_path)));
         }
+
+        Ok(None)
     }
 
     #[inline]
-    /// Check if the translated @host_path belongs to the guest rootfs,
-    /// that is, isn't from a binding.
+    /// Checks if the translated `host_path` belongs to the guest rootfs,
+    /// that is, if it isn't from a binding.
     pub fn belongs_to_guestfs(&self, host_path: &Path) -> bool {
         host_path.starts_with(&self.root)
     }
@@ -238,46 +238,60 @@ mod tests {
     fn test_get_binding() {
         let mut fs = FileSystemNamespace::new();
 
-        assert!(fs.get_binding(&PathBuf::from("/home/user"), Guest).is_none()); // no bindings
+        assert!(
+            fs.get_binding(&PathBuf::from("/home/user"), Guest)
+                .is_none()
+        ); // no bindings
         assert!(fs.get_binding(&PathBuf::from("/home/user"), Host).is_none()); // no bindings
 
         // testing root binding
         fs.set_root("/home/user");
 
         assert_eq!(
-            fs.get_binding(&Path::new("/bin"), Guest).unwrap().get_path(Guest),
-            &PathBuf::from("/")); // it's "/home/user/bin" from the point of view of the host
+            fs.get_binding(&Path::new("/bin"), Guest)
+                .unwrap()
+                .get_path(Guest),
+            &PathBuf::from("/")
+        ); // it's "/home/user/bin" from the point of view of the host
 
-        assert!(
-            fs.get_binding(&Path::new("/etc"), Host)
-            .is_none()); // "/etc" is outside of the guest fs, and no corresponding binding
+        assert!(fs.get_binding(&Path::new("/etc"), Host).is_none()); // "/etc" is outside of the guest fs, so no corresponding binding found
 
         // testing binding outside of guest fs;
-        // here, "/media" in the sandbox, is in reality "/etc" on the host
+        // here, "/etc" on the host corresponds to "/media" in the sandbox.
         fs.add_binding(Binding::new("/etc", "/media", true));
 
         assert_eq!(
-            fs.get_binding(&Path::new("/media/folder/subfolder"), Guest).unwrap().get_path(Guest),
-            &PathBuf::from("/media")); // it should detect the lastly-added binding
+            fs.get_binding(&Path::new("/media/folder/subfolder"), Guest)
+                .unwrap()
+                .get_path(Guest),
+            &PathBuf::from("/media")
+        ); // it should detect the lastly-added binding
 
         assert_eq!(
-            fs.get_binding(&Path::new("/etc/folder/subfolder"), Host).unwrap().get_path(Guest),
-            &PathBuf::from("/media")); // same on the other side
+            fs.get_binding(&Path::new("/etc/folder/subfolder"), Host)
+                .unwrap()
+                .get_path(Guest),
+            &PathBuf::from("/media")
+        ); // same on the other side
 
-        assert!(
-            fs.get_binding(&Path::new("/bin"), Host)
-            .is_none()); // should correspond to no binding
+        assert!(fs.get_binding(&Path::new("/bin"), Host).is_none()); // should correspond to no binding
 
         // testing symmetric binding
         fs.add_binding(Binding::new("/bin", "/bin", true));
 
         assert_eq!(
-            fs.get_binding(&Path::new("/bin/folder/subfolder"), Guest).unwrap().get_path(Guest),
-            &PathBuf::from("/bin")); // it should detect the binding
+            fs.get_binding(&Path::new("/bin/folder/subfolder"), Guest)
+                .unwrap()
+                .get_path(Guest),
+            &PathBuf::from("/bin")
+        ); // it should detect the binding
 
         assert_eq!(
-            fs.get_binding(&Path::new("/bin/folder/subfolder"), Host).unwrap().get_path(Guest),
-            &PathBuf::from("/bin")); // it should detect the binding
+            fs.get_binding(&Path::new("/bin/folder/subfolder"), Host)
+                .unwrap()
+                .get_path(Guest),
+            &PathBuf::from("/bin")
+        ); // same on the other side
     }
 
     #[test]
@@ -291,29 +305,45 @@ mod tests {
 
         assert_eq!(
             fs.substitute_binding(&Path::new("/etc/folder/subfolder"), Direction(Host, Guest)),
-            Ok(Some(PathBuf::from("/media/folder/subfolder")))); // "/etc" => "/media"
+            Ok(Some(PathBuf::from("/media/folder/subfolder")))
+        ); // "/etc" => "/media"
 
         assert_eq!(
-            fs.substitute_binding(&Path::new("/media/folder/subfolder"), Direction(Host, Guest)),
-            Err(Error::Sys(Errno::ENOENT))); // the path isn't translatable to the guest fs
+            fs.substitute_binding(
+                &Path::new("/media/folder/subfolder"),
+                Direction(Host, Guest),
+            ),
+            Err(Error::Sys(Errno::ENOENT))
+        ); // the path isn't translatable to the guest fs
 
         assert_eq!(
             fs.substitute_binding(&Path::new("/etc/folder/subfolder"), Direction(Guest, Host)),
-            Ok(Some(PathBuf::from("/home/user/etc/folder/subfolder")))); // "/" => "/home/user"
+            Ok(Some(PathBuf::from("/home/user/etc/folder/subfolder")))
+        ); // "/" => "/home/user"
 
         assert_eq!(
-            fs.substitute_binding(&Path::new("/media/folder/subfolder"), Direction(Guest, Host)),
-            Ok(Some(PathBuf::from("/etc/folder/subfolder")))); // "/media" => "/etc"
+            fs.substitute_binding(
+                &Path::new("/media/folder/subfolder"),
+                Direction(Guest, Host),
+            ),
+            Ok(Some(PathBuf::from("/etc/folder/subfolder")))
+        ); // "/media" => "/etc"
 
         fs.add_binding(Binding::new("/etc/something", "/etc/something", true));
 
         assert_eq!(
-            fs.substitute_binding(&Path::new("/etc/something/subfolder"), Direction(Guest, Host)),
+            fs.substitute_binding(
+                &Path::new("/etc/something/subfolder"),
+                Direction(Guest, Host),
+            ),
             Ok(None) // the binding is symmetric, so no need to modify the path
         );
 
         assert_eq!(
-            fs.substitute_binding(&Path::new("/etc/something/subfolder"), Direction(Host, Guest)),
+            fs.substitute_binding(
+                &Path::new("/etc/something/subfolder"),
+                Direction(Host, Guest),
+            ),
             Ok(None) // same in the other direction
         );
     }
@@ -352,7 +382,8 @@ mod tests {
 
         assert_eq!(
             fs.detranslate_path(&Path::new("/etc/guest/something"), None),
-            Ok(Some(PathBuf::from("/etc/host/something")))); //
+            Ok(Some(PathBuf::from("/etc/host/something")))
+        ); //
 
         //TODO: detranslate symlink tests
     }

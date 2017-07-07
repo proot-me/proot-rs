@@ -6,7 +6,7 @@ use nix::errno::Errno;
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Side {
     Host, // in the real filesystem
-    Guest // in the sandbox
+    Guest, // in the sandbox
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -23,7 +23,7 @@ pub struct Binding {
     host: PathBuf,
     guest: PathBuf,
     need_substitution: bool,
-    _must_exist: bool
+    _must_exist: bool,
 }
 
 #[allow(dead_code)]
@@ -34,7 +34,7 @@ impl Binding {
             host: PathBuf::from(host),
             guest: PathBuf::from(guest),
             need_substitution: !host.eq(guest),
-            _must_exist: must_exist
+            _must_exist: must_exist,
         }
     }
 
@@ -42,7 +42,7 @@ impl Binding {
     pub fn get_path(&self, side: Side) -> &PathBuf {
         match side {
             Side::Guest => &self.guest,
-            Side::Host => &self.host
+            Side::Host => &self.host,
         }
     }
 
@@ -53,7 +53,11 @@ impl Binding {
 
 
     #[inline]
-    pub fn substitute_path_prefix(&self, path: &Path, direction: Direction) -> Result<Option<PathBuf>> {
+    pub fn substitute_path_prefix(
+        &self,
+        path: &Path,
+        direction: Direction,
+    ) -> Result<Option<PathBuf>> {
         let current_prefix = self.get_path(direction.0);
 
         // we start with the new prefix
@@ -98,16 +102,20 @@ mod tests {
 
         assert_eq!(
             binding.substitute_path_prefix(&PathBuf::from("/bin/sleep"), Direction(Guest, Host)),
-            Ok(Some(PathBuf::from("/home/user/bin/sleep")))); // "/" => "/home/user"
+            Ok(Some(PathBuf::from("/home/user/bin/sleep")))
+        ); // "/" => "/home/user"
         assert_eq!(
             binding.substitute_path_prefix(&PathBuf::from("/"), Direction(Guest, Host)),
-            Ok(Some(PathBuf::from("/home/user")))); // same here
+            Ok(Some(PathBuf::from("/home/user")))
+        ); // same here
         assert_eq!(
             binding.substitute_path_prefix(&PathBuf::from("/bin/sleep"), Direction(Host, Guest)),
-            Ok(None)); // "/home/user" is not a prefix of this path
+            Ok(None)
+        ); // "/home/user" is not a prefix of this path
         assert_eq!(
             binding.substitute_path_prefix(&PathBuf::from("/"), Direction(Host, Guest)),
-            Ok(None)); // same here
+            Ok(None)
+        ); // same here
     }
 
     #[test]
@@ -117,15 +125,25 @@ mod tests {
 
         assert_eq!(
             binding.substitute_path_prefix(&PathBuf::from("/etc/bin/sleep"), Direction(Guest, Host)),
-            Ok(None)); // no "/etc" prefix on the guest side
+            Ok(None)
+        ); // no "/etc" prefix on the guest side
         assert_eq!(
-            binding.substitute_path_prefix(&PathBuf::from("/media/bin/sleep"), Direction(Guest, Host)),
-            Ok(Some(PathBuf::from("/etc/bin/sleep")))); // "/media" => "/etc"
+            binding.substitute_path_prefix(
+                &PathBuf::from("/media/bin/sleep"),
+                Direction(Guest, Host),
+            ),
+            Ok(Some(PathBuf::from("/etc/bin/sleep")))
+        ); // "/media" => "/etc"
         assert_eq!(
             binding.substitute_path_prefix(&PathBuf::from("/etc/bin/sleep"), Direction(Host, Guest)),
-            Ok(Some(PathBuf::from("/media/bin/sleep")))); // "/etc" => "/media"
+            Ok(Some(PathBuf::from("/media/bin/sleep")))
+        ); // "/etc" => "/media"
         assert_eq!(
-            binding.substitute_path_prefix(&PathBuf::from("/media/bin/sleep"), Direction(Host, Guest)),
-            Ok(None)); // no "/media" prefix on the host side
+            binding.substitute_path_prefix(
+                &PathBuf::from("/media/bin/sleep"),
+                Direction(Host, Guest),
+            ),
+            Ok(None)
+        ); // no "/media" prefix on the host side
     }
 }

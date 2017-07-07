@@ -47,10 +47,18 @@ mod tests {
 
     #[test]
     fn test_path_validator_incorrect_paths() {
-        let incorrect_paths = ["impossible path", "../../../../impossible path", "/\\/", "\'`"];
+        let incorrect_paths = [
+            "impossible path",
+            "../../../../impossible path",
+            "/\\/",
+            "\'`",
+        ];
 
         for path in &incorrect_paths {
-            assert_eq!(path_validator(path.to_string()), Err((path.to_string() + " is not a valid path.")));
+            assert_eq!(
+                path_validator(path.to_string()),
+                Err((path.to_string() + " is not a valid path."))
+            );
         }
     }
 
@@ -68,8 +76,14 @@ mod tests {
         let incorrect_paths = [".", "..", "..:..:..", ".:.:."];
 
         for path in &incorrect_paths {
-            assert_eq!(binding_validator(path.to_string()), Err(("should be: path_host:path_guest".to_string())));
+            assert_eq!(
+                binding_validator(path.to_string()),
+                Err(("should be: path_host:path_guest".to_string()))
+            );
         }
-        assert_eq!(binding_validator("impossible path:.".to_string()), Err(("impossible path is not a valid path.".to_string())));
+        assert_eq!(
+            binding_validator("impossible path:.".to_string()),
+            Err(("impossible path is not a valid path.".to_string()))
+        );
     }
 }

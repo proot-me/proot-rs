@@ -53,12 +53,12 @@ pub mod regs_offset {
 /// Returns either `Ok(regs)` or `Err(Sys(errno))` or `Err(InvalidPath)`.
 #[inline]
 pub fn fetch_regs(pid: pid_t) -> Result<user_regs_struct> {
-    let mut regs: user_regs_struct = unsafe {mem::zeroed()};
+    let mut regs: user_regs_struct = unsafe { mem::zeroed() };
     let p_regs: *mut c_void = &mut regs as *mut _ as *mut c_void;
 
     // Notice the ? at the end, which is the equivalent of `try!`.
     // It will return the error if there is one.
-    ptrace(PTRACE_GETREGS, pid, null_mut(), p_regs) ?;
+    ptrace(PTRACE_GETREGS, pid, null_mut(), p_regs)?;
 
     Ok(regs)
 }
@@ -91,9 +91,12 @@ mod tests {
             // child
             || {
                 // calling the sleep function, which should call the NANOSLEEP syscall
-                execvp(&CString::new("sleep").unwrap(), &[CString::new(".").unwrap(), CString::new("0").unwrap()])
-                    .expect("failed execvp sleep");
-            });
+                execvp(
+                    &CString::new("sleep").unwrap(),
+                    &[CString::new(".").unwrap(), CString::new("0").unwrap()],
+                ).expect("failed execvp sleep");
+            },
+        );
     }
 
     #[test]
@@ -113,8 +116,11 @@ mod tests {
             // child
             || {
                 // calling the sleep function, which should call the NANOSLEEP syscall
-                execvp(&CString::new("sleep").unwrap(), &[CString::new(".").unwrap(), CString::new("0").unwrap()])
-                    .expect("failed execvp sleep");
-            });
+                execvp(
+                    &CString::new("sleep").unwrap(),
+                    &[CString::new(".").unwrap(), CString::new("0").unwrap()],
+                ).expect("failed execvp sleep");
+            },
+        );
     }
 }

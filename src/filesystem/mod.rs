@@ -1,6 +1,6 @@
 pub mod binding;
-pub mod fsnamespace;
+pub mod fs;
 pub mod validation;
-pub mod canon;
+pub mod canonicalization;
 pub mod translation;
 pub mod substitution;

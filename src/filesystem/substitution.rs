@@ -5,7 +5,7 @@ use nix::errno::Errno;
 use nix::Error as NixError;
 use filesystem::binding::Direction;
 use filesystem::binding::Side::{Guest, Host};
-use filesystem::fsnamespace::FileSystemNamespace;
+use filesystem::fs::FileSystem;
 
 pub trait Substitutor {
     fn substitute_binding(
@@ -17,7 +17,7 @@ pub trait Substitutor {
         -> Result<(PathBuf, FileType), IOError>;
 }
 
-impl Substitutor for FileSystemNamespace {
+impl Substitutor for FileSystem {
     /// Finds a suitable binding for the given path,
     /// and changes its prefix from one side to another, if it can.
     ///
@@ -83,11 +83,11 @@ mod tests {
     use nix::errno::Errno;
     use filesystem::binding::Binding;
     use filesystem::binding::Side::{Host, Guest};
-    use filesystem::fsnamespace::FileSystemNamespace;
+    use filesystem::fs::FileSystem;
 
     #[test]
     fn test_substitute_binding_root_and_asymmetric() {
-        let mut fs = FileSystemNamespace::new();
+        let mut fs = FileSystem::new();
 
         fs.set_root("/home/user");
 
@@ -123,7 +123,7 @@ mod tests {
 
     #[test]
     fn test_substitute_binding_symmetric() {
-        let mut fs = FileSystemNamespace::new();
+        let mut fs = FileSystem::new();
 
         fs.set_root("/home/user");
         fs.add_binding(Binding::new("/etc/something", "/etc/something", true));
@@ -147,7 +147,7 @@ mod tests {
 
     #[test]
     fn test_substitute_intermediary_and_glue() {
-        let mut fs = FileSystemNamespace::new();
+        let mut fs = FileSystem::new();
 
         fs.set_root("/etc/acpi");
 

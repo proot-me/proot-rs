@@ -6,7 +6,7 @@ use filesystem::binding::Side::Host;
 
 /// Information related to a file-system name-space.
 #[derive(Debug)]
-pub struct FileSystemNamespace {
+pub struct FileSystem {
     /// List of bindings used to replicate `mount` and `bind`.
     /// It will also contain the root binding (to replicate `chroot`).
     bindings: Vec<Binding>,
@@ -18,9 +18,9 @@ pub struct FileSystemNamespace {
 
 #[allow(dead_code)]
 
-impl FileSystemNamespace {
-    pub fn new() -> FileSystemNamespace {
-        FileSystemNamespace {
+impl FileSystem {
+    pub fn new() -> FileSystem {
+        FileSystem {
             bindings: vec![],
             cwd: PathBuf::from("."),
             root: PathBuf::from("/"),
@@ -117,7 +117,7 @@ mod tests {
 
     #[test]
     fn test_belongs_to_guestfs() {
-        let mut fs = FileSystemNamespace::new();
+        let mut fs = FileSystem::new();
 
         fs.set_root("/etc");
 
@@ -130,7 +130,7 @@ mod tests {
 
     #[test]
     fn test_get_binding() {
-        let mut fs = FileSystemNamespace::new();
+        let mut fs = FileSystem::new();
 
         assert!(
             fs.get_binding(&PathBuf::from("/home/user"), Guest)

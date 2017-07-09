@@ -1,14 +1,20 @@
 use std::path::{Path, PathBuf, Component};
 use std::io::Error as IOError;
 use nix::Error;
-use filesystem::fsnamespace::FileSystemNamespace;
+use filesystem::fs::FileSystem;
 use filesystem::substitution::Substitutor;
 
-pub trait Canonicalizor {
+pub trait Canonicalizer {
     fn canonicalize(&self, path: &Path, deref_final: bool) -> Result<PathBuf, IOError>;
 }
 
-impl Canonicalizor for FileSystemNamespace {
+impl Canonicalizer for FileSystem {
+    /// Canonicalizes `user_path` relative to the guest root (see `man 3 realpath`).
+    ///
+    /// It removes ".." and "." from the paths and recursively dereferences symlinks.
+    /// It checks that every path of the path exists.
+    ///
+    /// The final path is only deferenced if `deref_final` is true.
     fn canonicalize(&self, user_path: &Path, deref_final: bool) -> Result<PathBuf, IOError> {
         let mut guest_path = PathBuf::new();
 
@@ -32,6 +38,7 @@ impl Canonicalizor for FileSystemNamespace {
                 }
                 Component::CurDir |
                 Component::Prefix(_) => {
+                    // Component::Prefix does not occur on Unix
                     continue;
                 }
                 Component::ParentDir => {
@@ -39,12 +46,18 @@ impl Canonicalizor for FileSystemNamespace {
                         continue;
                     } else {
                         // the path is invalid, as it didn't manage to remove the last component
-                        // (probably a path like "/..")
+                        // (it's probably a path like "/..").
                         return Err(IOError::from(Error::invalid_argument()));
                     }
                 }
                 Component::Normal(path_part) => {
                     guest_path.push(path_part);
+
+                    // Resolve bindings and check that a non-final
+                    // component exists and either is a directory or is a
+                    // symlink.  For this latter case, we check that the
+                    // symlink points to a directory once it is
+                    // canonicalized, at the end of this loop.
                     let (_, file_type) = self.substitute_intermediary_and_glue(&guest_path)?;
 
                     // Nothing special to do if it's not a link or if we
@@ -69,14 +82,11 @@ impl Canonicalizor for FileSystemNamespace {
 mod tests {
     use super::*;
     use std::path::PathBuf;
-    use std::io::Error as IOError;
-    use nix::Error;
-    use nix::errno::Errno;
-    use filesystem::fsnamespace::FileSystemNamespace;
+    use filesystem::fs::FileSystem;
 
     #[test]
     fn test_canonicalize_invalid_path() {
-        let mut fs = FileSystemNamespace::new();
+        let mut fs = FileSystem::new();
 
         // "/home/user" on the host, "/" on the guest
         fs.set_root("/home/user");
@@ -88,7 +98,7 @@ mod tests {
 
     #[test]
     fn test_canonicalize_impossible_path() {
-        let mut fs = FileSystemNamespace::new();
+        let mut fs = FileSystem::new();
 
         // "/home/user" on the host, "/" on the guest
         fs.set_root("/home/user");
@@ -99,15 +109,28 @@ mod tests {
 
     #[test]
     fn test_canonicalize_normal_path() {
-        let mut fs = FileSystemNamespace::new();
+        let mut fs = FileSystem::new();
 
-        // "/home/user" on the host, "/" on the guest
+        // "/etc" on the host, "/" on the guest
         fs.set_root("/etc");
 
         assert_eq!(
             fs.canonicalize(&PathBuf::from("/acpi/./../acpi//events"), false)
                 .unwrap(),
             PathBuf::from("/acpi/events")
+        );
+    }
+
+    #[test]
+    fn test_canonicalize_symlink_not_deref() {
+        let mut fs = FileSystem::new();
+
+        // "/etc" on the host, "/" on the guest
+        fs.set_root("/bin");
+
+        assert_eq!(
+            fs.canonicalize(&PathBuf::from("/sh"), false).unwrap(),
+            PathBuf::from("/sh")
         );
     }
 }

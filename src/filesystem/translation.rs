@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 use nix::Result;
 use filesystem::binding::Direction;
 use filesystem::binding::Side::{Host, Guest};
-use filesystem::fsnamespace::FileSystemNamespace;
+use filesystem::fs::FileSystem;
 use filesystem::substitution::Substitutor;
 
 pub trait Translator {
@@ -10,7 +10,7 @@ pub trait Translator {
     fn detranslate_path(&self, path: &Path, referrer: Option<&Path>) -> Result<Option<PathBuf>>;
 }
 
-impl Translator for FileSystemNamespace {
+impl Translator for FileSystem {
     /// Translates a path from `guest` to `host`.
     /// Remove/substitute the leading part of a "translated" `path`.
     ///
@@ -104,11 +104,11 @@ mod tests {
     use super::*;
     use std::path::{Path, PathBuf};
     use filesystem::binding::Binding;
-    use filesystem::fsnamespace::FileSystemNamespace;
+    use filesystem::fs::FileSystem;
 
     #[test]
     fn test_detranslate_path_root() {
-        let mut fs = FileSystemNamespace::new();
+        let mut fs = FileSystem::new();
 
         // "/home/user" on the host, "/" on the guest
         fs.set_root("/home/user");
@@ -131,7 +131,7 @@ mod tests {
 
     #[test]
     fn test_detranslate_path_asymmetric() {
-        let mut fs = FileSystemNamespace::new();
+        let mut fs = FileSystem::new();
 
         // "/home/user" on the host, "/" on the guest
         fs.set_root("/home/user");
@@ -149,7 +149,7 @@ mod tests {
 
     #[test]
     fn test_detranslate_path_symmetric() {
-        let mut fs = FileSystemNamespace::new();
+        let mut fs = FileSystem::new();
 
         // "/home/user" on the host, "/" on the guest
         fs.set_root("/home/user");

@@ -1,12 +1,12 @@
 use clap::{App, Arg};
-use filesystem::fsnamespace::FileSystemNamespace;
+use filesystem::fs::FileSystem;
 use filesystem::binding::Binding;
 use filesystem::validation::{binding_validator, path_validator};
 
 pub const DEFAULT_ROOTFS: &'static str = "/";
 pub const DEFAULT_CWD: &'static str = ".";
 
-pub fn get_config(fs: &mut FileSystemNamespace) {
+pub fn get_config(fs: &mut FileSystem) {
     let matches = App::new("proot_rust")
         .arg(Arg::with_name("rootfs")
             .short("r")

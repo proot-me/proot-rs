@@ -13,11 +13,11 @@ mod sigactions;
 mod proot;
 
 use proot::{PRoot, stop_program, show_info};
-use filesystem::fsnamespace::FileSystemNamespace;
+use filesystem::fs::FileSystem;
 
 fn main() {
     // step 1: CLI parsing
-    let mut fs: FileSystemNamespace = FileSystemNamespace::new();
+    let mut fs: FileSystem = FileSystem::new();
     cli::get_config(&mut fs);
     let mut proot: PRoot = PRoot::new(fs);
 

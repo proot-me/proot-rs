@@ -29,7 +29,7 @@ pub struct Binding {
 #[allow(dead_code)]
 
 impl Binding {
-    //TODO: return Option<Binding> and make checks (test existence if must_exist)
+    //TODO: return Option<Binding> and make checks (test existence if must_exist, sanitize, canon..)
     pub fn new(host: &str, guest: &str, must_exist: bool) -> Binding {
         Binding {
             host: PathBuf::from(host),
@@ -59,6 +59,10 @@ impl Binding {
         path: &Path,
         direction: Direction,
     ) -> Result<Option<PathBuf>> {
+        if direction.0 == direction.1 {
+            return Ok(None);
+        }
+
         let current_prefix = self.get_path(direction.0);
 
         // we start with the new prefix

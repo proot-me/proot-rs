@@ -22,7 +22,6 @@ impl Canonicalizor for FileSystemNamespace {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;

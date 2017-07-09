@@ -1,5 +1,7 @@
 use std::path::Path;
 
+//TODO: replace all this by FileSystemNamespace's trait Validator
+
 /// Check wheter the path is a valid path (file that exists, or path that ends in /)
 pub fn is_valid_path(path: &str, error_message: String) -> Result<(), String> {
     if !Path::new(path).exists() {

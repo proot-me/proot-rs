@@ -3,7 +3,7 @@ use nix::Result;
 use filesystem::binding::Direction;
 use filesystem::binding::Side::{Host, Guest};
 use filesystem::fsnamespace::FileSystemNamespace;
-use filesystem::substitution::Substitution;
+use filesystem::substitution::Substitutor;
 
 pub trait Translator {
     fn translate_path(&self, path: &Path) -> Result<PathBuf>;

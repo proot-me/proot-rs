@@ -1,4 +1,6 @@
 use std::path::{Path, PathBuf};
+use std::fs::Metadata;
+use std::io::Error as IOError;
 use filesystem::binding::{Binding, Side};
 use filesystem::binding::Side::Host;
 
@@ -29,7 +31,7 @@ impl FileSystemNamespace {
     /// so that we get the most recent one when going through them
     /// in the `get_binding` method.
     ///
-    //TODO: sort bindings to make substitution of nested bindings determistic
+    //TODO: sort bindings to make substitution of nested bindings deterministic
     #[inline]
     pub fn add_binding(&mut self, binding: Binding) {
         self.bindings.insert(0, binding);
@@ -88,6 +90,21 @@ impl FileSystemNamespace {
         }
 
         None
+    }
+
+    //TODO: use cache
+    #[inline]
+    /// Retrieves the path's metadata without going through symlinks.
+    pub fn get_direct_metadata(&self, path: &Path) -> Result<Metadata, IOError> {
+        //        /* Don't notify extensions during the initialization of a binding.  */
+        //        if (tracee->glue_type == 0) {
+        //            status = notify_extensions(tracee, HOST_PATH, (intptr_t)host_path, finality);
+        //            if (status < 0)
+        //            return status;
+        //        }
+
+        // indirect call to `lstat`
+        path.symlink_metadata()
     }
 }
 

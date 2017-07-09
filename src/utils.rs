@@ -12,9 +12,9 @@ pub mod tests {
     use nix::sys::wait::{waitpid, __WALL};
     use nix::sys::wait::WaitStatus::*;
     use nix::sys::ptrace::ptrace::PTRACE_SYSCALL;
-    use proot::InfoBag;
-    use tracee::Tracee;
-    use regs::fetch_regs;
+    use process::proot::InfoBag;
+    use process::tracee::Tracee;
+    use register::regs::fetch_regs;
 
     /// Allow tests to fork and deal with child processes without mixing them.
     fn test_in_subprocess<F: Fn()>(func: F) {

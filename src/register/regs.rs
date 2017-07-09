@@ -1,11 +1,9 @@
 use std::ptr::null_mut;
 use std::mem;
-use libc::{pid_t, c_void, c_long, user_regs_struct};
+use libc::{pid_t, c_void, user_regs_struct};
 use nix::Result;
 use nix::sys::ptrace::ptrace;
 use nix::sys::ptrace::ptrace::PTRACE_GETREGS;
-
-pub type Word = c_long;
 
 /// Specify the ABI registers (syscall argument passing, stack pointer).
 /// See sysdeps/unix/sysv/linux/${ARCH}/syscall.S from the GNU C Library.

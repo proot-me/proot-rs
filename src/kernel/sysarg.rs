@@ -7,7 +7,7 @@ use nix::Error::Sys;
 use nix::Errno::ENAMETOOLONG;
 use nix::sys::ptrace::ptrace;
 use nix::sys::ptrace::ptrace::PTRACE_PEEKDATA;
-use regs::Word;
+use register::Word;
 
 /// Retrieves a path from one of the syscall's arguments.
 ///
@@ -19,7 +19,7 @@ pub fn get_sysarg_path(pid: pid_t, src_sysarg: *mut Word) -> Result<CString> {
     if src_sysarg.is_null() {
         /// Check if the parameter is not NULL. Technically we should
         /// not return an error for this special value since it is
-        /// allowed for some syscalls, utimensat(2) for instance.
+        /// allowed for some kernel, utimensat(2) for instance.
         Ok(CString::new("").unwrap())
     } else {
         /// Get the path from the tracee's memory space.
@@ -128,7 +128,7 @@ mod tests {
     use nix::unistd::execvp;
     use utils::tests::fork_test;
     use syscall::nr::MKDIR;
-    use regs::Word;
+    use register::Word;
 
     #[test]
     fn convert_word_to_bytes_test() {

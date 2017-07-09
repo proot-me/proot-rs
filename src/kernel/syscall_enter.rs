@@ -1,10 +1,10 @@
-use syscalls::syscall_type::{SyscallType, syscall_type_from_sysnum};
+use kernel::syscall_type::{SyscallType, syscall_type_from_sysnum};
 use libc::{pid_t, user_regs_struct};
-use syscalls::execve;
-use syscalls::heap::*;
-use syscalls::ptrace::*;
-use syscalls::socket::*;
-use syscalls::standard::*;
+use kernel::execve;
+use kernel::heap::*;
+use kernel::ptrace::*;
+use kernel::socket::*;
+use kernel::standard::*;
 use nix::Result;
 
 pub fn translate(pid: pid_t, regs: &user_regs_struct) -> Result<()> {

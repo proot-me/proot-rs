@@ -1,5 +1,5 @@
-use syscalls::standard::unlink_mkdir_at;
-use syscalls::syscall_exit::SyscallExitResult;
+use kernel::standard::unlink_mkdir_at;
+use kernel::syscall_exit::SyscallExitResult;
 use nix::Result;
 
 pub fn enter() -> Result<()> {

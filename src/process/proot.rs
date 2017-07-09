@@ -1,4 +1,4 @@
-use tracee::Tracee;
+use process::tracee::Tracee;
 use filesystem::fs::FileSystem;
 use std::collections::HashMap;
 use std::ptr::null_mut;

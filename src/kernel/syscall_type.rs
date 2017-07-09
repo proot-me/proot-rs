@@ -17,7 +17,7 @@ pub enum SyscallType {
     GetSockOrPeerName,
     #[allow(dead_code)]
     SocketCall,
-    StandardSyscall, // syscalls that only require their path arguments to be translated
+    StandardSyscall, // kernel that only require their path arguments to be translated
     Open,
     StatAt,
     ChmodAccessMkNodAt,

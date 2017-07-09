@@ -1,4 +1,4 @@
-use syscalls::syscall_exit::SyscallExitResult;
+use kernel::syscall_exit::SyscallExitResult;
 use nix::Result;
 
 pub fn enter() -> Result<()> {

@@ -1,7 +1,7 @@
-use syscalls::syscall_exit::SyscallExitResult;
+use kernel::syscall_exit::SyscallExitResult;
 use nix::Result;
 
-/// Translates link and rename syscalls
+/// Translates link and rename kernel
 pub fn enter() -> Result<()> {
     Ok(())
 
@@ -12,7 +12,7 @@ pub fn enter() -> Result<()> {
     //    status = translate_sysarg(tracee, SYSARG_2, SYMLINK);
 }
 
-/// Translates `rename` and `rename_at` syscalls
+/// Translates `rename` and `rename_at` kernel
 pub fn exit() -> SyscallExitResult {
     //    char old_path[PATH_MAX];
     //		char new_path[PATH_MAX];

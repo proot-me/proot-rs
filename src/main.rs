@@ -4,15 +4,14 @@ extern crate clap;
 extern crate syscall;
 mod utils;
 #[macro_use]
-mod regs;
-mod syscalls;
+mod register;
+mod kernel;
 mod filesystem;
-mod tracee;
 mod cli;
-mod sigactions;
-mod proot;
+mod process;
 
-use proot::{PRoot, stop_program, show_info};
+use process::sigactions;
+use process::proot::{PRoot, stop_program, show_info};
 use filesystem::fs::FileSystem;
 
 fn main() {
@@ -25,7 +24,7 @@ fn main() {
     proot.launch_process();
 
     // what follows (event loop) is only for the main thread,
-    // as the child thread will stop after executing the `syscalls.execve` command
+    // as the child thread will stop after executing the `kernel.execve` command
 
     // step 3: Configure the signal actions
     sigactions::prepare_sigactions(stop_program, show_info);

@@ -5,9 +5,9 @@ use nix::sys::ptrace::ptrace_setoptions;
 use nix::{Result, Error};
 use nix::sys::ptrace::ptrace::*;
 use nix::sys::ptrace::ptrace;
-use syscalls::{syscall_enter, syscall_exit};
-use proot::InfoBag;
-use regs::fetch_regs;
+use kernel::{syscall_enter, syscall_exit};
+use process::proot::InfoBag;
+use register::regs::fetch_regs;
 
 //TODO: remove this when a nix PR will have added them
 mod ptrace_events {
@@ -103,7 +103,7 @@ impl Tracee {
             // ensures WithExitStage/PTRACE_SYSCALL (used to hit the exit stage under
             // seccomp) is not cleared due to an event that would happen
             // before the exit stage, eg. PTRACE_EVENT_EXEC for the exit
-            // stage of syscalls.execve(2).
+            // stage of kernel.execve(2).
             if self.seccomp && !self.sysexit_pending {
                 self.restart_how = TraceeRestartMethod::WithoutExitStage;
             } else {

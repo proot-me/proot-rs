@@ -1,4 +1,4 @@
-use syscalls::execve::path::translate_and_check_exec;
+use kernel::execve::path::translate_and_check_exec;
 use nix::Result;
 
 /// Expand in argv[] the shebang of `user_path`, if any.  This function

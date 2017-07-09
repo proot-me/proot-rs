@@ -62,7 +62,7 @@ impl Canonicalizer for FileSystem {
 
                     // Nothing special to do if it's not a link or if we
                     // explicitly ask to not dereference 'user_path', as
-                    // required by syscalls like `lstat(2)`. Obviously, this
+                    // required by kernel like `lstat(2)`. Obviously, this
                     // later condition does not apply to intermediate path
                     // components.
                     if file_type.is_dir() || (is_last_component && !deref_final) {

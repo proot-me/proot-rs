@@ -1,5 +1,5 @@
-use syscalls::socket::get_sockorpeer_name;
-use syscalls::syscall_exit::SyscallExitResult;
+use kernel::socket::get_sockorpeer_name;
+use kernel::syscall_exit::SyscallExitResult;
 use nix::Result;
 
 pub fn enter() -> Result<()> {

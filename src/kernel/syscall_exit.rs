@@ -1,9 +1,9 @@
-use syscalls::syscall_type::{SyscallType, syscall_type_from_sysnum};
-use syscalls::execve;
-use syscalls::heap::*;
-use syscalls::ptrace::*;
-use syscalls::socket::*;
-use syscalls::standard::*;
+use kernel::syscall_type::{SyscallType, syscall_type_from_sysnum};
+use kernel::execve;
+use kernel::heap::*;
+use kernel::ptrace::*;
+use kernel::socket::*;
+use kernel::standard::*;
 use libc::{c_int, user_regs_struct};
 
 pub enum SyscallExitResult {

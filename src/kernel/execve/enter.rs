@@ -1,8 +1,8 @@
 use libc::{pid_t, user_regs_struct};
 use nix::Result;
-use syscalls::sysarg::get_sysarg_path;
-use regs::Word;
-use syscalls::execve::shebang::expand_shebang;
+use kernel::sysarg::get_sysarg_path;
+use register::Word;
+use kernel::execve::shebang::expand_shebang;
 
 pub fn translate(pid: pid_t, regs: &user_regs_struct) -> Result<()> {
     //	char user_path[PATH_MAX];
@@ -16,7 +16,7 @@ pub fn translate(pid: pid_t, regs: &user_regs_struct) -> Result<()> {
     //		/* Syscalls can now be reported to its ptracer.  */
     //		tracee->as_ptracee.ignore_loader_syscalls = false;
     //
-    //		/* Cancel this spurious syscalls.execve, it was only used as a
+    //		/* Cancel this spurious kernel.execve, it was only used as a
     //		 * notification.  */
     //		set_sysnum(tracee, PR_void);
     //		return 0;
@@ -108,7 +108,7 @@ pub fn translate(pid: pid_t, regs: &user_regs_struct) -> Result<()> {
     //	if (status < 0)
     //		return status;
     //
-    //	/* Mask to its ptracer syscalls performed by the loader.  */
+    //	/* Mask to its ptracer kernel performed by the loader.  */
     //	tracee->as_ptracee.ignore_loader_syscalls = true;
     //
     //	return 0;

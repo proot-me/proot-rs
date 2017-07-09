@@ -26,6 +26,7 @@ impl Substitutor for FileSystem {
     ///
     /// * `path` is the path that will be modified. Must be canonicalized.
     /// * `direction` is the direction of the substitution.
+    #[inline]
     fn substitute_binding(
         &self,
         path: &Path,
@@ -50,6 +51,7 @@ impl Substitutor for FileSystem {
     /// and uses glue if the user doesn't have the permissions necessary.
     ///
     /// The substituted path is returned along with its file type.
+    #[inline]
     fn substitute_intermediary_and_glue(
         &self,
         guest_path: &Path,

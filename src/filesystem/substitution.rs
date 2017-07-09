@@ -1,20 +1,14 @@
 use std::path::{Path, PathBuf};
-use std::io::Error as IOError;
 use std::fs::FileType;
 use nix::errno::Errno;
-use nix::Error as NixError;
+use nix::{Result, Error};
 use filesystem::binding::Direction;
 use filesystem::binding::Side::{Guest, Host};
 use filesystem::fs::FileSystem;
 
 pub trait Substitutor {
-    fn substitute_binding(
-        &self,
-        path: &Path,
-        direction: Direction,
-    ) -> Result<Option<PathBuf>, NixError>;
-    fn substitute_intermediary_and_glue(&self, path: &Path)
-        -> Result<(PathBuf, FileType), IOError>;
+    fn substitute_binding(&self, path: &Path, direction: Direction) -> Result<Option<PathBuf>>;
+    fn substitute_intermediary_and_glue(&self, path: &Path) -> Result<(PathBuf, FileType)>;
 }
 
 impl Substitutor for FileSystem {
@@ -27,15 +21,11 @@ impl Substitutor for FileSystem {
     /// * `path` is the path that will be modified. Must be canonicalized.
     /// * `direction` is the direction of the substitution.
     #[inline]
-    fn substitute_binding(
-        &self,
-        path: &Path,
-        direction: Direction,
-    ) -> Result<Option<PathBuf>, NixError> {
+    fn substitute_binding(&self, path: &Path, direction: Direction) -> Result<Option<PathBuf>> {
         let maybe_binding = self.get_binding(path, direction.0);
 
         if maybe_binding.is_none() {
-            return Err(NixError::Sys(Errno::ENOENT));
+            return Err(Error::Sys(Errno::ENOENT));
         }
         let binding = maybe_binding.unwrap();
 
@@ -52,10 +42,7 @@ impl Substitutor for FileSystem {
     ///
     /// The substituted path is returned along with its file type.
     #[inline]
-    fn substitute_intermediary_and_glue(
-        &self,
-        guest_path: &Path,
-    ) -> Result<(PathBuf, FileType), IOError> {
+    fn substitute_intermediary_and_glue(&self, guest_path: &Path) -> Result<(PathBuf, FileType)> {
         let substituted_path = self.substitute_binding(guest_path, Direction(Guest, Host))?;
         let host_path = substituted_path.unwrap_or(guest_path.to_path_buf());
         let metadata = self.get_direct_metadata(&host_path)?;
@@ -70,7 +57,7 @@ impl Substitutor for FileSystem {
         //        }
 
         if !metadata.is_dir() && !metadata.file_type().is_symlink() {
-            return Err(IOError::from(NixError::Sys(Errno::ENOTDIR)));
+            return Err(Error::Sys(Errno::ENOTDIR));
         }
 
         Ok((host_path, metadata.file_type()))

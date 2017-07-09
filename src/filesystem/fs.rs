@@ -1,6 +1,7 @@
 use std::path::{Path, PathBuf};
 use std::fs::Metadata;
-use std::io::Error as IOError;
+use nix::{Error, Result};
+use nix::errno::Errno;
 use filesystem::binding::{Binding, Side};
 use filesystem::binding::Side::Host;
 
@@ -95,7 +96,7 @@ impl FileSystem {
     //TODO: use cache
     #[inline]
     /// Retrieves the path's metadata without going through symlinks.
-    pub fn get_direct_metadata(&self, path: &Path) -> Result<Metadata, IOError> {
+    pub fn get_direct_metadata(&self, path: &Path) -> Result<Metadata> {
         //        /* Don't notify extensions during the initialization of a binding.  */
         //        if (tracee->glue_type == 0) {
         //            status = notify_extensions(tracee, HOST_PATH, (intptr_t)host_path, finality);
@@ -104,7 +105,16 @@ impl FileSystem {
         //        }
 
         // indirect call to `lstat`
-        path.symlink_metadata()
+
+        match path.symlink_metadata() {
+            Ok(metadata) => Ok(metadata),
+            Err(err) => {
+                match err.raw_os_error() {
+                    Some(errno) => Err(Error::Sys(Errno::from_i32(errno))),
+                    None => Err(Error::InvalidPath),
+                }
+            }
+        }
     }
 }
 

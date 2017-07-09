@@ -1,11 +1,10 @@
 use std::path::{Path, PathBuf, Component};
-use std::io::Error as IOError;
-use nix::Error;
+use nix::{Result, Error};
 use filesystem::fs::FileSystem;
 use filesystem::substitution::Substitutor;
 
 pub trait Canonicalizer {
-    fn canonicalize(&self, path: &Path, deref_final: bool) -> Result<PathBuf, IOError>;
+    fn canonicalize(&self, path: &Path, deref_final: bool) -> Result<PathBuf>;
 }
 
 impl Canonicalizer for FileSystem {
@@ -13,13 +12,14 @@ impl Canonicalizer for FileSystem {
     ///
     /// It removes ".." and "." from the paths and recursively dereferences symlinks.
     /// It checks that every path of the path exists.
+    /// The result is a canonicalized path on the `Guest` side.
     ///
     /// The final path is only deferenced if `deref_final` is true.
-    fn canonicalize(&self, user_path: &Path, deref_final: bool) -> Result<PathBuf, IOError> {
+    fn canonicalize(&self, user_path: &Path, deref_final: bool) -> Result<PathBuf> {
         let mut guest_path = PathBuf::new();
 
         if user_path.is_relative() {
-            return Err(IOError::from(Error::invalid_argument()));
+            return Err(Error::invalid_argument());
         }
 
         let mut it = user_path.components();
@@ -47,7 +47,7 @@ impl Canonicalizer for FileSystem {
                     } else {
                         // the path is invalid, as it didn't manage to remove the last component
                         // (it's probably a path like "/..").
-                        return Err(IOError::from(Error::invalid_argument()));
+                        return Err(Error::invalid_argument());
                     }
                 }
                 Component::Normal(path_part) => {
@@ -118,6 +118,28 @@ mod tests {
             fs.canonicalize(&PathBuf::from("/acpi/./../acpi//events"), false)
                 .unwrap(),
             PathBuf::from("/acpi/events")
+        );
+
+        let path = Path::new("/home/../bin/./../bin/sleep");
+
+        assert_eq!(
+            fs.canonicalize(&PathBuf::from("/acpi/./../acpi//events"), false)
+                .unwrap(),
+            PathBuf::from("/acpi/events")
+        );
+    }
+
+    #[test]
+    fn test_canonicalize_no_root_normal_path() {
+        let mut fs = FileSystem::new();
+
+        // "/etc" on the host, "/" on the guest
+        fs.set_root("/");
+
+        assert_eq!(
+            fs.canonicalize(&PathBuf::from("/home/../bin/./../bin/"), false)
+                .unwrap(),
+            PathBuf::from("/bin")
         );
     }
 

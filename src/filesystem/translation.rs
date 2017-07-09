@@ -4,15 +4,49 @@ use filesystem::binding::Direction;
 use filesystem::binding::Side::{Host, Guest};
 use filesystem::fs::FileSystem;
 use filesystem::substitution::Substitutor;
+use filesystem::canonicalization::Canonicalizer;
 
 pub trait Translator {
-    fn translate_path(&self, path: &Path) -> Result<PathBuf>;
+    fn translate_path(&self, path: &Path, deref_final: bool) -> Result<PathBuf>;
     fn detranslate_path(&self, path: &Path, referrer: Option<&Path>) -> Result<Option<PathBuf>>;
 }
 
 impl Translator for FileSystem {
     /// Translates a path from `guest` to `host`.
-    /// Remove/substitute the leading part of a "translated" `path`.
+    fn translate_path(&self, user_path: &Path, deref_final: bool) -> Result<PathBuf> {
+        let mut guest_path = PathBuf::new();
+        let user_path_is_absolute = user_path.is_absolute();
+
+        if !user_path_is_absolute {
+            // It is relative to the current working directory.
+            guest_path.push(self.get_cwd().to_path_buf());
+
+            //TODO: dir_fd != AT_FDCWD
+        }
+
+        // VERBOSE(tracee, 2, "pid %d: translate(\"%s\" + \"%s\")",
+        //         tracee != NULL ? tracee->pid : 0, result, user_path);
+
+        //    status = notify_extensions(tracee, GUEST_PATH, (intptr_t) result, (intptr_t) user_path);
+        //    if (status < 0)
+        //        return status;
+        //    if (status > 0)
+        //        goto skip;
+
+        guest_path.push(user_path);
+        guest_path = self.canonicalize(&guest_path, deref_final)?;
+        let host_path = self.substitute_binding(&guest_path, Direction(Guest, Host))?;
+
+        // VERBOSE(tracee, 2, "pid %d:          -> \"%s\"",
+        //         tracee != NULL ? tracee->pid : 0, result);
+
+        Ok(host_path.unwrap_or(guest_path))
+    }
+
+    /// Translates a path from `host` to `guest`.
+    ///
+    /// `path` must canonicalized;
+    /// Removes/substitutes the leading part of a "translated" `path`.
     ///
     /// Returns
     /// * `Ok(None)` if no translation is required (ie. symmetric binding).
@@ -57,7 +91,7 @@ impl Translator for FileSystem {
         }
 
         if follow_binding {
-            if let Ok(maybe_path) = self.substitute_binding(path, Direction(Guest, Host)) {
+            if let Ok(maybe_path) = self.substitute_binding(path, Direction(Host, Guest)) {
                 // if a suitable binding was found, we stop here
                 return Ok(maybe_path);
             }
@@ -70,33 +104,6 @@ impl Translator for FileSystem {
 
         Ok(None)
     }
-
-    fn translate_path(&self, user_path: &Path) -> Result<PathBuf> {
-        let mut result = PathBuf::new();
-        let user_path_is_absolute = user_path.is_absolute();
-
-        if !user_path_is_absolute {
-            // It is relative to the current working directory.
-            result.push(self.get_cwd().to_path_buf());
-
-            //TODO: dir_fd != AT_FDCWD
-        }
-
-        //    status = notify_extensions(tracee, GUEST_PATH, (intptr_t) result, (intptr_t) user_path);
-        //    if (status < 0)
-        //        return status;
-        //    if (status > 0)
-        //        goto skip;
-
-        result.push(user_path);
-        //result = canonicalize_path(&result)?;
-
-        let binding = self.get_binding(&result, Guest);
-
-        //TODO: Finish
-
-        Ok(result)
-    }
 }
 
 #[cfg(test)]
@@ -107,6 +114,50 @@ mod tests {
     use filesystem::fs::FileSystem;
 
     #[test]
+    fn test_translate_path_without_root() {
+        let mut fs = FileSystem::new();
+
+        fs.set_root("/");
+
+        assert_eq!(
+            fs.translate_path(&Path::new("/home/../bin/./../bin"), false),
+            Ok(PathBuf::from("/bin"))
+        ); // simple canonicalization here
+
+        // "/etc/host" in the host, "/etc/guest" in the guest
+        fs.add_binding(Binding::new("/etc/acpi", "/home/test", true));
+
+        assert_eq!(
+            fs.translate_path(&Path::new("/home/test/events"), false),
+            Ok(PathBuf::from("/etc/acpi/events"))
+        ); // "/home/test" -> "/etc/acpi"
+    }
+
+    #[test]
+    fn test_translate_path_with_root() {
+        let mut fs = FileSystem::new();
+
+        fs.set_root("/etc/acpi");
+
+        assert_eq!(
+            fs.translate_path(&Path::new("/events"), false),
+            Ok(PathBuf::from("/etc/acpi/events"))
+        ); // "/home/test" -> "/etc/acpi"
+
+        fs.add_binding(Binding::new("/usr/bin", "/bin", true));
+
+        assert_eq!(
+            fs.translate_path(&Path::new("/bin/"), false),
+            Ok(PathBuf::from("/usr/bin"))
+        ); // "/bin" -> "/usr/bin"
+
+        assert_eq!(
+            fs.translate_path(&Path::new("/bin/.."), false),
+            Ok(PathBuf::from("/etc/acpi"))
+        ); // checking that the substitution only happens at the end
+    }
+
+    #[test]
     fn test_detranslate_path_root() {
         let mut fs = FileSystem::new();
 
@@ -114,21 +165,20 @@ mod tests {
         fs.set_root("/home/user");
 
         assert_eq!(
-            fs.detranslate_path(&Path::new("/bin/sleep"), None),
-            Ok(Some(PathBuf::from("/home/user/bin/sleep"))) // "/" -> "/home/user"
+            fs.detranslate_path(&Path::new("/home/user/bin/sleep"), None),
+            Ok(Some(PathBuf::from("/bin/sleep"))) // "/home/user" -> "/"
         );
 
         assert_eq!(
-            fs.detranslate_path(&Path::new("/"), None),
-            Ok(Some(PathBuf::from("/home/user"))) // "/" -> "/home/user"
+            fs.detranslate_path(&Path::new("/home/user"), None),
+            Ok(Some(PathBuf::from("/"))) // "/home/user" -> "/"
         );
 
         assert_eq!(
-            fs.detranslate_path(&Path::new("/home/other_user"), None),
-            Ok(Some(PathBuf::from("/home/user/home/other_user"))) // "/" -> "/home/user"
+            fs.detranslate_path(&Path::new("/home/user/home/other_user"), None),
+            Ok(Some(PathBuf::from("/home/other_user"))) // "/home/user" -> "/"
         );
     }
-
     #[test]
     fn test_detranslate_path_asymmetric() {
         let mut fs = FileSystem::new();
@@ -140,11 +190,9 @@ mod tests {
         fs.add_binding(Binding::new("/etc/host", "/etc/guest", true));
 
         assert_eq!(
-            fs.detranslate_path(&Path::new("/etc/guest/something"), None),
-            Ok(Some(PathBuf::from("/etc/host/something")))
-        ); //
-
-        //TODO: detranslate symlink tests
+            fs.detranslate_path(&Path::new("/etc/host/something"), None),
+            Ok(Some(PathBuf::from("/etc/guest/something")))
+        ); // "/etc/host" -> "/etc/guest"
     }
 
     #[test]
@@ -155,33 +203,13 @@ mod tests {
         fs.set_root("/home/user");
 
         // "/etc/host" in the host, "/etc/guest" in the guest
-        fs.add_binding(Binding::new("/etc/host", "/etc/guest", true));
+        fs.add_binding(Binding::new("/etc/guest", "/etc/guest", true));
 
         assert_eq!(
             fs.detranslate_path(&Path::new("/etc/guest/something"), None),
-            Ok(Some(PathBuf::from("/etc/host/something")))
+            Ok(None)
         ); //
 
         //TODO: detranslate symlink tests
     }
-
-    /*
-    #[test]
-    fn test_translate_path_absolute_normal_path_no_bindings() {
-        let fs = FileSystemNamespace::new();
-        let path = Path::new("/home/../bin/./../bin/sleep");
-
-        assert_eq!(fs.translate_path(&path), Ok(PathBuf::from("/bin/sleep")));
-    }
-
-    #[test]
-    fn test_translate_path_normal_absolute_path_with_root() {
-        let mut fs = FileSystemNamespace::new();
-        let path = Path::new("/acpi/events");
-
-        fs.set_root("/etc");
-
-        assert_eq!(fs.translate_path(&path), Ok(PathBuf::from("/etc/acpi/events")));
-    }
-    */
 }

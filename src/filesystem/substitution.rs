@@ -8,7 +8,7 @@ use filesystem::fs::FileSystem;
 
 pub trait Substitutor {
     fn substitute_binding(&self, path: &Path, direction: Direction) -> Result<Option<PathBuf>>;
-    fn substitute_intermediary_and_glue(&self, path: &Path) -> Result<(PathBuf, FileType)>;
+    fn substitute_intermediary_and_glue(&self, path: &Path) -> Result<(PathBuf, Option<FileType>)>;
 }
 
 impl Substitutor for FileSystem {
@@ -37,30 +37,31 @@ impl Substitutor for FileSystem {
         Ok(binding.substitute_path_prefix(path, direction)?)
     }
 
-    /// Substitute a binding (Guest -> Host) for a non-final path (directory or symlink),
+    /// Substitute a binding of a canonicalized path, from `Guest` to `Host`,
     /// and uses glue if the user doesn't have the permissions necessary.
     ///
     /// The substituted path is returned along with its file type.
     #[inline]
-    fn substitute_intermediary_and_glue(&self, guest_path: &Path) -> Result<(PathBuf, FileType)> {
+    fn substitute_intermediary_and_glue(&self, guest_path: &Path) -> Result<(PathBuf, Option<FileType>)> {
         let substituted_path = self.substitute_binding(guest_path, Direction(Guest, Host))?;
         let host_path = substituted_path.unwrap_or(guest_path.to_path_buf());
-        let metadata = self.get_direct_metadata(&host_path)?;
 
-        //TODO: implement glue
-        //        /* Build the glue between the hostfs and the guestfs during
-        //         * the initialization of a binding.  */
-        //        if (status < 0 && tracee->glue_type != 0) {
-        //            statl.st_mode = build_glue(tracee, guest_path, host_path, finality);
-        //            if (statl.st_mode == 0)
-        //                status = -1;
-        //        }
+        match self.get_direct_metadata(&host_path) {
+            Ok(metadata) => Ok((host_path, Some(metadata.file_type()))),
+            Err(_) => {
+                //TODO: implement glue
+                //        /* Build the glue between the hostfs and the guestfs during
+                //         * the initialization of a binding.  */
+                //        if (status < 0 && tracee->glue_type != 0) {
+                //            statl.st_mode = build_glue(tracee, guest_path, host_path, finality);
+                //            if (statl.st_mode == 0)
+                //                status = -1;
+                //        }
 
-        if !metadata.is_dir() && !metadata.file_type().is_symlink() {
-            return Err(Error::Sys(Errno::ENOTDIR));
+                // for now we return the same path
+                Ok((host_path, None))
+            }
         }
-
-        Ok((host_path, metadata.file_type()))
     }
 }
 
@@ -145,7 +146,7 @@ mod tests {
             .expect("no error");
 
         assert_eq!(path, PathBuf::from("/etc/acpi/events"));
-        assert!(file_type.is_dir());
+        assert!(file_type.unwrap().is_dir());
 
         fs.add_binding(Binding::new("/bin", "/bin", true));
 
@@ -154,19 +155,14 @@ mod tests {
             .expect("no error");
 
         assert_eq!(path_2, PathBuf::from("/bin/sh"));
-        assert!(file_type_2.is_symlink());
+        assert!(file_type_2.unwrap().is_symlink());
 
         // testing a file
-        assert!(
-            fs.substitute_intermediary_and_glue(&Path::new("/bin/true"))
-                .is_err()
-        );
+        let (path_3, file_type_3) = fs.substitute_intermediary_and_glue(&Path::new("/bin/true"))
+            .expect("no error");
 
-        // testing a non existing file
-        assert!(
-            fs.substitute_intermediary_and_glue(&Path::new("/../../../../test"))
-                .is_err()
-        );
+        assert_eq!(path_3, PathBuf::from("/bin/true"));
+        assert!(file_type_3.unwrap().is_file());
     }
 
 }

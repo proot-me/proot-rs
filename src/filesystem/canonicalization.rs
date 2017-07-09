@@ -1,5 +1,6 @@
 use std::path::{Path, PathBuf, Component};
 use nix::{Result, Error};
+use nix::errno::Errno;
 use filesystem::fs::FileSystem;
 use filesystem::substitution::Substitutor;
 
@@ -53,12 +54,23 @@ impl Canonicalizer for FileSystem {
                 Component::Normal(path_part) => {
                     guest_path.push(path_part);
 
-                    // Resolve bindings and check that a non-final
-                    // component exists and either is a directory or is a
-                    // symlink.  For this latter case, we check that the
+                    // Resolve bindings and add glue if necessary
+                    let (_, maybe_file_type) = self.substitute_intermediary_and_glue(&guest_path)?;
+
+                    //TODO: remove when glue is implemented
+                    if maybe_file_type.is_none() {
+                        continue;
+                    }
+                    let file_type = maybe_file_type.unwrap();
+
+                    // Checks that a non-final component exists and
+                    // either is a directory or is a symlink.
+                    // For this latter case, we check that the
                     // symlink points to a directory once it is
                     // canonicalized, at the end of this loop.
-                    let (_, file_type) = self.substitute_intermediary_and_glue(&guest_path)?;
+                    if !is_last_component && !file_type.is_dir() && !file_type.is_symlink() {
+                        return Err(Error::Sys(Errno::ENOTDIR));
+                    }
 
                     // Nothing special to do if it's not a link or if we
                     // explicitly ask to not dereference 'user_path', as
@@ -83,6 +95,7 @@ mod tests {
     use super::*;
     use std::path::PathBuf;
     use filesystem::fs::FileSystem;
+    use filesystem::binding::Binding;
 
     #[test]
     fn test_canonicalize_invalid_path() {
@@ -92,17 +105,6 @@ mod tests {
         fs.set_root("/home/user");
 
         let path = PathBuf::from("/../../../test");
-
-        assert!(fs.canonicalize(&path, false).is_err());
-    }
-
-    #[test]
-    fn test_canonicalize_impossible_path() {
-        let mut fs = FileSystem::new();
-
-        // "/home/user" on the host, "/" on the guest
-        fs.set_root("/home/user");
-        let path = PathBuf::from("/impossible/path/over/there");
 
         assert!(fs.canonicalize(&path, false).is_err());
     }
@@ -120,12 +122,19 @@ mod tests {
             PathBuf::from("/acpi/events")
         );
 
-        let path = Path::new("/home/../bin/./../bin/sleep");
-
         assert_eq!(
             fs.canonicalize(&PathBuf::from("/acpi/./../acpi//events"), false)
                 .unwrap(),
             PathBuf::from("/acpi/events")
+        );
+
+        fs.set_root("/etc/acpi");
+        fs.add_binding(Binding::new("/usr/bin", "/bin", true));
+
+        assert_eq!(
+            fs.canonicalize(&PathBuf::from("/bin/../home"), false)
+                .unwrap(),
+            PathBuf::from("/home")
         );
     }
 
@@ -137,9 +146,15 @@ mod tests {
         fs.set_root("/");
 
         assert_eq!(
-            fs.canonicalize(&PathBuf::from("/home/../bin/./../bin/"), false)
+            fs.canonicalize(&PathBuf::from("/home/../bin/./../bin/sleep"), false)
                 .unwrap(),
-            PathBuf::from("/bin")
+            PathBuf::from("/bin/sleep")
+        );
+
+        assert_eq!(
+            fs.canonicalize(&PathBuf::from("/bin/../test"), false)
+                .unwrap(),
+            PathBuf::from("/test")
         );
     }
 

@@ -147,13 +147,13 @@ mod tests {
         fs.add_binding(Binding::new("/usr/bin", "/bin", true));
 
         assert_eq!(
-            fs.translate_path(&Path::new("/bin/"), false),
-            Ok(PathBuf::from("/usr/bin"))
+            fs.translate_path(&Path::new("/bin/true"), false),
+            Ok(PathBuf::from("/usr/bin/true"))
         ); // "/bin" -> "/usr/bin"
 
         assert_eq!(
-            fs.translate_path(&Path::new("/bin/.."), false),
-            Ok(PathBuf::from("/etc/acpi"))
+            fs.translate_path(&Path::new("/bin/../home"), false),
+            Ok(PathBuf::from("/etc/acpi/home"))
         ); // checking that the substitution only happens at the end
     }
 

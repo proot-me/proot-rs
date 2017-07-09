@@ -18,8 +18,8 @@ use regs::Word;
 pub fn get_sysarg_path(pid: pid_t, src_sysarg: *mut Word) -> Result<CString> {
     if src_sysarg.is_null() {
         /// Check if the parameter is not NULL. Technically we should
-        /// not return an -EFAULT for this special value since it is
-        /// allowed for some syscall, utimensat(2) for instance.
+        /// not return an error for this special value since it is
+        /// allowed for some syscalls, utimensat(2) for instance.
         Ok(CString::new("").unwrap())
     } else {
         /// Get the path from the tracee's memory space.
@@ -39,9 +39,7 @@ fn read_path(pid: pid_t, src_path: *mut Word) -> Result<CString> {
         return Err(Sys(ENAMETOOLONG));
     }
 
-    Ok(
-        CString::new(bytes.into_iter().collect::<Vec<u8>>()).unwrap(),
-    )
+    Ok(CString::new(bytes).unwrap())
 }
 
 /// Reads a string from the memory space of a tracee.
@@ -79,8 +77,10 @@ fn read_string(pid: pid_t, src_string: *mut Word, max_size: usize) -> Result<Vec
         let letters: [u8; 8] = convert_word_to_bytes(word);
 
         for &letter in &letters {
+            // Stop once an end-of-string is detected.
             if letter as char == '\0' {
-                // Stop once an end-of-string is detected.
+                bytes.shrink_to_fit();
+
                 // No need to add the \0 null character now,
                 // as it will be added when converting the bytes in a CString.
                 return Ok(bytes);

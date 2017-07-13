@@ -6,8 +6,9 @@ use kernel::ptrace::*;
 use kernel::socket::*;
 use kernel::standard::*;
 use nix::Result;
+use filesystem::fs::FileSystem;
 
-pub fn translate(pid: pid_t, regs: &user_regs_struct) -> Result<()> {
+pub fn translate(pid: pid_t, fs: &FileSystem, regs: &user_regs_struct) -> Result<()> {
     let sysnum = get_reg!(regs, SysArgNum) as usize;
     let systype = syscall_type_from_sysnum(sysnum);
 
@@ -20,7 +21,7 @@ pub fn translate(pid: pid_t, regs: &user_regs_struct) -> Result<()> {
         SyscallType::Chdir => chdir::enter(),
         SyscallType::ChmodAccessMkNodAt => chmod_access_mknod_at::enter(),
         SyscallType::DirLinkAttr => dir_link_attr::enter(),
-        SyscallType::Execve => execve::enter(pid, regs),
+        SyscallType::Execve => execve::enter(pid, fs, regs),
         SyscallType::GetCwd => getcwd::enter(),
         SyscallType::GetSockOrPeerName => get_sockorpeer_name::enter(),
         SyscallType::InotifyAddWatch => inotify_add_watch::enter(),

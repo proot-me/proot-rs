@@ -116,6 +116,27 @@ impl FileSystem {
             }
         }
     }
+
+    #[inline]
+    /// Checks is `path` is a file, does exist and is executable.
+    pub fn is_path_executable(&self, path: &Path) -> Result<()> {
+        self.get_direct_metadata(&path)?;
+
+        //	status = access(host_path, F_OK);
+        //	if (status < 0)
+        //		return -ENOENT;
+        //
+        //	status = access(host_path, X_OK);
+        //	if (status < 0)
+        //		return -EACCES;
+        //
+        //	status = lstat(host_path, &statl);
+        //	if (status < 0)
+        //		return -EPERM;
+        //
+        //	return 0;
+        Ok(())
+    }
 }
 
 #[cfg(test)]
@@ -126,7 +147,7 @@ mod tests {
     use filesystem::binding::Side::{Host, Guest};
 
     #[test]
-    fn test_belongs_to_guestfs() {
+    fn test_fs_belongs_to_guestfs() {
         let mut fs = FileSystem::new();
 
         fs.set_root("/etc");
@@ -139,7 +160,7 @@ mod tests {
     }
 
     #[test]
-    fn test_get_binding() {
+    fn test_fs_get_binding() {
         let mut fs = FileSystem::new();
 
         assert!(
@@ -196,5 +217,15 @@ mod tests {
                 .get_path(Guest),
             &PathBuf::from("/bin")
         ); // same on the other side
+    }
+
+    #[test]
+    fn test_fs_is_path_executable() {
+        let mut fs = FileSystem::new();
+
+        fs.set_root("/");
+
+        assert!(fs.is_path_executable(&PathBuf::from("/bin/sleep")).is_ok());
+        assert!(fs.is_path_executable(&PathBuf::from("/../sleep")).is_err());
     }
 }

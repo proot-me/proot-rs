@@ -1,10 +1,11 @@
 use libc::{pid_t, user_regs_struct};
 use nix::Result;
-use kernel::sysarg::get_sysarg_path;
 use register::Word;
+use filesystem::fs::FileSystem;
+use kernel::sysarg::get_sysarg_path;
 use kernel::execve::shebang::expand_shebang;
 
-pub fn translate(pid: pid_t, regs: &user_regs_struct) -> Result<()> {
+pub fn translate(pid: pid_t, fs: &FileSystem, regs: &user_regs_struct) -> Result<()> {
     //	char user_path[PATH_MAX];
     //	char host_path[PATH_MAX];
     //	char new_exe[PATH_MAX];
@@ -23,17 +24,8 @@ pub fn translate(pid: pid_t, regs: &user_regs_struct) -> Result<()> {
     //	}
 
     let user_path = get_sysarg_path(pid, get_reg!(regs, SysArg1) as *mut Word)?;
+    let host_path = expand_shebang(fs, &user_path)?;
 
-    println!("translate: {:?}", user_path);
-
-    //	/* Remember the user path before it is overwritten by
-    //	 * expand_shebang().  This "raw" path is useful to fix the
-    //	 * value of AT_EXECFN and /proc/{@tracee->pid}/comm.  */
-    //	raw_path = talloc_strdup(tracee->ctx, user_path);
-    //	if (raw_path == NULL)
-    //		return -ENOMEM;
-
-    let host_path = expand_shebang()?;
     //	if (status < 0)
     //		/* The Linux kernel actually returns -EACCES when
     //		 * trying to execute a directory.  */

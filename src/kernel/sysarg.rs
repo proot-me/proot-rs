@@ -1,6 +1,6 @@
 use std::mem::{size_of, transmute};
 use std::ptr::null_mut;
-use std::ffi::CString;
+use std::path::PathBuf;
 use libc::{c_void, PATH_MAX, pid_t};
 use nix::Result;
 use nix::Error::Sys;
@@ -15,12 +15,12 @@ use register::Word;
 /// * `src_sysarg` is the result of `get_reg` applied to one of the registers.
 ///    It contains the address of the path's string in the memory space of the tracee.
 #[inline]
-pub fn get_sysarg_path(pid: pid_t, src_sysarg: *mut Word) -> Result<CString> {
+pub fn get_sysarg_path(pid: pid_t, src_sysarg: *mut Word) -> Result<PathBuf> {
     if src_sysarg.is_null() {
         /// Check if the parameter is not NULL. Technically we should
         /// not return an error for this special value since it is
         /// allowed for some kernel, utimensat(2) for instance.
-        Ok(CString::new("").unwrap())
+        Ok(PathBuf::new())
     } else {
         /// Get the path from the tracee's memory space.
         read_path(pid, src_sysarg)
@@ -32,14 +32,14 @@ pub fn get_sysarg_path(pid: pid_t, src_sysarg: *mut Word) -> Result<CString> {
 ///
 /// It also checks that the number of bytes isn't too long.
 #[inline]
-fn read_path(pid: pid_t, src_path: *mut Word) -> Result<CString> {
+fn read_path(pid: pid_t, src_path: *mut Word) -> Result<PathBuf> {
     let bytes = read_string(pid, src_path, PATH_MAX as usize)?;
 
     if bytes.len() >= PATH_MAX as usize {
         return Err(Sys(ENAMETOOLONG));
     }
 
-    Ok(CString::new(bytes).unwrap())
+    Ok(PathBuf::from(unsafe {String::from_utf8_unchecked(bytes)}))
 }
 
 /// Reads a string from the memory space of a tracee.
@@ -131,7 +131,7 @@ mod tests {
     use register::Word;
 
     #[test]
-    fn convert_word_to_bytes_test() {
+    fn test_sysarg_convert_word_to_bytes() {
         let number: Word = 'h' as i64 + 'e' as i64 * 256 + 'l' as i64 * 256 * 256 +
             'l' as i64 * 256 * 256 * 256 +
             'o' as i64 * 256 * 256 * 256 * 256;
@@ -153,7 +153,7 @@ mod tests {
     }
 
     #[test]
-    fn get_sysarg_path_return_empty_if_given_null_src_test() {
+    fn test_sysarg_get_sysarg_path_return_empty_if_given_null_src_() {
         let path = get_sysarg_path(0, null_mut()).unwrap();
 
         assert_eq!(path.to_str().unwrap(), "");
@@ -165,7 +165,7 @@ mod tests {
     ///
     /// The test is a success if the MKDIR syscall is detected (with its corresponding signum),
     /// and if the first argument of the syscall correspond to the path given to the initial command.
-    fn get_sysarg_path_for_mkdir_test() {
+    fn test_sysarg_get_sysarg_path_for_mkdir_test() {
         let test_path = "my/impossible/test/path";
 
         fork_test(
@@ -179,7 +179,7 @@ mod tests {
 
                     // we're checking that the string read in the tracee's memory
                     // corresponds to what has been given to the execve command
-                    assert_eq!(dir_path.to_str().unwrap(), test_path);
+                    assert_eq!(dir_path, PathBuf::from(test_path));
 
                     // we can stop here
                     return true;

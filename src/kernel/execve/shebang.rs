@@ -1,5 +1,10 @@
-use kernel::execve::path::translate_and_check_exec;
+use std::path::{Path, PathBuf};
 use nix::Result;
+use filesystem::fs::FileSystem;
+use filesystem::translation::Translator;
+
+
+
 
 /// Expand in argv[] the shebang of `user_path`, if any.  This function
 /// returns -errno if an error occurred, 1 if a shebang was found and
@@ -8,7 +13,7 @@ use nix::Result;
 /// point-of-view and as-is), and @tracee's argv[] (pointed to by
 /// `SYSARG_2`) is correctly updated.
 // int expand_shebang(Tracee *tracee, char host_path[PATH_MAX], char user_path[PATH_MAX])
-pub fn expand_shebang() -> Result<()> {
+pub fn expand_shebang(fs: &FileSystem, user_path: &Path) -> Result<()> {
     //  ArrayOfXPointers *argv = NULL;
     //	bool has_shebang = false;
     //
@@ -16,7 +21,7 @@ pub fn expand_shebang() -> Result<()> {
     //	int status;
     //	size_t i;
 
-    let host_path = translate_and_check_exec()?;
+    let host_path = translate_and_check_exec(fs, user_path)?;
 
     extract_shebang()
 
@@ -110,6 +115,15 @@ pub fn expand_shebang() -> Result<()> {
     //	}
     //
     //	return (has_shebang ? 1 : 0);
+}
+
+/// Translate a guest path and checks that it's executable.
+fn translate_and_check_exec(fs: &FileSystem, guest_path: &Path) -> Result<PathBuf> {
+    let host_path = fs.translate_path(guest_path, true)?;
+
+    fs.is_path_executable(&host_path)?;
+
+    Ok(host_path)
 }
 
 /// Extract into `user_path` and `argument` the shebang from @host_path.

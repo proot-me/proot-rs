@@ -8,6 +8,7 @@ use nix::sys::ptrace::ptrace;
 use kernel::{syscall_enter, syscall_exit};
 use process::proot::InfoBag;
 use register::regs::fetch_regs;
+use filesystem::fs::FileSystem;
 
 //TODO: remove this when a nix PR will have added them
 mod ptrace_events {
@@ -89,7 +90,7 @@ impl Tracee {
     /// 1. in case of standard syscall: translate the system call's parameters and restart it
     /// 2. in case of fork/clone event: create a new tracee
     /// 3. in other cases: not much
-    pub fn handle_event(&mut self, info_bag: &mut InfoBag, stop_signal: Option<Signal>) {
+    pub fn handle_event(&mut self, fs: &FileSystem, info_bag: &mut InfoBag, stop_signal: Option<Signal>) {
         let signal: PtraceSignalEvent = match stop_signal {
             Some(sig) => sig as PtraceSignalEvent,
             None => PTRACE_S_NORMAL_SIGTRAP,
@@ -113,7 +114,7 @@ impl Tracee {
 
         match signal {
             PTRACE_S_RAW_SIGTRAP |
-            PTRACE_S_NORMAL_SIGTRAP => self.handle_sigtrap_event(info_bag, signal),
+            PTRACE_S_NORMAL_SIGTRAP => self.handle_sigtrap_event(fs, info_bag, signal),
             PTRACE_S_SECCOMP |
             PTRACE_S_SECCOMP2 => self.handle_seccomp_event(info_bag, signal),
             PTRACE_S_VFORK | PTRACE_S_FORK | PTRACE_S_CLONE => self.new_child(signal),
@@ -143,7 +144,7 @@ impl Tracee {
     /// Standard handling of either:
     /// 1. the initial SIGTRAP signal
     /// 2. a syscall that is then translated
-    fn handle_sigtrap_event(&mut self, info_bag: &mut InfoBag, signal: PtraceSignalEvent) {
+    fn handle_sigtrap_event(&mut self, fs: &FileSystem, info_bag: &mut InfoBag, signal: PtraceSignalEvent) {
         if signal == PTRACE_S_RAW_SIGTRAP {
             // it's the initial SIGTRAP signal
             self.set_ptrace_options(info_bag);
@@ -172,13 +173,13 @@ impl Tracee {
                 }
             }
         }
-        self.translate_syscall();
+        self.translate_syscall(fs);
     }
 
     /// Retrieves the registers,
     /// handles either the enter or exit stage of the system call,
     /// and pushes the registers.
-    fn translate_syscall(&mut self) {
+    fn translate_syscall(&mut self, fs: &FileSystem) {
         // We retrieve the registers of the current tracee.
         // They contain the system call's number, arguments and other register's info.
         let regs = match fetch_regs(self.pid) {
@@ -193,7 +194,7 @@ impl Tracee {
                 // tracee->restore_original_regs = false;
 
                 // save_current_regs(tracee, ORIGINAL);
-                let status = self.translate_syscall_enter(&regs);
+                let status = self.translate_syscall_enter(fs, &regs);
                 // save_current_regs(tracee, MODIFIED);
 
                 if status.is_err() {
@@ -231,14 +232,14 @@ impl Tracee {
         // push_regs
     }
 
-    fn translate_syscall_enter(&mut self, regs: &user_regs_struct) -> Result<()> {
+    fn translate_syscall_enter(&mut self, fs: &FileSystem, regs: &user_regs_struct) -> Result<()> {
         // status = notify_extensions(tracee, SYSCALL_ENTER_START, 0, 0);
         // if (status < 0)
         //     goto end;
         // if (status > 0)
         //     return 0;
 
-        let status = syscall_enter::translate(self.pid, regs);
+        let status = syscall_enter::translate(self.pid, fs, regs);
 
         // status2 = notify_extensions(tracee, SYSCALL_ENTER_END, status, 0);
         // if (status2 < 0)

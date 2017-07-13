@@ -145,10 +145,10 @@ impl PRoot {
     }
 
     fn handle_standard_event(&mut self, tracee_pid: pid_t, signal: Option<Signal>) {
-        let (wrapped_tracee, info_bag) = self.get_mut_tracee_and_info(tracee_pid);
+        let (wrapped_tracee, fs_ref, info_bag) = self.get_mut_tracee_and_all(tracee_pid);
         let mut tracee = wrapped_tracee.expect("get stopped tracee");
 
-        tracee.handle_event(info_bag, signal);
+        tracee.handle_event(fs_ref, info_bag, signal);
         tracee.restart();
     }
 
@@ -160,8 +160,8 @@ impl PRoot {
         self.tracees.get(&pid)
     }
 
-    fn get_mut_tracee_and_info(&mut self, pid: pid_t) -> (Option<&mut Tracee>, &mut InfoBag) {
-        (self.tracees.get_mut(&pid), &mut self.info_bag)
+    fn get_mut_tracee_and_all(&mut self, pid: pid_t) -> (Option<&mut Tracee>, &mut FileSystem, &mut InfoBag) {
+        (self.tracees.get_mut(&pid), &mut self.fs, &mut self.info_bag)
     }
 
     fn register_alive_tracee(&mut self, pid: pid_t) {
@@ -196,7 +196,7 @@ mod tests {
 
         // tracee 0 shouldn't exist
         {
-            let (tracee, _) = proot.get_mut_tracee_and_info(0);
+            let (tracee, _, _) = proot.get_mut_tracee_and_all(0);
             assert!(tracee.is_none());
         }
 
@@ -206,7 +206,7 @@ mod tests {
 
         // tracee 0 should exist
         {
-            let (tracee, _) = proot.get_mut_tracee_and_info(0);
+            let (tracee, _, _) = proot.get_mut_tracee_and_all(0);
             assert!(tracee.is_some());
         }
     }

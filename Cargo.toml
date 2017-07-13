@@ -1,5 +1,5 @@
 [package]
-name = "proot_rust"
+name = "proot-rs"
 version = "0.1.0"
 authors = ["vincenthage"]
 

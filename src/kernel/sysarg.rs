@@ -39,7 +39,7 @@ fn read_path(pid: pid_t, src_path: *mut Word) -> Result<PathBuf> {
         return Err(Sys(ENAMETOOLONG));
     }
 
-    Ok(PathBuf::from(unsafe {String::from_utf8_unchecked(bytes)}))
+    Ok(PathBuf::from(unsafe { String::from_utf8_unchecked(bytes) }))
 }
 
 /// Reads a string from the memory space of a tracee.

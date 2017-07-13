@@ -1,25 +1,25 @@
-# proot_rust
+# proot-rs
 Rust implementation of PRoot, a ptrace-based sandbox. 
 _(Work in progress)_
 
-`proot_rust` works by intercepting all Linux system calls that use paths (`execve`, `mkdir`, `ls`, ...)
+`proot-rs` works by intercepting all Linux system calls that use paths (`execve`, `mkdir`, `ls`, ...)
 and translating these with the specified path bindings, in order to simulate `chroot`,
 and all this without requiring admin rights (`ptrace` do not require any special rights).
 
 So for instance, this command:
 ```
-proot_rust -R /home/user/myfolder mkdir /subfolder
+proot-rs -R /home/user/myfolder mkdir /subfolder
 ```
 will be equivalent to:
 ```
 mkdir /home/user/myfolder/subfolder
 ```
 
-Hence, you can apply `proot_rust` to a whole program in order sandbox it.
+Hence, you can apply `proot-rs` to a whole program in order sandbox it.
 More concretely, you can for instance download a docker image, extract it, 
 and run it, without needing docker:
 ```
-proot_rust -R ./my-docker-image /bin/sh
+proot-rs -R ./my-docker-image /bin/sh
 ```
 
 

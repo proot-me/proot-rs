@@ -90,7 +90,12 @@ impl Tracee {
     /// 1. in case of standard syscall: translate the system call's parameters and restart it
     /// 2. in case of fork/clone event: create a new tracee
     /// 3. in other cases: not much
-    pub fn handle_event(&mut self, fs: &FileSystem, info_bag: &mut InfoBag, stop_signal: Option<Signal>) {
+    pub fn handle_event(
+        &mut self,
+        fs: &FileSystem,
+        info_bag: &mut InfoBag,
+        stop_signal: Option<Signal>,
+    ) {
         let signal: PtraceSignalEvent = match stop_signal {
             Some(sig) => sig as PtraceSignalEvent,
             None => PTRACE_S_NORMAL_SIGTRAP,
@@ -144,7 +149,12 @@ impl Tracee {
     /// Standard handling of either:
     /// 1. the initial SIGTRAP signal
     /// 2. a syscall that is then translated
-    fn handle_sigtrap_event(&mut self, fs: &FileSystem, info_bag: &mut InfoBag, signal: PtraceSignalEvent) {
+    fn handle_sigtrap_event(
+        &mut self,
+        fs: &FileSystem,
+        info_bag: &mut InfoBag,
+        signal: PtraceSignalEvent,
+    ) {
         if signal == PTRACE_S_RAW_SIGTRAP {
             // it's the initial SIGTRAP signal
             self.set_ptrace_options(info_bag);

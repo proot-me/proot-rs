@@ -160,7 +160,10 @@ impl PRoot {
         self.tracees.get(&pid)
     }
 
-    fn get_mut_tracee_and_all(&mut self, pid: pid_t) -> (Option<&mut Tracee>, &mut FileSystem, &mut InfoBag) {
+    fn get_mut_tracee_and_all(
+        &mut self,
+        pid: pid_t,
+    ) -> (Option<&mut Tracee>, &mut FileSystem, &mut InfoBag) {
         (self.tracees.get_mut(&pid), &mut self.fs, &mut self.info_bag)
     }
 

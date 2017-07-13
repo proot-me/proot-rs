@@ -42,7 +42,10 @@ impl Substitutor for FileSystem {
     ///
     /// The substituted path is returned along with its file type.
     #[inline]
-    fn substitute_intermediary_and_glue(&self, guest_path: &Path) -> Result<(PathBuf, Option<FileType>)> {
+    fn substitute_intermediary_and_glue(
+        &self,
+        guest_path: &Path,
+    ) -> Result<(PathBuf, Option<FileType>)> {
         let substituted_path = self.substitute_binding(guest_path, Direction(Guest, Host))?;
         let host_path = substituted_path.unwrap_or(guest_path.to_path_buf());
 

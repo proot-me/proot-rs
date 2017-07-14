@@ -26,8 +26,6 @@ pub struct Binding {
     _must_exist: bool,
 }
 
-#[allow(dead_code)]
-
 impl Binding {
     //TODO: return Option<Binding> and make checks (test existence if must_exist, sanitize, canon..)
     pub fn new(host: &str, guest: &str, must_exist: bool) -> Binding {

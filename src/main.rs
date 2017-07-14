@@ -3,7 +3,6 @@ extern crate nix;
 extern crate clap;
 extern crate syscall;
 mod utils;
-#[macro_use]
 mod register;
 mod kernel;
 mod filesystem;

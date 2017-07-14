@@ -3,9 +3,6 @@ use nix::Result;
 use filesystem::fs::FileSystem;
 use filesystem::translation::Translator;
 
-
-
-
 /// Expand in argv[] the shebang of `user_path`, if any.  This function
 /// returns -errno if an error occurred, 1 if a shebang was found and
 /// extracted, otherwise 0.  On success, both `host_path` and `user_path`
@@ -22,6 +19,8 @@ pub fn expand_shebang(fs: &FileSystem, user_path: &Path) -> Result<()> {
     //	size_t i;
 
     let host_path = translate_and_check_exec(fs, user_path)?;
+
+    println!("translated existing path: {:?}", host_path);
 
     extract_shebang()
 

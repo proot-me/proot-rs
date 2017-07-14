@@ -45,7 +45,7 @@ fn read_path(pid: pid_t, src_path: *mut Word) -> Result<PathBuf> {
 /// Reads a string from the memory space of a tracee.
 ///
 /// It uses `ptrace(PEEK_DATA)` to read it word by word
-/// (1 word = 1 c_long = 1 u64 = 8 u8 = 8 char).
+/// (1 word = 1 c_ulong = 1 u32 or 1 u64 = 4 or 8 u8 = 4 or 8 char).
 /// The copy stops when a null character `\0` is encountered,
 /// The bytes contained at the string's address are returned as a Vector of u8.
 ///
@@ -73,7 +73,7 @@ fn read_string(pid: pid_t, src_string: *mut Word, max_size: usize) -> Result<Vec
             pid,
             unsafe { src_string.offset(i) as *mut c_void },
             null_mut(),
-        )?;
+        )? as Word;
         let letters: [u8; 8] = convert_word_to_bytes(word);
 
         for &letter in &letters {
@@ -132,9 +132,9 @@ mod tests {
 
     #[test]
     fn test_sysarg_convert_word_to_bytes() {
-        let number: Word = 'h' as i64 + 'e' as i64 * 256 + 'l' as i64 * 256 * 256 +
-            'l' as i64 * 256 * 256 * 256 +
-            'o' as i64 * 256 * 256 * 256 * 256;
+        let number: Word = 'h' as u64 + 'e' as u64 * 256 + 'l' as u64 * 256 * 256 +
+            'l' as u64 * 256 * 256 * 256 +
+            'o' as u64 * 256 * 256 * 256 * 256;
         let bytes = convert_word_to_bytes(number);
 
         assert_eq!(
@@ -173,9 +173,8 @@ mod tests {
             1,
             // parent
             |pid, regs| {
-                if get_reg!(regs, SysArgNum) == MKDIR as u64 {
-                    let dir_path = get_sysarg_path(pid, get_reg!(regs, SysArg1) as *mut Word)
-                        .unwrap();
+                if regs.sys_num == MKDIR {
+                    let dir_path = get_sysarg_path(pid, regs.sys_arg_1 as *mut Word).unwrap();
 
                     // we're checking that the string read in the tracee's memory
                     // corresponds to what has been given to the execve command

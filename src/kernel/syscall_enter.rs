@@ -1,5 +1,5 @@
 use kernel::syscall_type::{SyscallType, syscall_type_from_sysnum};
-use libc::{pid_t, user_regs_struct};
+use libc::pid_t;
 use kernel::execve;
 use kernel::heap::*;
 use kernel::ptrace::*;
@@ -7,14 +7,14 @@ use kernel::socket::*;
 use kernel::standard::*;
 use nix::Result;
 use filesystem::fs::FileSystem;
+use register::Registers;
 
-pub fn translate(pid: pid_t, fs: &FileSystem, regs: &user_regs_struct) -> Result<()> {
-    let sysnum = get_reg!(regs, SysArgNum) as usize;
-    let systype = syscall_type_from_sysnum(sysnum);
+pub fn translate(pid: pid_t, fs: &FileSystem, regs: &Registers) -> Result<()> {
+    let sys_type = syscall_type_from_sysnum(regs.sys_num);
 
-    println!("enter  \t({:?}, \t{:?}) ", sysnum, systype);
+    println!("enter  \t({:?}, \t{:?}) ", regs.sys_num, sys_type);
 
-    match systype {
+    match sys_type {
         SyscallType::Accept => accept::enter(),
         SyscallType::BindConnect => bind_connect::enter(),
         SyscallType::Brk => brk::enter(),

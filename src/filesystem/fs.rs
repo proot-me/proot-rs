@@ -17,8 +17,6 @@ pub struct FileSystem {
     root: PathBuf,
 }
 
-#[allow(dead_code)]
-
 impl FileSystem {
     pub fn new() -> FileSystem {
         FileSystem {

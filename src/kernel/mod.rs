@@ -1,9 +1,9 @@
-pub mod execve;
-pub mod heap;
-pub mod ptrace;
-pub mod socket;
-pub mod standard;
-pub mod sysarg;
-pub mod syscall_type;
+mod execve;
+mod heap;
+mod ptrace;
+mod socket;
+mod standard;
+mod sysarg;
+mod syscall_type;
 pub mod syscall_enter;
 pub mod syscall_exit;

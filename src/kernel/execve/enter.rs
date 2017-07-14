@@ -1,11 +1,11 @@
-use libc::{pid_t, user_regs_struct};
+use libc::pid_t;
 use nix::Result;
-use register::Word;
+use register::{Registers, Word};
 use filesystem::fs::FileSystem;
 use kernel::sysarg::get_sysarg_path;
 use kernel::execve::shebang::expand_shebang;
 
-pub fn translate(pid: pid_t, fs: &FileSystem, regs: &user_regs_struct) -> Result<()> {
+pub fn translate(pid: pid_t, fs: &FileSystem, regs: &Registers) -> Result<()> {
     //	char user_path[PATH_MAX];
     //	char host_path[PATH_MAX];
     //	char new_exe[PATH_MAX];
@@ -23,7 +23,7 @@ pub fn translate(pid: pid_t, fs: &FileSystem, regs: &user_regs_struct) -> Result
     //		return 0;
     //	}
 
-    let user_path = get_sysarg_path(pid, get_reg!(regs, SysArg1) as *mut Word)?;
+    let user_path = get_sysarg_path(pid, regs.sys_arg_1 as *mut Word)?;
     let host_path = expand_shebang(fs, &user_path)?;
 
     //	if (status < 0)

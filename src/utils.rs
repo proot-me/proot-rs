@@ -3,7 +3,7 @@
 pub mod tests {
     use std::ptr::null_mut;
     use std::ops::Fn;
-    use libc::{pid_t, user_regs_struct};
+    use libc::pid_t;
     use nix::unistd::{getpid, fork, ForkResult};
     use nix::sys::signal::kill;
     use nix::sys::signal::Signal::SIGSTOP;
@@ -14,7 +14,7 @@ pub mod tests {
     use nix::sys::ptrace::ptrace::PTRACE_SYSCALL;
     use process::proot::InfoBag;
     use process::tracee::Tracee;
-    use register::regs::fetch_regs;
+    use register::Registers;
 
     /// Allow tests to fork and deal with child processes without mixing them.
     fn test_in_subprocess<F: Fn()>(func: F) {
@@ -34,7 +34,7 @@ pub mod tests {
     /// The child process will be traced on, and will execute its respective function (2nd arg).
     /// The parent process will wait and loop for events from the tracee (child process).
     /// It only stops when the parent function (1st arg) returns true.
-    pub fn fork_test<FuncParent: Fn(pid_t, &user_regs_struct) -> bool, FuncChild: Fn()>(
+    pub fn fork_test<FuncParent: Fn(pid_t, &Registers) -> bool, FuncChild: Fn()>(
         expected_exit_signal: i8,
         func_parent: FuncParent,
         func_child: FuncChild,
@@ -60,7 +60,7 @@ pub mod tests {
                         match waitpid(child, Some(__WALL)).expect("event loop waitpid") {
                             PtraceSyscall(pid) => {
                                 assert_eq!(pid, child);
-                                let regs = fetch_regs(child).expect("fetch regs");
+                                let regs = Registers::retrieve(pid).expect("fetch regs");
 
                                 if func_parent(pid, &regs) {
                                     break;

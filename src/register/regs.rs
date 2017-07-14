@@ -50,7 +50,7 @@ pub mod regs_offset {
 /// Copy all @tracee's general purpose registers into a dedicated cache.
 /// Returns either `Ok(regs)` or `Err(Sys(errno))` or `Err(InvalidPath)`.
 #[inline]
-pub fn fetch_regs(pid: pid_t) -> Result<user_regs_struct> {
+pub fn fetch_all_regs(pid: pid_t) -> Result<user_regs_struct> {
     let mut regs: user_regs_struct = unsafe { mem::zeroed() };
     let p_regs: *mut c_void = &mut regs as *mut _ as *mut c_void;
 
@@ -106,10 +106,8 @@ mod tests {
             0,
             // parent
             |_, regs| {
-                let sysnum = get_reg!(regs, SysArgNum);
-
                 // we only stop when the NANOSLEEP syscall is detected
-                return sysnum == NANOSLEEP as u64;
+                return regs.sys_num == NANOSLEEP;
             },
             // child
             || {

@@ -4,7 +4,8 @@ use kernel::heap::*;
 use kernel::ptrace::*;
 use kernel::socket::*;
 use kernel::standard::*;
-use libc::{c_int, user_regs_struct};
+use libc::c_int;
+use register::Registers;
 
 pub enum SyscallExitResult {
     /// The SYSARG_RESULT register will be poked and changed to the c_int value.
@@ -31,11 +32,10 @@ impl SyscallExitResult {
     */
 }
 
-pub fn translate(regs: &user_regs_struct) -> SyscallExitResult {
-    let sysnum = get_reg!(regs, SysArgNum) as usize;
-    let systype = syscall_type_from_sysnum(sysnum);
+pub fn translate(regs: &Registers) -> SyscallExitResult {
+    let systype = syscall_type_from_sysnum(regs.sys_num);
 
-    println!("exit  \t({:?}, \t{:?})", sysnum, systype);
+    println!("exit  \t({:?}, \t{:?})", regs.sys_num, systype);
 
     match systype {
         SyscallType::Brk => brk::exit(),

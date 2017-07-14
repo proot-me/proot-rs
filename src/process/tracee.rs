@@ -1,13 +1,13 @@
 use std::ptr::null_mut;
-use libc::{pid_t, user_regs_struct};
+use libc::pid_t;
 use nix::sys::signal::Signal;
 use nix::sys::ptrace::ptrace_setoptions;
 use nix::{Result, Error};
 use nix::sys::ptrace::ptrace::*;
 use nix::sys::ptrace::ptrace;
+use register::Registers;
 use kernel::{syscall_enter, syscall_exit};
 use process::proot::InfoBag;
-use register::regs::fetch_regs;
 use filesystem::fs::FileSystem;
 
 //TODO: remove this when a nix PR will have added them
@@ -192,7 +192,7 @@ impl Tracee {
     fn translate_syscall(&mut self, fs: &FileSystem) {
         // We retrieve the registers of the current tracee.
         // They contain the system call's number, arguments and other register's info.
-        let regs = match fetch_regs(self.pid) {
+        let regs = match Registers::retrieve(self.pid) {
             Ok(regs) => regs,
             Err(_) => return,
         };
@@ -242,7 +242,7 @@ impl Tracee {
         // push_regs
     }
 
-    fn translate_syscall_enter(&mut self, fs: &FileSystem, regs: &user_regs_struct) -> Result<()> {
+    fn translate_syscall_enter(&mut self, fs: &FileSystem, regs: &Registers) -> Result<()> {
         // status = notify_extensions(tracee, SYSCALL_ENTER_START, 0, 0);
         // if (status < 0)
         //     goto end;
@@ -258,7 +258,7 @@ impl Tracee {
         status
     }
 
-    fn translate_syscall_exit(&mut self, regs: &user_regs_struct) {
+    fn translate_syscall_exit(&mut self, regs: &Registers) {
         // status = notify_extensions(tracee, SYSCALL_EXIT_START, 0, 0);
         // if (status < 0) {
         //     poke_reg(tracee, SYSARG_RESULT, (word_t) status);

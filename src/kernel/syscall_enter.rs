@@ -5,7 +5,7 @@ use kernel::heap::*;
 use kernel::ptrace::*;
 use kernel::socket::*;
 use kernel::standard::*;
-use nix::Result;
+use errors::Result;
 use filesystem::fs::FileSystem;
 use register::Registers;
 

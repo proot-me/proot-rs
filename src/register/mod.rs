@@ -2,7 +2,7 @@
 mod regs;
 
 use libc::{pid_t, c_ulong, user_regs_struct};
-use nix::Result;
+use errors::Result;
 
 pub type Word = c_ulong;
 

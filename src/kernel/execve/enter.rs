@@ -1,5 +1,5 @@
 use libc::pid_t;
-use nix::Result;
+use errors::Result;
 use register::{Registers, Word};
 use filesystem::fs::FileSystem;
 use kernel::sysarg::get_sysarg_path;

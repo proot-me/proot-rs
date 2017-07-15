@@ -1,7 +1,6 @@
 use std::path::{Path, PathBuf};
 use std::fs::FileType;
-use nix::errno::Errno;
-use nix::{Result, Error};
+use errors::{Error, Result};
 use filesystem::binding::Direction;
 use filesystem::binding::Side::{Guest, Host};
 use filesystem::fs::FileSystem;
@@ -25,7 +24,7 @@ impl Substitutor for FileSystem {
         let maybe_binding = self.get_binding(path, direction.0);
 
         if maybe_binding.is_none() {
-            return Err(Error::Sys(Errno::ENOENT));
+            return Err(Error::no_such_file_or_dir());
         }
         let binding = maybe_binding.unwrap();
 
@@ -72,8 +71,7 @@ impl Substitutor for FileSystem {
 mod tests {
     use super::*;
     use std::path::{Path, PathBuf};
-    use nix::Error;
-    use nix::errno::Errno;
+    use errors::Error;
     use filesystem::binding::Binding;
     use filesystem::binding::Side::{Host, Guest};
     use filesystem::fs::FileSystem;
@@ -97,7 +95,7 @@ mod tests {
                 &Path::new("/media/folder/subfolder"),
                 Direction(Host, Guest),
             ),
-            Err(Error::Sys(Errno::ENOENT))
+            Err(Error::no_such_file_or_dir())
         ); // the path isn't translatable to the guest fs
 
         assert_eq!(

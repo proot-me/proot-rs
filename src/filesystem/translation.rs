@@ -1,5 +1,5 @@
 use std::path::{Path, PathBuf};
-use nix::Result;
+use errors::Result;
 use filesystem::binding::Direction;
 use filesystem::binding::Side::{Host, Guest};
 use filesystem::fs::FileSystem;

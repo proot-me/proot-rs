@@ -2,9 +2,8 @@ use std::mem::{size_of, transmute};
 use std::ptr::null_mut;
 use std::path::PathBuf;
 use libc::{c_void, PATH_MAX, pid_t};
-use nix::Result;
-use nix::Error::Sys;
-use nix::Errno::ENAMETOOLONG;
+use errors::Result;
+use errors::Error;
 use nix::sys::ptrace::ptrace;
 use nix::sys::ptrace::ptrace::PTRACE_PEEKDATA;
 use register::Word;
@@ -36,7 +35,7 @@ fn read_path(pid: pid_t, src_path: *mut Word) -> Result<PathBuf> {
     let bytes = read_string(pid, src_path, PATH_MAX as usize)?;
 
     if bytes.len() >= PATH_MAX as usize {
-        return Err(Sys(ENAMETOOLONG));
+        return Err(Error::name_too_long());
     }
 
     Ok(PathBuf::from(unsafe { String::from_utf8_unchecked(bytes) }))
@@ -74,7 +73,8 @@ fn read_string(pid: pid_t, src_string: *mut Word, max_size: usize) -> Result<Vec
             unsafe { src_string.offset(i) as *mut c_void },
             null_mut(),
         )? as Word;
-        let letters: [u8; 8] = convert_word_to_bytes(word);
+        //TODO: find a way to do thing for 4 bytes (32bits procs)
+        let letters = convert_word_to_bytes(word);
 
         for &letter in &letters {
             // Stop once an end-of-string is detected.
@@ -114,6 +114,13 @@ fn read_string(pid: pid_t, src_string: *mut Word, max_size: usize) -> Result<Vec
     */
 }
 
+#[cfg(target_pointer_width = "32")]
+#[inline]
+fn convert_word_to_bytes(value_to_convert: Word) -> [u8; 4] {
+    unsafe { transmute(value_to_convert) }
+}
+
+#[cfg(target_pointer_width = "64")]
 #[inline]
 fn convert_word_to_bytes(value_to_convert: Word) -> [u8; 8] {
     unsafe { transmute(value_to_convert) }
@@ -131,6 +138,7 @@ mod tests {
     use register::Word;
 
     #[test]
+    #[cfg(target_pointer_width = "64")]
     fn test_sysarg_convert_word_to_bytes() {
         let number: Word = 'h' as u64 + 'e' as u64 * 256 + 'l' as u64 * 256 * 256 +
             'l' as u64 * 256 * 256 * 256 +
@@ -150,6 +158,16 @@ mod tests {
                 0,
             ]
         );
+    }
+
+    #[test]
+    #[cfg(target_pointer_width = "32")]
+    fn test_sysarg_convert_word_to_bytes() {
+        let number: Word = 'h' as u64 + 'e' as u64 * 256 + 'l' as u64 * 256 * 256 +
+            'o' as u64 * 256 * 256 * 256;
+        let bytes = convert_word_to_bytes(number);
+
+        assert_eq!(bytes, ['h' as u8, 'e' as u8, 'l' as u8, 'o' as u8]);
     }
 
     #[test]

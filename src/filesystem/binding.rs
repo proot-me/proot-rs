@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 use libc::PATH_MAX;
-use nix::{NixPath, Error, Result};
-use nix::errno::Errno;
+use errors::{Error, Result};
+use nix::NixPath;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Side {
@@ -75,7 +75,7 @@ impl Binding {
         new_path.push(stripped_path.unwrap());
 
         if new_path.len() >= PATH_MAX as usize {
-            return Err(Error::Sys(Errno::ENAMETOOLONG));
+            return Err(Error::name_too_long());
         }
 
         Ok(Some(new_path))

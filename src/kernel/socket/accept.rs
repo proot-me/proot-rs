@@ -1,6 +1,6 @@
 use kernel::socket::get_sockorpeer_name;
 use kernel::syscall_exit::SyscallExitResult;
-use nix::Result;
+use errors::Result;
 
 pub fn enter() -> Result<()> {
     get_sockorpeer_name::enter()

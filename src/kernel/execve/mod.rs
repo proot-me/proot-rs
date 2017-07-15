@@ -3,7 +3,7 @@ pub mod exit;
 pub mod shebang;
 
 use libc::pid_t;
-use nix::Result;
+use errors::Result;
 use register::Registers;
 use kernel::syscall_exit::SyscallExitResult;
 use filesystem::fs::FileSystem;

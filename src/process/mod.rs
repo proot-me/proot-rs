@@ -1,3 +1,3 @@
 pub mod proot;
 pub mod sigactions;
-mod tracee;
+pub mod tracee;

@@ -1,7 +1,6 @@
 use std::path::{Path, PathBuf};
 use std::fs::Metadata;
-use nix::{Error, Result};
-use nix::errno::Errno;
+use errors::Result;
 use filesystem::binding::{Binding, Side};
 use filesystem::binding::Side::Host;
 
@@ -103,15 +102,9 @@ impl FileSystem {
         //        }
 
         // indirect call to `lstat`
-
         match path.symlink_metadata() {
             Ok(metadata) => Ok(metadata),
-            Err(err) => {
-                match err.raw_os_error() {
-                    Some(errno) => Err(Error::Sys(Errno::from_i32(errno))),
-                    None => Err(Error::InvalidPath),
-                }
-            }
+            Err(error) => Err(error.into())
         }
     }
 

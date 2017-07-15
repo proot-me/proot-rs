@@ -1,7 +1,11 @@
+#![feature(io)]
+
 extern crate libc;
 extern crate nix;
 extern crate clap;
 extern crate syscall;
+
+mod errors;
 mod utils;
 mod register;
 mod kernel;

@@ -1,6 +1,5 @@
 use std::path::{Path, PathBuf, Component};
-use nix::{Result, Error};
-use nix::errno::Errno;
+use errors::{Error, Result};
 use filesystem::fs::FileSystem;
 use filesystem::substitution::Substitutor;
 
@@ -69,7 +68,7 @@ impl Canonicalizer for FileSystem {
                     // symlink points to a directory once it is
                     // canonicalized, at the end of this loop.
                     if !is_last_component && !file_type.is_dir() && !file_type.is_symlink() {
-                        return Err(Error::Sys(Errno::ENOTDIR));
+                        return Err(Error::not_a_directory());
                     }
 
                     // Nothing special to do if it's not a link or if we

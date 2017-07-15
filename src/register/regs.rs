@@ -1,7 +1,7 @@
 use std::ptr::null_mut;
 use std::mem;
 use libc::{pid_t, c_void, user_regs_struct};
-use nix::Result;
+use errors::Result;
 use nix::sys::ptrace::ptrace;
 use nix::sys::ptrace::ptrace::PTRACE_GETREGS;
 
@@ -61,6 +61,7 @@ pub fn fetch_all_regs(pid: pid_t) -> Result<user_regs_struct> {
     Ok(regs)
 }
 
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -71,7 +72,7 @@ mod tests {
 
     #[test]
     fn fetch_regs_should_fail_test() {
-        let ret = fetch_regs(-1);
+        let ret = fetch_all_regs(-1);
         assert!(ret.is_err());
     }
 

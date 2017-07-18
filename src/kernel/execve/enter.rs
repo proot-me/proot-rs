@@ -2,11 +2,12 @@ use nix::unistd::Pid;
 use nix::errno::Errno;
 use errors::{Result, Error};
 use register::{Registers, Word};
-use kernel::sysarg::get_sysarg_path;
-use kernel::execve::shebang::expand_shebang;
 use filesystem::fs::FileSystem;
 use filesystem::translation::Translator;
 use process::tracee::Tracee;
+use kernel::sysarg::get_sysarg_path;
+use kernel::execve::shebang::expand_shebang;
+use kernel::execve::elf;
 
 pub fn translate(pid: Pid, fs: &FileSystem, tracee: &mut Tracee, regs: &Registers) -> Result<()> {
     //	char user_path[PATH_MAX];
@@ -43,7 +44,7 @@ pub fn translate(pid: Pid, fs: &FileSystem, tracee: &mut Tracee, regs: &Register
     //	a canonicalized guest path, hence detranslate_path()
     //	instead of using user_path directly.  */
     if let Ok(maybe_path) = fs.detranslate_path(&host_path, None) {
-        tracee.set_new_exec(Some(maybe_path.unwrap_or(host_path)));
+        tracee.set_new_exec(Some(maybe_path.unwrap_or(host_path.clone())));
     } else {
         tracee.set_new_exec(None);
     }
@@ -54,7 +55,7 @@ pub fn translate(pid: Pid, fs: &FileSystem, tracee: &mut Tracee, regs: &Register
     //			return status;
     //	}
 
-
+    let elf_header = elf::extract_elf_head(&host_path)?;
 
     //
     //	TALLOC_FREE(tracee->load_info);

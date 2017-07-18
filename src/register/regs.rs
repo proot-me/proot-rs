@@ -1,7 +1,8 @@
 use std::ptr::null_mut;
 use std::mem;
-use libc::{pid_t, c_void, user_regs_struct};
+use libc::{c_void, user_regs_struct};
 use errors::Result;
+use nix::unistd::Pid;
 use nix::sys::ptrace::ptrace;
 use nix::sys::ptrace::ptrace::PTRACE_GETREGS;
 
@@ -50,7 +51,7 @@ pub mod regs_offset {
 /// Copy all @tracee's general purpose registers into a dedicated cache.
 /// Returns either `Ok(regs)` or `Err(Sys(errno))` or `Err(InvalidPath)`.
 #[inline]
-pub fn fetch_all_regs(pid: pid_t) -> Result<user_regs_struct> {
+pub fn fetch_all_regs(pid: Pid) -> Result<user_regs_struct> {
     let mut regs: user_regs_struct = unsafe { mem::zeroed() };
     let p_regs: *mut c_void = &mut regs as *mut _ as *mut c_void;
 
@@ -66,13 +67,13 @@ pub fn fetch_all_regs(pid: pid_t) -> Result<user_regs_struct> {
 mod tests {
     use super::*;
     use std::ffi::CString;
-    use nix::unistd::execvp;
+    use nix::unistd::{Pid, execvp};
     use syscall::nr::NANOSLEEP;
     use utils::tests::fork_test;
 
     #[test]
     fn fetch_regs_should_fail_test() {
-        let ret = fetch_all_regs(-1);
+        let ret = fetch_all_regs(Pid::from_raw(-1));
         assert!(ret.is_err());
     }
 

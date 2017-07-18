@@ -52,10 +52,14 @@ impl Translator for FileSystem {
     /// * `Ok(None)` if no translation is required (ie. symmetric binding).
     /// * `Ok(PathBuf)` is the path was translated.
     /// * An error otherwise.
-    fn detranslate_path(&self, path: &Path, referrer: Option<&Path>) -> Result<Option<PathBuf>> {
+    fn detranslate_path(
+        &self,
+        host_path: &Path,
+        referrer: Option<&Path>,
+    ) -> Result<Option<PathBuf>> {
         // Don't try to detranslate relative paths (typically
         // the target of a relative symbolic link).
-        if path.is_relative() {
+        if host_path.is_relative() {
             return Ok(None);
         }
 
@@ -72,7 +76,7 @@ impl Translator for FileSystem {
                 //TODO: readlink_proc2
                 unimplemented!(" /proc/.. referrer paths not supported!");
             } else if !self.belongs_to_guestfs(referrer_path) {
-                let maybe_binding_referree = self.get_binding(path, Host);
+                let maybe_binding_referree = self.get_binding(host_path, Host);
                 let binding_referrer = self.get_binding(referrer_path, Host).unwrap();
 
                 // Resolve bindings for symlinks that belong
@@ -91,14 +95,14 @@ impl Translator for FileSystem {
         }
 
         if follow_binding {
-            if let Ok(maybe_path) = self.substitute_binding(path, Direction(Host, Guest)) {
+            if let Ok(maybe_path) = self.substitute_binding(host_path, Direction(Host, Guest)) {
                 // if a suitable binding was found, we stop here
                 return Ok(maybe_path);
             }
         }
 
         // otherwise, we simply try to strip the (guest) root
-        if let Ok(stripped_path) = path.strip_prefix(&self.get_root()) {
+        if let Ok(stripped_path) = host_path.strip_prefix(&self.get_root()) {
             return Ok(Some(PathBuf::from("/").join(stripped_path)));
         }
 

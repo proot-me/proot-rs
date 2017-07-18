@@ -1,11 +1,9 @@
 use std::path::{Path, PathBuf};
 use std::fs::File;
 use std::io::Read;
-use errors::Result;
+use errors::{Error, Result};
 use filesystem::fs::FileSystem;
 use filesystem::translation::Translator;
-
-
 
 /// Expand in argv[] the shebang of `user_path`, if any.  This function
 /// returns -errno if an error occurred, 1 if a shebang was found and
@@ -14,7 +12,7 @@ use filesystem::translation::Translator;
 /// point-of-view and as-is), and @tracee's argv[] (pointed to by
 /// `SYSARG_2`) is correctly updated.
 // int expand_shebang(Tracee *tracee, char host_path[PATH_MAX], char user_path[PATH_MAX])
-pub fn expand_shebang(fs: &FileSystem, user_path: &Path) -> Result<()> {
+pub fn expand_shebang(fs: &FileSystem, user_path: &Path) -> Result<PathBuf> {
     //  ArrayOfXPointers *argv = NULL;
     //	bool has_shebang = false;
     //
@@ -36,15 +34,20 @@ pub fn expand_shebang(fs: &FileSystem, user_path: &Path) -> Result<()> {
     //      ELF interpreter; ie. a script can use a script as
     //      interpreter.
 
+    let mut result_host_path: Option<PathBuf> = None;
+    let mut loop_iterations = 0;
     let mut has_shebang = false;
-    let max_sym_links = 50;
+    let max_sym_links = 50; //TODO: found this constant in libc
 
-    for _ in 0..max_sym_links {
+    while loop_iterations < max_sym_links {
+        loop_iterations = loop_iterations + 1;
+
         // Translate this path (user -> host), then check it is executable.
         let host_path = translate_and_check_exec(fs, user_path)?;
         let expanded_user_path = extract_shebang(&host_path)?;
 
         if expanded_user_path.is_none() {
+            result_host_path = Some(host_path);
             break;
         }
         has_shebang = true;
@@ -93,9 +96,11 @@ pub fn expand_shebang(fs: &FileSystem, user_path: &Path) -> Result<()> {
     //		}
     //	}
     //
-    //	if (i == MAXSYMLINKS)
-    //		return -ELOOP;
-    //
+
+    if loop_iterations == max_sym_links {
+        return Err(Error::too_many_symlinks());
+    }
+
     //	/* Push argv[] only on demand.  */
     //	if (argv != NULL) {
     //		status = push_array_of_xpointers(argv, SYSARG_2);
@@ -105,7 +110,7 @@ pub fn expand_shebang(fs: &FileSystem, user_path: &Path) -> Result<()> {
     //
     //	return (has_shebang ? 1 : 0);
 
-    Ok(())
+    Ok(result_host_path.unwrap())
 }
 
 /// Translate a guest path and checks that it's executable.
@@ -272,11 +277,25 @@ fn extract_shebang(host_path: &Path) -> Result<Option<PathBuf>> {
 mod tests {
     use super::*;
     use std::path::PathBuf;
+    use filesystem::fs::FileSystem;
 
     #[test]
     fn test_extract_shebang_not_script() {
         // it should detect that `/bin/sleep` is not a script
         assert_eq!(Ok(None), extract_shebang(&PathBuf::from("/bin/sleep")));
+    }
+
+    #[test]
+    fn test_expand_shebang_not_script() {
+        let mut fs = FileSystem::new();
+
+        fs.set_root("/");
+
+        // it should detect that `/bin/sleep` has no shebang
+        assert_eq!(
+            Ok(PathBuf::from("/bin/sleep")),
+            expand_shebang(&fs, &PathBuf::from("/bin/sleep"))
+        );
     }
 
 }

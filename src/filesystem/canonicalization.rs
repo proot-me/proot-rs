@@ -62,20 +62,15 @@ impl Canonicalizer for FileSystem {
                     }
                     let file_type = maybe_file_type.unwrap();
 
-                    // Checks that a non-final component exists and
-                    // either is a directory or is a symlink.
-                    // For this latter case, we check that the
-                    // symlink points to a directory once it is
-                    // canonicalized, at the end of this loop.
+                    // For this latter case, we check that the symlink points to a directory once
+                    // it is canonicalized, at the end of this loop.
                     if !is_last_component && !file_type.is_dir() && !file_type.is_symlink() {
                         return Err(Error::not_a_directory());
                     }
 
-                    // Nothing special to do if it's not a link or if we
-                    // explicitly ask to not dereference 'user_path', as
-                    // required by kernel like `lstat(2)`. Obviously, this
-                    // later condition does not apply to intermediate path
-                    // components.
+                    // Nothing special to do if it's not a link or if we explicitly ask to not
+                    // dereference 'user_path', as required by kernel like `lstat(2)`. Obviously,
+                    // this later condition does not apply to intermediate path components.
                     if file_type.is_dir() || (is_last_component && !deref_final) {
                         continue;
                     } else {
@@ -141,7 +136,6 @@ mod tests {
     fn test_canonicalize_no_root_normal_path() {
         let mut fs = FileSystem::new();
 
-        // "/etc" on the host, "/" on the guest
         fs.set_root("/");
 
         assert_eq!(
@@ -161,7 +155,7 @@ mod tests {
     fn test_canonicalize_symlink_not_deref() {
         let mut fs = FileSystem::new();
 
-        // "/etc" on the host, "/" on the guest
+        // "/bin" on the host, "/" on the guest
         fs.set_root("/bin");
 
         assert_eq!(

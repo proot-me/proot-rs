@@ -1,9 +1,10 @@
 use std::mem::{size_of, transmute};
 use std::ptr::null_mut;
 use std::path::PathBuf;
-use libc::{c_void, PATH_MAX, pid_t};
+use libc::{c_void, PATH_MAX};
 use errors::Result;
 use errors::Error;
+use nix::unistd::Pid;
 use nix::sys::ptrace::ptrace;
 use nix::sys::ptrace::ptrace::PTRACE_PEEKDATA;
 use register::Word;
@@ -14,7 +15,7 @@ use register::Word;
 /// * `src_sysarg` is the result of `get_reg` applied to one of the registers.
 ///    It contains the address of the path's string in the memory space of the tracee.
 #[inline]
-pub fn get_sysarg_path(pid: pid_t, src_sysarg: *mut Word) -> Result<PathBuf> {
+pub fn get_sysarg_path(pid: Pid, src_sysarg: *mut Word) -> Result<PathBuf> {
     if src_sysarg.is_null() {
         /// Check if the parameter is not NULL. Technically we should
         /// not return an error for this special value since it is
@@ -31,7 +32,7 @@ pub fn get_sysarg_path(pid: pid_t, src_sysarg: *mut Word) -> Result<PathBuf> {
 ///
 /// It also checks that the number of bytes isn't too long.
 #[inline]
-fn read_path(pid: pid_t, src_path: *mut Word) -> Result<PathBuf> {
+fn read_path(pid: Pid, src_path: *mut Word) -> Result<PathBuf> {
     let bytes = read_string(pid, src_path, PATH_MAX as usize)?;
 
     if bytes.len() >= PATH_MAX as usize {
@@ -52,7 +53,7 @@ fn read_path(pid: pid_t, src_path: *mut Word) -> Result<PathBuf> {
 /// * `src_string` is the address of the string in tracee's memory space
 ///     (obtained for instance with `get_reg`).
 /// * `max_size` is the maximum number of bytes copied from memory.
-fn read_string(pid: pid_t, src_string: *mut Word, max_size: usize) -> Result<Vec<u8>> {
+fn read_string(pid: Pid, src_string: *mut Word, max_size: usize) -> Result<Vec<u8>> {
     let mut bytes: Vec<u8> = Vec::with_capacity(max_size);
 
     // if (belongs_to_heap_prealloc(tracee, dest_tracee))
@@ -172,7 +173,7 @@ mod tests {
 
     #[test]
     fn test_sysarg_get_sysarg_path_return_empty_if_given_null_src_() {
-        let path = get_sysarg_path(0, null_mut()).unwrap();
+        let path = get_sysarg_path(Pid::from_raw(0), null_mut()).unwrap();
 
         assert_eq!(path.to_str().unwrap(), "");
     }

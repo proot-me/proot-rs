@@ -1,5 +1,5 @@
 # proot-rs
-Rust implementation of PRoot, a ptrace-based sandbox. 
+Rust implementation of PRoot, a ptrace-based sandbox.
 _(Work in progress)_
 
 `proot-rs` works by intercepting all Linux system calls that use paths (`execve`, `mkdir`, `ls`, ...)
@@ -16,17 +16,16 @@ mkdir /home/user/myfolder/subfolder
 ```
 
 Hence, you can apply `proot-rs` to a whole program in order sandbox it.
-More concretely, you can for instance download a docker image, extract it, 
+More concretely, you can for instance download a docker image, extract it,
 and run it, without needing docker:
 ```
 proot-rs -R ./my-docker-image /bin/sh
 ```
 
-
-# Usage
+## Usage
 Not usable for now _(work in progress)_.
 
-# Requirements
+## Requirements
 Use the nightly Rust channel for rustc:
 ```
 cargo default nightly
@@ -34,7 +33,7 @@ cargo default nightly
 Some dependencies (like `syscall`) depend on features (`asm` in this case) that are not 
 on the stable channel yet.
 
-# Build
+## Build
 The recommended way is to use _rustup/cargo_:
 
 ```text
@@ -48,7 +47,7 @@ To generate the release binary (it takes longer, but the binary generated is qui
 cargo build --release
 ```
 
-# Tests
+## Tests
 Simply run:
 ```
 cargo test

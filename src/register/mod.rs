@@ -1,7 +1,8 @@
 #[macro_use]
 mod regs;
 
-use libc::{pid_t, c_ulong, user_regs_struct};
+use libc::{c_ulong, user_regs_struct};
+use nix::unistd::Pid;
 use errors::Result;
 
 pub type Word = c_ulong;
@@ -18,7 +19,7 @@ pub struct Registers {
 }
 
 impl Registers {
-    pub fn retrieve(pid: pid_t) -> Result<Self> {
+    pub fn retrieve(pid: Pid) -> Result<Self> {
         Ok(Registers::from(&regs::fetch_all_regs(pid)?))
     }
 

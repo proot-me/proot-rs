@@ -4,7 +4,7 @@ version = "0.1.0"
 authors = ["vincenthage"]
 
 [dependencies]
-libc = "0.2.24"
-nix = "0.8.1"
+libc = "0.2.25"
+nix = { git = "https://github.com/vincenthage/nix.git", branch = "master" }
 clap = "2.23.3"
 syscall = "0.2.1"

@@ -10,32 +10,34 @@ pub enum Error {
     Sys(errno::Errno),
     InvalidPath,
     InvalidUtf8,
-    IOError(IOErrorKind)
+    IOError(IOErrorKind),
+    UnsupportedOperation
 }
 
 impl Error {
-    /// Create a nix Error from a given errno
     pub fn from_errno(errno: errno::Errno) -> Error {
         Error::Sys(errno)
     }
 
-    /*
-    /// Get the current errno and convert it to a nix Error
-    pub fn last() -> Error {
-        Error::Sys(errno::Errno::last())
-    }
-    */
-
-    /// Create a new invalid argument error (`EINVAL`)
     pub fn invalid_argument() -> Error {
         Error::Sys(errno::EINVAL)
     }
 
-    pub fn name_too_long() -> Error { Error::Sys(errno::ENAMETOOLONG) }
+    pub fn name_too_long() -> Error {
+        Error::Sys(errno::ENAMETOOLONG)
+    }
 
-    pub fn no_such_file_or_dir() -> Error { Error::Sys(errno::ENOENT) }
+    pub fn no_such_file_or_dir() -> Error {
+        Error::Sys(errno::ENOENT)
+    }
 
-    pub fn not_a_directory() -> Error { Error::Sys(errno::ENOTDIR) }
+    pub fn not_a_directory() -> Error {
+        Error::Sys(errno::ENOTDIR)
+    }
+
+    pub fn too_many_symlinks() -> Error {
+        Error::Sys(errno::ELOOP)
+    }
 }
 
 impl From<errno::Errno> for Error {
@@ -66,6 +68,8 @@ impl From<NixError> for Error {
         match nix_error {
             NixError::Sys(errno) => Error::Sys(errno),
             NixError::InvalidPath => Error::InvalidPath,
+            NixError::InvalidUtf8 => Error::InvalidUtf8,
+            NixError::UnsupportedOperation => Error::UnsupportedOperation
         }
     }
 }
@@ -86,6 +90,8 @@ impl error::Error for Error {
             &Error::InvalidUtf8 => "Invalid UTF-8 string",
             &Error::Sys(ref errno) => errno.desc(),
             &Error::IOError(_) => "IO Error",
+            &Error::UnsupportedOperation => "Unsupported Operation",
+            &Error::Sys(ref errno) => errno.desc(),
         }
     }
 }
@@ -97,6 +103,8 @@ impl fmt::Display for Error {
             &Error::InvalidUtf8 => write!(f, "Invalid UTF-8 string"),
             &Error::Sys(errno) => write!(f, "{:?}: {}", errno, errno.desc()),
             &Error::IOError(io_error_kind) => write!(f, "IO Error: {:?}", io_error_kind),
+            &Error::UnsupportedOperation => write!(f, "Unsupported Operation"),
+            &Error::Sys(errno) => write!(f, "{:?}: {}", errno, errno.desc()),
         }
     }
 }

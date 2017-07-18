@@ -5,8 +5,9 @@ use std::ptr::null_mut;
 use std::ffi::CString;
 
 // libc
-use libc::{pid_t, siginfo_t, c_int, c_void};
+use libc::{siginfo_t, c_int, c_void, pid_t};
 // signals
+use nix::unistd::Pid;
 use nix::sys::signal::{kill, SIGSTOP, Signal};
 // ptrace
 use nix::sys::ptrace::ptrace;
@@ -35,8 +36,8 @@ impl InfoBag {
 #[derive(Debug)]
 pub struct PRoot {
     info_bag: InfoBag,
-    tracees: HashMap<pid_t, Tracee>,
-    alive_tracees: Vec<pid_t>,
+    tracees: HashMap<Pid, Tracee>,
+    alive_tracees: Vec<Pid>,
     /// Information related to a file-system name-space.
     fs: FileSystem,
 }
@@ -68,7 +69,7 @@ impl PRoot {
             }
             ForkResult::Child => {
                 // Declare the tracee as ptraceable
-                ptrace(PTRACE_TRACEME, 0, null_mut(), null_mut()).expect("ptrace traceme");
+                ptrace(PTRACE_TRACEME, Pid::from_raw(0), null_mut(), null_mut()).expect("ptrace traceme");
 
                 // Synchronise with the parent's event loop by waiting until it's ready
                 // (otherwise the execvp is executed too quickly)
@@ -98,7 +99,7 @@ impl PRoot {
     /// the parameters of the system call, before restarting the tracee.
     pub fn event_loop(&mut self) {
         while !self.alive_tracees.is_empty() {
-            match waitpid(-1, Some(__WALL)).expect("event loop waitpid") {
+            match waitpid(Pid::from_raw(-1), Some(__WALL)).expect("event loop waitpid") {
                 Exited(pid, exit_status) => {
                     println!("-- {}, Exited with status: {}", pid, exit_status);
                     self.register_tracee_finished(pid);
@@ -144,7 +145,7 @@ impl PRoot {
         }
     }
 
-    fn handle_standard_event(&mut self, tracee_pid: pid_t, signal: Option<Signal>) {
+    fn handle_standard_event(&mut self, tracee_pid: Pid, signal: Option<Signal>) {
         let (wrapped_tracee, fs_ref, info_bag) = self.get_mut_tracee_and_all(tracee_pid);
         let mut tracee = wrapped_tracee.expect("get stopped tracee");
 
@@ -154,7 +155,7 @@ impl PRoot {
 
     /******** Utilities ****************/
 
-    pub fn create_tracee(&mut self, pid: pid_t) -> Option<&Tracee> {
+    pub fn create_tracee(&mut self, pid: Pid) -> Option<&Tracee> {
         self.tracees.insert(pid, Tracee::new(pid));
         self.register_alive_tracee(pid);
         self.tracees.get(&pid)
@@ -162,16 +163,16 @@ impl PRoot {
 
     fn get_mut_tracee_and_all(
         &mut self,
-        pid: pid_t,
+        pid: Pid,
     ) -> (Option<&mut Tracee>, &mut FileSystem, &mut InfoBag) {
         (self.tracees.get_mut(&pid), &mut self.fs, &mut self.info_bag)
     }
 
-    fn register_alive_tracee(&mut self, pid: pid_t) {
+    fn register_alive_tracee(&mut self, pid: Pid) {
         self.alive_tracees.push(pid);
     }
 
-    fn register_tracee_finished(&mut self, finished_pid: pid_t) {
+    fn register_tracee_finished(&mut self, finished_pid: Pid) {
         self.alive_tracees.retain(|pid| *pid != finished_pid);
         self.tracees.remove(&finished_pid);
     }
@@ -191,6 +192,7 @@ pub extern "C" fn show_info(pid: pid_t) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use nix::unistd::Pid;
 
     #[test]
     fn create_proot_and_tracee() {
@@ -199,17 +201,17 @@ mod tests {
 
         // tracee 0 shouldn't exist
         {
-            let (tracee, _, _) = proot.get_mut_tracee_and_all(0);
+            let (tracee, _, _) = proot.get_mut_tracee_and_all(Pid::from_raw(0));
             assert!(tracee.is_none());
         }
 
         {
-            proot.create_tracee(0);
+            proot.create_tracee(Pid::from_raw(0));
         }
 
         // tracee 0 should exist
         {
-            let (tracee, _, _) = proot.get_mut_tracee_and_all(0);
+            let (tracee, _, _) = proot.get_mut_tracee_and_all(Pid::from_raw(0));
             assert!(tracee.is_some());
         }
     }

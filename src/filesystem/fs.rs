@@ -104,7 +104,7 @@ impl FileSystem {
         // indirect call to `lstat`
         match path.symlink_metadata() {
             Ok(metadata) => Ok(metadata),
-            Err(error) => Err(error.into())
+            Err(error) => Err(error.into()),
         }
     }
 

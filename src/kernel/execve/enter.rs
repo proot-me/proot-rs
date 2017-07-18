@@ -1,11 +1,14 @@
-use libc::pid_t;
-use errors::Result;
+use nix::unistd::Pid;
+use nix::errno::Errno;
+use errors::{Result, Error};
 use register::{Registers, Word};
-use filesystem::fs::FileSystem;
 use kernel::sysarg::get_sysarg_path;
 use kernel::execve::shebang::expand_shebang;
+use filesystem::fs::FileSystem;
+use filesystem::translation::Translator;
+use process::tracee::Tracee;
 
-pub fn translate(pid: pid_t, fs: &FileSystem, regs: &Registers) -> Result<()> {
+pub fn translate(pid: Pid, fs: &FileSystem, tracee: &mut Tracee, regs: &Registers) -> Result<()> {
     //	char user_path[PATH_MAX];
     //	char host_path[PATH_MAX];
     //	char new_exe[PATH_MAX];
@@ -24,35 +27,35 @@ pub fn translate(pid: pid_t, fs: &FileSystem, regs: &Registers) -> Result<()> {
     //	}
 
     let user_path = get_sysarg_path(pid, regs.sys_arg_1 as *mut Word)?;
-    let host_path = expand_shebang(fs, &user_path)?;
+    let host_path = match expand_shebang(fs, &user_path) {
+        Ok(path) => path,
+        // The Linux kernel actually returns -EACCES when trying to execute a directory.
+        Err(Error::Sys(Errno::EISDIR)) => return Err(Error::from(Errno::EACCES)),
+        Err(error) => return Err(error),
+    };
 
-    //	if (status < 0)
-    //		/* The Linux kernel actually returns -EACCES when
-    //		 * trying to execute a directory.  */
-    //		return status == -EISDIR ? -EACCES : status;
-    //
     //	/* user_path is modified only if there's an interpreter
     //	 * (ie. for a script or with qemu).  */
     //	if (status == 0 && tracee->qemu == NULL)
     //		TALLOC_FREE(raw_path);
-    //
-    //	/* Remember the new value for "/proc/self/exe".  It points to
-    //	 * a canonicalized guest path, hence detranslate_path()
-    //	 * instead of using user_path directly.  */
-    //	strcpy(new_exe, host_path);
-    //	status = detranslate_path(tracee, new_exe, NULL);
-    //	if (status >= 0) {
-    //		talloc_unlink(tracee, tracee->new_exe);
-    //		tracee->new_exe = talloc_strdup(tracee, new_exe);
-    //	}
-    //	else
-    //		tracee->new_exe = NULL;
-    //
+
+    //	Remember the new value for "/proc/self/exe".  It points to
+    //	a canonicalized guest path, hence detranslate_path()
+    //	instead of using user_path directly.  */
+    if let Ok(maybe_path) = fs.detranslate_path(&host_path, None) {
+        tracee.set_new_exec(Some(maybe_path.unwrap_or(host_path)));
+    } else {
+        tracee.set_new_exec(None);
+    }
+
     //	if (tracee->qemu != NULL) {
     //		status = expand_runner(tracee, host_path, user_path);
     //		if (status < 0)
     //			return status;
     //	}
+
+
+
     //
     //	TALLOC_FREE(tracee->load_info);
     //

@@ -1,15 +1,16 @@
-use kernel::syscall_type::{SyscallType, syscall_type_from_sysnum};
-use libc::pid_t;
+use nix::unistd::Pid;
+use errors::Result;
 use kernel::execve;
 use kernel::heap::*;
 use kernel::ptrace::*;
 use kernel::socket::*;
 use kernel::standard::*;
-use errors::Result;
-use filesystem::fs::FileSystem;
+use kernel::syscall_type::{SyscallType, syscall_type_from_sysnum};
 use register::Registers;
+use filesystem::fs::FileSystem;
+use process::tracee::Tracee;
 
-pub fn translate(pid: pid_t, fs: &FileSystem, regs: &Registers) -> Result<()> {
+pub fn translate(pid: Pid, fs: &FileSystem, tracee: &mut Tracee, regs: &Registers) -> Result<()> {
     let sys_type = syscall_type_from_sysnum(regs.sys_num);
 
     println!("enter  \t({:?}, \t{:?}) ", regs.sys_num, sys_type);
@@ -21,7 +22,7 @@ pub fn translate(pid: pid_t, fs: &FileSystem, regs: &Registers) -> Result<()> {
         SyscallType::Chdir => chdir::enter(),
         SyscallType::ChmodAccessMkNodAt => chmod_access_mknod_at::enter(),
         SyscallType::DirLinkAttr => dir_link_attr::enter(),
-        SyscallType::Execve => execve::enter(pid, fs, regs),
+        SyscallType::Execve => execve::enter(pid, fs, tracee, regs),
         SyscallType::GetCwd => getcwd::enter(),
         SyscallType::GetSockOrPeerName => get_sockorpeer_name::enter(),
         SyscallType::InotifyAddWatch => inotify_add_watch::enter(),

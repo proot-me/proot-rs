@@ -1,5 +1,6 @@
 use std::ptr::null_mut;
-use libc::pid_t;
+use std::path::PathBuf;
+use nix::unistd::Pid;
 use nix::sys::signal::Signal;
 use nix::sys::ptrace::ptrace_setoptions;
 use nix::sys::ptrace::ptrace::*;
@@ -64,7 +65,7 @@ pub enum TraceeRestartMethod {
 #[derive(Debug)]
 pub struct Tracee {
     /// Process identifier.
-    pid: pid_t,
+    pid: Pid,
     /// Whether the tracee is in the enter or exit stage
     status: TraceeStatus,
     /// The ptrace's restart method depends on the status (enter or exit) and seccomp on/off
@@ -73,16 +74,19 @@ pub struct Tracee {
     seccomp: bool,
     /// Ensure the sysexit stage is always hit under seccomp.
     sysexit_pending: bool,
+    /// Path to the executable, à la /proc/self/exe. Used in `execve`.
+    new_exe: Option<PathBuf>,
 }
 
 impl Tracee {
-    pub fn new(pid: pid_t) -> Tracee {
+    pub fn new(pid: Pid) -> Tracee {
         Tracee {
             pid: pid,
             seccomp: false,
             status: TraceeStatus::SysEnter, // it always starts by the enter stage
             restart_how: TraceeRestartMethod::None,
             sysexit_pending: false,
+            new_exe: None,
         }
     }
 
@@ -249,7 +253,7 @@ impl Tracee {
         // if (status > 0)
         //     return 0;
 
-        let status = syscall_enter::translate(self.pid, fs, regs);
+        let status = syscall_enter::translate(self.pid.into(), fs, self, regs);
 
         // status2 = notify_extensions(tracee, SYSCALL_ENTER_END, status, 0);
         // if (status2 < 0)
@@ -330,12 +334,16 @@ impl Tracee {
             PTRACE_O_TRACEEXIT;
 
         //TODO: seccomp
-        ptrace_setoptions(self.pid, default_options).expect("set ptrace options");
+        ptrace_setoptions(self.pid.into(), default_options).expect("set ptrace options");
     }
 
     #[cfg(test)]
-    pub fn get_pid(&self) -> pid_t {
+    pub fn get_pid(&self) -> Pid {
         self.pid
+    }
+
+    pub fn set_new_exec(&mut self, maybe_new_exe: Option<PathBuf>) {
+        self.new_exe = maybe_new_exe;
     }
 }
 
@@ -344,11 +352,12 @@ impl Tracee {
 mod tests {
     use super::*;
     use utils::tests::fork_test;
+    use nix::unistd::Pid;
 
     #[test]
     fn create_tracee() {
-        let tracee = Tracee::new(42);
-        assert_eq!(tracee.get_pid(), 42);
+        let tracee = Tracee::new(Pid::from_raw(42));
+        assert_eq!(tracee.get_pid(), Pid::from_raw(42));
     }
 
     #[test]

@@ -12,7 +12,7 @@ use filesystem::translation::Translator;
 /// point-of-view and as-is), and @tracee's argv[] (pointed to by
 /// `SYSARG_2`) is correctly updated.
 // int expand_shebang(Tracee *tracee, char host_path[PATH_MAX], char user_path[PATH_MAX])
-pub fn expand_shebang(fs: &FileSystem, user_path: &Path) -> Result<PathBuf> {
+pub fn expand(fs: &FileSystem, user_path: &Path) -> Result<PathBuf> {
     //  ArrayOfXPointers *argv = NULL;
     //	bool has_shebang = false;
     //
@@ -44,7 +44,7 @@ pub fn expand_shebang(fs: &FileSystem, user_path: &Path) -> Result<PathBuf> {
 
         // Translate this path (user -> host), then check it is executable.
         let host_path = translate_and_check_exec(fs, user_path)?;
-        let expanded_user_path = extract_shebang(&host_path)?;
+        let expanded_user_path = extract(&host_path)?;
 
         if expanded_user_path.is_none() {
             result_host_path = Some(host_path);
@@ -132,7 +132,7 @@ fn translate_and_check_exec(fs: &FileSystem, guest_path: &Path) -> Result<PathBu
 ///     passed as a *single* argument to the interpreter, and this
 ///     string can include white space.
 //const char *host_path, char user_path[PATH_MAX], char argument[BINPRM_BUF_SIZE]
-fn extract_shebang(host_path: &Path) -> Result<Option<PathBuf>> {
+fn extract(host_path: &Path) -> Result<Option<PathBuf>> {
     let file = File::open(host_path)?;
     let mut chars = file.chars();
 
@@ -282,7 +282,7 @@ mod tests {
     #[test]
     fn test_extract_shebang_not_script() {
         // it should detect that `/bin/sleep` is not a script
-        assert_eq!(Ok(None), extract_shebang(&PathBuf::from("/bin/sleep")));
+        assert_eq!(Ok(None), extract(&PathBuf::from("/bin/sleep")));
     }
 
     #[test]
@@ -294,7 +294,7 @@ mod tests {
         // it should detect that `/bin/sleep` has no shebang
         assert_eq!(
             Ok(PathBuf::from("/bin/sleep")),
-            expand_shebang(&fs, &PathBuf::from("/bin/sleep"))
+            expand(&fs, &PathBuf::from("/bin/sleep"))
         );
     }
 

@@ -76,7 +76,8 @@ pub mod tests {
                     end(child, expected_exit_signal);
                 }
                 ForkResult::Child => {
-                    ptrace(PTRACE_TRACEME, Pid::from_raw(0), null_mut(), null_mut()).expect("test ptrace traceme");
+                    ptrace(PTRACE_TRACEME, Pid::from_raw(0), null_mut(), null_mut())
+                        .expect("test ptrace traceme");
                     // we use a SIGSTOP to synchronise both processes
                     kill(getpid(), SIGSTOP).expect("test child sigstop");
 

@@ -11,7 +11,7 @@ pub enum Error {
     InvalidPath,
     InvalidUtf8,
     IOError(IOErrorKind),
-    UnsupportedOperation
+    UnsupportedOperation,
 }
 
 impl Error {
@@ -37,6 +37,10 @@ impl Error {
 
     pub fn too_many_symlinks() -> Error {
         Error::Sys(errno::ELOOP)
+    }
+
+    pub fn cant_exec() -> Error {
+        Error::Sys(errno::ENOEXEC)
     }
 }
 
@@ -69,7 +73,7 @@ impl From<NixError> for Error {
             NixError::Sys(errno) => Error::Sys(errno),
             NixError::InvalidPath => Error::InvalidPath,
             NixError::InvalidUtf8 => Error::InvalidUtf8,
-            NixError::UnsupportedOperation => Error::UnsupportedOperation
+            NixError::UnsupportedOperation => Error::UnsupportedOperation,
         }
     }
 }

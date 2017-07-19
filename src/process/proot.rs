@@ -69,7 +69,8 @@ impl PRoot {
             }
             ForkResult::Child => {
                 // Declare the tracee as ptraceable
-                ptrace(PTRACE_TRACEME, Pid::from_raw(0), null_mut(), null_mut()).expect("ptrace traceme");
+                ptrace(PTRACE_TRACEME, Pid::from_raw(0), null_mut(), null_mut())
+                    .expect("ptrace traceme");
 
                 // Synchronise with the parent's event loop by waiting until it's ready
                 // (otherwise the execvp is executed too quickly)

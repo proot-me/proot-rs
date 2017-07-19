@@ -6,17 +6,9 @@ use filesystem::fs::FileSystem;
 use filesystem::translation::Translator;
 use process::tracee::Tracee;
 use kernel::sysarg::get_sysarg_path;
-use kernel::execve::shebang::expand_shebang;
-use kernel::execve::elf;
+use kernel::execve::{shebang, load_info};
 
 pub fn translate(pid: Pid, fs: &FileSystem, tracee: &mut Tracee, regs: &Registers) -> Result<()> {
-    //	char user_path[PATH_MAX];
-    //	char host_path[PATH_MAX];
-    //	char new_exe[PATH_MAX];
-    //	char *raw_path;
-    //	const char *loader_path;
-    //	int status;
-    //
     //	if (IS_NOTIFICATION_PTRACED_LOAD_DONE(tracee)) {
     //		/* Syscalls can now be reported to its ptracer.  */
     //		tracee->as_ptracee.ignore_loader_syscalls = false;
@@ -27,8 +19,9 @@ pub fn translate(pid: Pid, fs: &FileSystem, tracee: &mut Tracee, regs: &Register
     //		return 0;
     //	}
 
-    let user_path = get_sysarg_path(pid, regs.sys_arg_1 as *mut Word)?;
-    let host_path = match expand_shebang(fs, &user_path) {
+    let raw_path = get_sysarg_path(pid, regs.sys_arg_1 as *mut Word)?;
+    //TODO: return user path
+    let host_path = match shebang::expand(fs, &raw_path) {
         Ok(path) => path,
         // The Linux kernel actually returns -EACCES when trying to execute a directory.
         Err(Error::Sys(Errno::EISDIR)) => return Err(Error::from(Errno::EACCES)),
@@ -55,29 +48,15 @@ pub fn translate(pid: Pid, fs: &FileSystem, tracee: &mut Tracee, regs: &Register
     //			return status;
     //	}
 
-    let elf_header = elf::extract_elf_head(&host_path)?;
+    let mut load_info = load_info::LoadInfo::new();
 
-    //
-    //	TALLOC_FREE(tracee->load_info);
-    //
-    //	tracee->load_info = talloc_zero(tracee, LoadInfo);
-    //	if (tracee->load_info == NULL)
-    //		return -ENOMEM;
-    //
-    //	tracee->load_info->host_path = talloc_strdup(tracee->load_info, host_path);
-    //	if (tracee->load_info->host_path == NULL)
-    //		return -ENOMEM;
-    //
-    //	tracee->load_info->user_path = talloc_strdup(tracee->load_info, user_path);
-    //	if (tracee->load_info->user_path == NULL)
-    //		return -ENOMEM;
-    //
-    //	tracee->load_info->raw_path = (raw_path != NULL
-    //			? talloc_reparent(tracee->ctx, tracee->load_info, raw_path)
-    //			: talloc_reference(tracee->load_info, tracee->load_info->user_path));
-    //	if (tracee->load_info->raw_path == NULL)
-    //		return -ENOMEM;
-    //
+    load_info.raw_path = Some(raw_path.clone());
+    load_info.host_path = Some(host_path.clone());
+    //TODO: use user_path when implemented
+    load_info.user_path = Some(raw_path.clone());
+
+    let complete_load_info = load_info::extract(&host_path, &mut load_info)?;
+
     //	status = extract_load_info(tracee, tracee->load_info);
     //	if (status < 0)
     //		return status;

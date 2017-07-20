@@ -1,3 +1,4 @@
+pub mod utils;
 pub mod binding;
 pub mod fs;
 pub mod validation;

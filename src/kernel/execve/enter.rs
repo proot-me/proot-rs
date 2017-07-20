@@ -55,12 +55,8 @@ pub fn translate(pid: Pid, fs: &FileSystem, tracee: &mut Tracee, regs: &Register
     //TODO: use user_path when implemented
     load_info.user_path = Some(raw_path.clone());
 
-    let complete_load_info = load_info::extract(&host_path, &mut load_info)?;
+    load_info.extract_info(&host_path)?;
 
-    //	status = extract_load_info(tracee, tracee->load_info);
-    //	if (status < 0)
-    //		return status;
-    //
     //	if (tracee->load_info->interp != NULL) {
     //		status = extract_load_info(tracee, tracee->load_info->interp);
     //		if (status < 0)

@@ -1,8 +1,9 @@
+#[macro_use]
+pub mod elf;
+pub mod load_info;
 pub mod enter;
 pub mod exit;
 pub mod shebang;
-pub mod elf;
-pub mod load_info;
 
 use nix::unistd::Pid;
 use errors::Result;

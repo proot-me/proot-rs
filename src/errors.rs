@@ -98,7 +98,7 @@ impl error::Error for Error {
             &Error::InvalidUtf8 => "Invalid UTF-8 string",
             &Error::Sys(ref errno) => errno.desc(),
             &Error::IOError(_) => "IO Error",
-            &Error::UnsupportedOperation => "Unsupported Operation"
+            &Error::UnsupportedOperation => "Unsupported Operation",
         }
     }
 }
@@ -110,7 +110,7 @@ impl fmt::Display for Error {
             &Error::InvalidUtf8 => write!(f, "Invalid UTF-8 string"),
             &Error::Sys(errno) => write!(f, "{:?}: {}", errno, errno.desc()),
             &Error::IOError(io_error_kind) => write!(f, "IO Error: {:?}", io_error_kind),
-            &Error::UnsupportedOperation => write!(f, "Unsupported Operation")
+            &Error::UnsupportedOperation => write!(f, "Unsupported Operation"),
         }
     }
 }

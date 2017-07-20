@@ -1,14 +1,16 @@
 use std::path::{Path, PathBuf};
+use std::fs::File;
+use std::io::{Seek, SeekFrom};
 use errors::Result;
-
-use kernel::execve::elf;
+use filesystem::utils::StructReader;
+use kernel::execve::elf::{ElfHeader, ProgramHeader, ExecutableClass};
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct LoadInfo {
     pub raw_path: Option<PathBuf>,
     pub user_path: Option<PathBuf>,
     pub host_path: Option<PathBuf>,
-    pub elf_header: Option<elf::ElfHeader>
+    pub elf_header: Option<ElfHeader>,
 }
 
 impl LoadInfo {
@@ -21,31 +23,33 @@ impl LoadInfo {
         }
     }
 
-    pub fn extract_info<'a>(&mut self, host_path: &Path) -> Result<()> {
-        self.elf_header = Some(elf::extract_elf_head(host_path)?);
+    pub fn extract_info(&mut self, host_path: &Path) -> Result<()> {
+        self.elf_header = Some(ElfHeader::extract_from(host_path)?);
 
-        // Sanity check.
-        self.elf_header.unwrap().apply(
-            |header32| header32.is_exec_or_dyn(),
-            |header64| header64.is_exec_or_dyn()
-        )?;
+        // Sanity checks.
+        apply!(self.elf_header, |header| header.is_exec_or_dyn())?;
+        apply!(self.elf_header, |header| header.is_known_phentsize())?;
 
-        self.iterate_program_header()
-    }
+        let program_headers_offset = get!(self.elf_header, e_phoff, u64)?;
+        let program_headers_count = get!(self.elf_header, e_phnum)?;
 
-    fn iterate_program_header(&mut self) -> Result<()> {
-        let elf_phnum = get!(self.elf_header, e_phnum)?;
-        let elf_phentsize = get!(self.elf_header, e_phentsize)?;
-        let elf_phoff = get!(self.elf_header, e_phoff, u64)?;
+        let mut file = File::open(host_path)?;
 
-        // Sanity check.
-        self.elf_header.unwrap().apply(
-            |header32| header32.is_known_phentsize(),
-            |header64| header64.is_known_phentsize()
-        )?;
+        // We skip the initial part, directly to the program headers.
+        file.seek(SeekFrom::Start(program_headers_offset))?;
 
+        println!("{:?}", self.elf_header);
+
+        // We will read all the program headers, and extract info from them.
+        for _ in 0..program_headers_count {
+            let program_header = match self.elf_header.unwrap().get_class() {
+                ExecutableClass::Class32 => ProgramHeader::ProgramHeader32(file.read_struct()?),
+                ExecutableClass::Class64 => ProgramHeader::ProgramHeader64(file.read_struct()?)
+            };
+
+            println!("{:?}", program_header);
+        }
 
         Ok(())
     }
 }
-

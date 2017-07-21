@@ -2,7 +2,7 @@ use std::fs::File;
 use std::io::{SeekFrom, Seek, Read};
 use std::mem;
 use errors::{Error, Result};
-use filesystem::readers::{StructReader};
+use filesystem::readers::StructReader;
 
 const EI_NIDENT: usize = 16;
 const ET_REL: u16 = 1;
@@ -52,7 +52,7 @@ pub struct ParameterizedProgramHeader<T> {
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum ProgramHeader {
     ProgramHeader32(ParameterizedProgramHeader<u32>),
-    ProgramHeader64(ParameterizedProgramHeader<u64>)
+    ProgramHeader64(ParameterizedProgramHeader<u64>),
 }
 
 /// Use T = u32 for 32bits, and T = u64 for 64bits.
@@ -99,7 +99,7 @@ impl<T> ParameterizedElfHeader<T> {
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum ElfHeader {
     ElfHeader32(ParameterizedElfHeader<u32>),
-    ElfHeader64(ParameterizedElfHeader<u64>)
+    ElfHeader64(ParameterizedElfHeader<u64>),
 }
 
 impl ElfHeader {
@@ -145,7 +145,7 @@ impl ElfHeader {
     pub fn get_class(&self) -> ExecutableClass {
         match *self {
             ElfHeader::ElfHeader32(_) => ExecutableClass::Class32,
-            ElfHeader::ElfHeader64(_) => ExecutableClass::Class64
+            ElfHeader::ElfHeader64(_) => ExecutableClass::Class64,
         }
     }
 
@@ -169,36 +169,23 @@ impl ElfHeader {
 mod tests {
     use super::*;
     use std::path::PathBuf;
-    use errors::Error;
-
-    #[test]
-    fn test_get_elf_header_class_no_file_error() {
-        let result = ElfHeader::extract_class(&PathBuf::from("/../../test"));
-
-        assert!(result.is_err());
-
-        if let Err(err) = result {
-            assert_eq!(Error::no_such_file_or_dir(), err);
-        }
-    }
 
     #[test]
     fn test_get_elf_header_class_not_executable() {
-        assert!(ElfHeader::extract_class(&PathBuf::from("/etc/init/acpid.conf")).is_err());
+        let mut file = File::open(PathBuf::from("/etc/init/acpid.conf")).unwrap();
+        assert!(ElfHeader::extract_class(&mut file).is_err());
     }
 
     #[test]
     fn test_get_elf_header_class() {
-        assert!(ElfHeader::extract_class(&PathBuf::from("/bin/sleep")).is_ok());
+        let mut file = File::open(PathBuf::from("/bin/sleep")).unwrap();
+        assert!(ElfHeader::extract_class(&mut file).is_ok());
     }
 
     #[test]
     fn test_extract_elf_header() {
-        let result = ElfHeader::extract_from(&PathBuf::from("/bin/sleep"));
-
-        assert!(result.is_ok());
-
-        let elf_header = result.unwrap();
+        let mut file = File::open(PathBuf::from("/bin/sleep")).unwrap();
+        let (elf_header, file) = ElfHeader::extract_from(&mut file).unwrap();
 
         assert_eq!(get!(Some(elf_header), e_ident).unwrap()[4], 2);
         assert!(apply!(Some(elf_header), |header| header.is_exec_or_dyn()).is_ok());

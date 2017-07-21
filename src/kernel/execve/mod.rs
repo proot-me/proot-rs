@@ -1,5 +1,5 @@
 #[macro_use]
-pub mod utils;
+pub mod macros;
 pub mod elf;
 pub mod load_info;
 pub mod enter;

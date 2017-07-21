@@ -1,5 +1,4 @@
 
-
 macro_rules! get {
     ($header:expr, $field:ident, $result_type:ty) => {
         $header.unwrap().apply(

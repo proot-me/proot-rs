@@ -45,7 +45,7 @@ impl LoadInfo {
         for _ in 0..program_headers_count {
             let program_header = match self.elf_header.unwrap().get_class() {
                 ExecutableClass::Class32 => ProgramHeader::ProgramHeader32(file.read_struct()?),
-                ExecutableClass::Class64 => ProgramHeader::ProgramHeader64(file.read_struct()?)
+                ExecutableClass::Class64 => ProgramHeader::ProgramHeader64(file.read_struct()?),
             };
 
             println!("{:?}", program_header);

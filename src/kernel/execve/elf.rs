@@ -1,9 +1,8 @@
 use std::fs::File;
-use std::io::Read;
-use std::path::Path;
+use std::io::{SeekFrom, Seek, Read};
 use std::mem;
 use errors::{Error, Result};
-use filesystem::utils::StructReader;
+use filesystem::readers::{StructReader};
 
 const EI_NIDENT: usize = 16;
 const ET_REL: u16 = 1;
@@ -109,36 +108,33 @@ impl ElfHeader {
     /// Returns an error if something happened (`io::Error`),
     /// `None` if it's not an ELF-executable,
     /// and an `ElfHeader` if it was successful.
-    pub fn extract_from(path: &Path) -> Result<Self> {
-        let executable_class = Self::extract_class(path)?;
-        let mut file = File::open(path)?;
+    pub fn extract_from<'a>(file: &'a mut File) -> Result<(Self, &'a mut File)> {
+        let (executable_class, file) = ElfHeader::extract_class(file)?;
+
+        // we reset the file's iterator
+        file.seek(SeekFrom::Start(0))?;
 
         let elf_header = match executable_class {
             ExecutableClass::Class32 => ElfHeader::ElfHeader32(file.read_struct()?),
             ExecutableClass::Class64 => ElfHeader::ElfHeader64(file.read_struct()?),
         };
 
-        Ok(elf_header)
+        Ok((elf_header, file))
     }
 
     /// Reads the five first characters of a file,
     /// to determine whether or not it's an ELF executable,
     /// and whether the executable is 32 or 64 bits.
-    fn extract_class(path: &Path) -> Result<ExecutableClass> {
-        let file = File::open(path)?;
-        let mut chars = file.chars();
+    fn extract_class<'a>(file: &'a mut File) -> Result<(ExecutableClass, &'a mut File)> {
+        let mut buffer = [0; 5];
 
-        match (
-            chars.next().unwrap()?,
-            chars.next().unwrap()?,
-            chars.next().unwrap()?,
-            chars.next().unwrap()?,
-            chars.next().unwrap()?,
-        ) {
-            ('\x7f', 'E', 'L', 'F', exe_class) => {
+        file.read_exact(&mut buffer)?;
+
+        match buffer {
+            [0x7f, 69, 76, 70, exe_class] => {
                 match exe_class as i32 {
-                    1 => Ok(ExecutableClass::Class32),
-                    2 => Ok(ExecutableClass::Class64),
+                    1 => Ok((ExecutableClass::Class32, file)),
+                    2 => Ok((ExecutableClass::Class64, file)),
                     _ => Err(Error::cant_exec()),
                 }
             }

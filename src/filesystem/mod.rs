@@ -1,4 +1,4 @@
-pub mod utils;
+pub mod readers;
 pub mod binding;
 pub mod fs;
 pub mod validation;

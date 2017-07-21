@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 use std::fs::File;
 use std::io::{Seek, SeekFrom};
 use errors::Result;
-use filesystem::utils::StructReader;
+use filesystem::readers::StructReader;
 use kernel::execve::elf::{ElfHeader, ProgramHeader, ExecutableClass};
 
 #[derive(Clone, Debug, PartialEq)]
@@ -24,7 +24,10 @@ impl LoadInfo {
     }
 
     pub fn extract_info(&mut self, host_path: &Path) -> Result<()> {
-        self.elf_header = Some(ElfHeader::extract_from(host_path)?);
+        let mut file = File::open(host_path)?;
+        let (elf_header, mut file) = ElfHeader::extract_from(&mut file)?;
+
+        self.elf_header = Some(elf_header);
 
         // Sanity checks.
         apply!(self.elf_header, |header| header.is_exec_or_dyn())?;
@@ -32,8 +35,6 @@ impl LoadInfo {
 
         let program_headers_offset = get!(self.elf_header, e_phoff, u64)?;
         let program_headers_count = get!(self.elf_header, e_phnum)?;
-
-        let mut file = File::open(host_path)?;
 
         // We skip the initial part, directly to the program headers.
         file.seek(SeekFrom::Start(program_headers_offset))?;

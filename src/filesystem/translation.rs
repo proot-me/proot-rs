@@ -24,9 +24,11 @@ impl Translator for FileSystem {
             //TODO: dir_fd != AT_FDCWD
         }
 
+        //TODO: log verbose
         // VERBOSE(tracee, 2, "pid %d: translate(\"%s\" + \"%s\")",
         //         tracee != NULL ? tracee->pid : 0, result, user_path);
 
+        //TODO: event GUEST_PATH for extensions
         //    status = notify_extensions(tracee, GUEST_PATH, (intptr_t) result, (intptr_t) user_path);
         //    if (status < 0)
         //        return status;
@@ -37,6 +39,7 @@ impl Translator for FileSystem {
         guest_path = self.canonicalize(&guest_path, deref_final)?;
         let host_path = self.substitute_binding(&guest_path, Direction(Guest, Host))?;
 
+        //TODO: log verbose
         // VERBOSE(tracee, 2, "pid %d:          -> \"%s\"",
         //         tracee != NULL ? tracee->pid : 0, result);
 

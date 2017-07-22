@@ -10,6 +10,7 @@ use kernel::execve::shebang;
 use kernel::execve::load_info::LoadInfo;
 
 pub fn translate(pid: Pid, fs: &FileSystem, tracee: &mut Tracee, regs: &Registers) -> Result<()> {
+    //TODO: implement this part for ptrace translation
     //	if (IS_NOTIFICATION_PTRACED_LOAD_DONE(tracee)) {
     //		/* Syscalls can now be reported to its ptracer.  */
     //		tracee->as_ptracee.ignore_loader_syscalls = false;
@@ -29,6 +30,7 @@ pub fn translate(pid: Pid, fs: &FileSystem, tracee: &mut Tracee, regs: &Register
         Err(error) => return Err(error),
     };
 
+    //TODO: clear this when raw_path and user_path's implementations are done
     //	/* user_path is modified only if there's an interpreter
     //	 * (ie. for a script or with qemu).  */
     //	if (status == 0 && tracee->qemu == NULL)
@@ -43,6 +45,7 @@ pub fn translate(pid: Pid, fs: &FileSystem, tracee: &mut Tracee, regs: &Register
         tracee.set_new_exec(None);
     }
 
+    //TODO: implement runner for qemu
     //	if (tracee->qemu != NULL) {
     //		status = expand_runner(tracee, host_path, user_path);
     //		if (status < 0)

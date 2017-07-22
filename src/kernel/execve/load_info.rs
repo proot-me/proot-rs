@@ -50,6 +50,11 @@ impl LoadInfo {
         }
     }
 
+    /// Extracts information about an executable:
+    /// - the ELF header info
+    /// - the program header segments, which contain:
+    ///     - mappings
+    ///     - interp???
     pub fn from(host_path: &Path) -> Result<LoadInfo> {
         let mut file = File::open(host_path)?;
         let (elf_header, mut file) = ElfHeader::extract_from(&mut file)?;
@@ -85,6 +90,7 @@ impl LoadInfo {
         Ok(load_info)
     }
 
+    /// Processes a program header into a Mapping, which is then added to the mappings list.
     fn add_mapping(&mut self, program_header: &ProgramHeader) -> Result<()> {
         let vaddr = get!(program_header, p_vaddr, Word)?;
         let memsz = get!(program_header, p_memsz, Word)?;

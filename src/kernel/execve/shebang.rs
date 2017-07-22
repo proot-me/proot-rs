@@ -58,6 +58,7 @@ pub fn expand(fs: &FileSystem, user_path: &Path) -> Result<PathBuf> {
         println!("new host path: {:?}", new_host_path);
     }
 
+    //TODO: implement argument extraction for scripts
     //
     //		/* Fetch argv[] only on demand.  */
     //		if (argv == NULL) {
@@ -141,21 +142,8 @@ fn extract(host_path: &Path) -> Result<Option<PathBuf>> {
         _ => return Ok(None),
     }
 
-    // Check if it really is a script text.
-    /*
-    match (chars.next(), chars.next()) {
-        (Some(Ok(letter_1)), Some(Ok(letter_2))) => {
-            if letter_1 != '#' || letter_2 != '!' {
-                return Ok(None);
-            }
-        },
-        (Some(Err(CharsError::Other(err))), _) => return Err(err.into()),
-        (_, Some(Err(CharsError::Other(err)))) => return Err(err.into()),
-        _ => return Ok(None)
-    }
-    */
-
     //TODO: extract shebang
+    unimplemented!("shebang extract");
 
     //	current_length = 2;
     //	user_path[0] = '\0';
@@ -267,8 +255,6 @@ fn extract(host_path: &Path) -> Result<Option<PathBuf>> {
     //		return status;
     //
     //	return 1;
-
-    Ok(Some(PathBuf::from("OK")))
 }
 
 

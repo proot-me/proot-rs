@@ -94,6 +94,7 @@ impl FileSystem {
     #[inline]
     /// Retrieves the path's metadata without going through symlinks.
     pub fn get_direct_metadata(&self, path: &Path) -> Result<Metadata> {
+        //TODO: event HOST_PATH for extensions
         //        /* Don't notify extensions during the initialization of a binding.  */
         //        if (tracee->glue_type == 0) {
         //            status = notify_extensions(tracee, HOST_PATH, (intptr_t)host_path, finality);
@@ -113,6 +114,7 @@ impl FileSystem {
     pub fn is_path_executable(&self, path: &Path) -> Result<()> {
         self.get_direct_metadata(&path)?;
 
+        //TODO: complete function
         //	status = access(host_path, F_OK);
         //	if (status < 0)
         //		return -ENOENT;

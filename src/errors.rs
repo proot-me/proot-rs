@@ -31,6 +31,10 @@ impl Error {
         Error::Sys(errno::ENOENT)
     }
 
+    pub fn is_a_directory() -> Error {
+        Error::Sys(errno::EISDIR)
+    }
+
     pub fn not_a_directory() -> Error {
         Error::Sys(errno::ENOTDIR)
     }

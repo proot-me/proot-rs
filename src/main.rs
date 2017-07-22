@@ -5,6 +5,8 @@ extern crate libc;
 extern crate nix;
 extern crate clap;
 extern crate syscall;
+#[macro_use]
+extern crate lazy_static;
 
 mod errors;
 mod utils;

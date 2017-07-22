@@ -6,7 +6,8 @@ use filesystem::fs::FileSystem;
 use filesystem::translation::Translator;
 use process::tracee::Tracee;
 use kernel::sysarg::get_sysarg_path;
-use kernel::execve::{shebang, load_info};
+use kernel::execve::shebang;
+use kernel::execve::load_info::LoadInfo;
 
 pub fn translate(pid: Pid, fs: &FileSystem, tracee: &mut Tracee, regs: &Registers) -> Result<()> {
     //	if (IS_NOTIFICATION_PTRACED_LOAD_DONE(tracee)) {
@@ -48,14 +49,12 @@ pub fn translate(pid: Pid, fs: &FileSystem, tracee: &mut Tracee, regs: &Register
     //			return status;
     //	}
 
-    let mut load_info = load_info::LoadInfo::new();
+    let mut load_info = LoadInfo::from(&host_path)?;
 
     load_info.raw_path = Some(raw_path.clone());
-    load_info.host_path = Some(host_path.clone());
     //TODO: use user_path when implemented
     load_info.user_path = Some(raw_path.clone());
-
-    load_info.extract_info(&host_path)?;
+    load_info.host_path = Some(host_path.clone());
 
     //	if (tracee->load_info->interp != NULL) {
     //		status = extract_load_info(tracee, tracee->load_info->interp);

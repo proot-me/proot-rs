@@ -9,12 +9,13 @@ const ET_REL: u16 = 1;
 const ET_EXEC: u16 = 2;
 const ET_DYN: u16 = 3;
 const ET_CORE: u16 = 4;
+pub const PT_LOAD: u32 = 1;
+pub const PT_DYNAMIC: u32 = 2;
+pub const PT_INTERP: u32 = 3;
+pub const PF_X: u32 = 1;
+pub const PF_W: u32 = 2;
+pub const PF_R: u32 = 4;
 
-pub enum SegmentType {
-    PtLoad = 1,
-    PtDynamic = 2,
-    PtInterp = 3,
-}
 
 /// Use TSigned = i32 and TUnsigned = u32 for 32bits,
 /// and TSigned = u64 and TUnsigned = u64 for 64bits
@@ -39,14 +40,14 @@ pub enum ExecutableClass {
 #[repr(C)]
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ParameterizedProgramHeader<T> {
-    p_type: u32,
-    p_flags: u32,
-    p_offset: T,
-    p_vaddr: T,
-    p_paddr: T,
-    p_filesz: T,
-    p_memsz: T,
-    p_align: T,
+    pub p_type: u32,
+    pub p_flags: u32,
+    pub p_offset: T,
+    pub p_vaddr: T,
+    pub p_paddr: T,
+    pub p_filesz: T,
+    pub p_memsz: T,
+    pub p_align: T,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -55,24 +56,41 @@ pub enum ProgramHeader {
     ProgramHeader64(ParameterizedProgramHeader<u64>),
 }
 
+impl ProgramHeader {
+    pub fn apply<
+        V,
+        F32: FnOnce(ParameterizedProgramHeader<u32>) -> Result<V>,
+        F64: FnOnce(ParameterizedProgramHeader<u64>) -> Result<V>,
+    >(
+        &self,
+        func32: F32,
+        func64: F64,
+    ) -> Result<V> {
+        match *self {
+            ProgramHeader::ProgramHeader32(program_header) => func32(program_header),
+            ProgramHeader::ProgramHeader64(program_header) => func64(program_header),
+        }
+    }
+}
+
 /// Use T = u32 for 32bits, and T = u64 for 64bits.
 #[repr(C)]
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ParameterizedElfHeader<T> {
-    e_ident: [u8; EI_NIDENT], // identifier; it should start with ['\x7f', 'E', 'L', 'F'].
-    e_type: u16,
-    e_machine: u16,
-    e_version: u32,
-    e_entry: T,
+    pub e_ident: [u8; EI_NIDENT], // identifier; it should start with ['\x7f', 'E', 'L', 'F'].
+    pub e_type: u16,
+    pub e_machine: u16,
+    pub e_version: u32,
+    pub e_entry: T,
     pub e_phoff: T, // program header offset
-    e_shoff: T,
-    e_flags: u32,
+    pub e_shoff: T,
+    pub e_flags: u32,
     pub e_ehsize: u16,
     pub e_phentsize: u16, // program header entire size
     pub e_phnum: u16, // program headers count
-    e_shentsize: u16,
-    e_shnum: u16,
-    e_shstrndx: u16,
+    pub e_shentsize: u16,
+    pub e_shnum: u16,
+    pub e_shstrndx: u16,
 }
 
 impl<T> ParameterizedElfHeader<T> {
@@ -185,10 +203,10 @@ mod tests {
     #[test]
     fn test_extract_elf_header() {
         let mut file = File::open(PathBuf::from("/bin/sleep")).unwrap();
-        let (elf_header, file) = ElfHeader::extract_from(&mut file).unwrap();
+        let (elf_header, _) = ElfHeader::extract_from(&mut file).unwrap();
 
-        assert_eq!(get!(Some(elf_header), e_ident).unwrap()[4], 2);
-        assert!(apply!(Some(elf_header), |header| header.is_exec_or_dyn()).is_ok());
-        assert!(apply!(Some(elf_header), |header| header.is_known_phentsize()).is_ok());
+        assert_eq!(get!(elf_header, e_ident).unwrap()[4], 2);
+        assert!(apply!(elf_header, |header| header.is_exec_or_dyn()).is_ok());
+        assert!(apply!(elf_header, |header| header.is_known_phentsize()).is_ok());
     }
 }

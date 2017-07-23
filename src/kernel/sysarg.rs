@@ -36,7 +36,7 @@ fn read_path(pid: Pid, src_path: *mut Word) -> Result<PathBuf> {
     let bytes = read_string(pid, src_path, PATH_MAX as usize)?;
 
     if bytes.len() >= PATH_MAX as usize {
-        return Err(Error::name_too_long());
+        return Err(Error::name_too_long("when reading sys arg path"));
     }
 
     Ok(PathBuf::from(unsafe { String::from_utf8_unchecked(bytes) }))

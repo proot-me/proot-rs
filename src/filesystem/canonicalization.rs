@@ -19,7 +19,7 @@ impl Canonicalizer for FileSystem {
         let mut guest_path = PathBuf::new();
 
         if user_path.is_relative() {
-            return Err(Error::invalid_argument());
+            return Err(Error::invalid_argument("when canonicalizing a relative path"));
         }
 
         let mut it = user_path.components();
@@ -47,7 +47,7 @@ impl Canonicalizer for FileSystem {
                     } else {
                         // the path is invalid, as it didn't manage to remove the last component
                         // (it's probably a path like "/..").
-                        return Err(Error::invalid_argument());
+                        return Err(Error::invalid_argument("when canonicalizing invalid path"));
                     }
                 }
                 Component::Normal(path_part) => {
@@ -65,7 +65,7 @@ impl Canonicalizer for FileSystem {
                     // For this latter case, we check that the symlink points to a directory once
                     // it is canonicalized, at the end of this loop.
                     if !is_last_component && !file_type.is_dir() && !file_type.is_symlink() {
-                        return Err(Error::not_a_directory());
+                        return Err(Error::not_a_directory("when canonicalizing an intermediate path"));
                     }
 
                     // Nothing special to do if it's not a link or if we explicitly ask to not
@@ -97,7 +97,9 @@ mod tests {
         let fs = FileSystem::with_root("/home/user");
         let path = PathBuf::from("/../../../test");
 
-        assert!(fs.canonicalize(&path, false).is_err());
+        assert_eq!(
+            fs.canonicalize(&path, false),
+            Err(Error::invalid_argument("when canonicalizing invalid path")));
     }
 
     #[test]

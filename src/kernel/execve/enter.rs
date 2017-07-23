@@ -26,7 +26,7 @@ pub fn translate(pid: Pid, fs: &FileSystem, tracee: &mut Tracee, regs: &Register
     let host_path = match shebang::expand(fs, &raw_path) {
         Ok(path) => path,
         // The Linux kernel actually returns -EACCES when trying to execute a directory.
-        Err(Error::Sys(Errno::EISDIR)) => return Err(Error::from(Errno::EACCES)),
+        Err(Error::Sys(Errno::EISDIR, _)) => return Err(Error::from(Errno::EACCES)),
         Err(error) => return Err(error),
     };
 
@@ -60,7 +60,7 @@ pub fn translate(pid: Pid, fs: &FileSystem, tracee: &mut Tracee, regs: &Register
     load_info.host_path = Some(host_path.clone());
 
     if load_info.interp.is_none() {
-        return Err(Error::invalid_argument());
+        return Err(Error::invalid_argument("when translating enter execve, interp is none"));
     }
 
     //	compute_load_addresses(tracee);

@@ -99,7 +99,7 @@ pub fn expand(fs: &FileSystem, user_path: &Path) -> Result<PathBuf> {
     //
 
     if loop_iterations == max_sym_links {
-        return Err(Error::too_many_symlinks());
+        return Err(Error::too_many_symlinks("when expanding shebang"));
     }
 
     //	/* Push argv[] only on demand.  */

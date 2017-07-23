@@ -97,7 +97,7 @@ impl<T> ParameterizedElfHeader<T> {
     pub fn is_exec_or_dyn(&self) -> Result<()> {
         match self.e_type {
             self::ET_EXEC | self::ET_DYN => Ok(()),
-            _ => Err(Error::invalid_argument()),
+            _ => Err(Error::invalid_argument("when checking elf header type, not supported type")),
         }
     }
 
@@ -108,7 +108,7 @@ impl<T> ParameterizedElfHeader<T> {
             true => Ok(()),
             false => {
                 // note(tracee, WARNING, INTERNAL, "%d: unsupported size of program header.", fd);
-                Err(Error::not_supported())
+                Err(Error::not_supported("when checking program header size, mismatch with struct size"))
             }
         }
     }
@@ -153,10 +153,10 @@ impl ElfHeader {
                 match exe_class as i32 {
                     1 => Ok((ExecutableClass::Class32, file)),
                     2 => Ok((ExecutableClass::Class64, file)),
-                    _ => Err(Error::cant_exec()),
+                    _ => Err(Error::cant_exec("when extracting elf from unknown executable class")),
                 }
             }
-            _ => Err(Error::cant_exec()),
+            _ => Err(Error::cant_exec("when extracting elf header from non executable file")),
         }
     }
 
@@ -187,11 +187,15 @@ impl ElfHeader {
 mod tests {
     use super::*;
     use std::path::PathBuf;
+    use errors::Error;
 
     #[test]
     fn test_get_elf_header_class_not_executable() {
         let mut file = File::open(PathBuf::from("/etc/init/acpid.conf")).unwrap();
-        assert!(ElfHeader::extract_class(&mut file).is_err());
+        assert_eq!(
+            ElfHeader::extract_class(&mut file).unwrap_err(),
+            Error::cant_exec("when extracting elf header from non executable file")
+        );
     }
 
     #[test]

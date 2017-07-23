@@ -162,7 +162,7 @@ impl LoadInfo {
     ) -> Result<()> {
         // Only one PT_INTERP segment is allowed.
         if self.interp.is_some() {
-            return Err(Error::invalid_argument());
+            return Err(Error::invalid_argument("when translating execve, double interp"));
         }
 
         let user_path_size = get!(program_header, p_filesz, usize)?;
@@ -230,7 +230,7 @@ mod tests {
         let result = LoadInfo::from(&fs, &PathBuf::from("/../../.."));
 
         assert!(result.is_err());
-        assert_eq!(Error::is_a_directory(), result.unwrap_err());
+        assert_eq!(Error::is_a_directory("from IO error"), result.unwrap_err());
     }
 
     #[test]
@@ -239,7 +239,7 @@ mod tests {
         let result = LoadInfo::from(&fs, &PathBuf::from("/etc/init/acpid.conf"));
 
         assert!(result.is_err());
-        assert_eq!(Error::cant_exec(), result.unwrap_err());
+        assert_eq!(Error::cant_exec("when extracting elf header from non executable file"), result.unwrap_err());
     }
 
     #[test]

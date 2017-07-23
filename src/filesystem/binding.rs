@@ -75,7 +75,7 @@ impl Binding {
         new_path.push(stripped_path.unwrap());
 
         if new_path.len() >= PATH_MAX as usize {
-            return Err(Error::name_too_long());
+            return Err(Error::name_too_long("when substituting path prefix"));
         }
 
         Ok(Some(new_path))

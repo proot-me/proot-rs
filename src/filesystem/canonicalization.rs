@@ -93,11 +93,8 @@ mod tests {
 
     #[test]
     fn test_canonicalize_invalid_path() {
-        let mut fs = FileSystem::new();
-
         // "/home/user" on the host, "/" on the guest
-        fs.set_root("/home/user");
-
+        let fs = FileSystem::with_root("/home/user");
         let path = PathBuf::from("/../../../test");
 
         assert!(fs.canonicalize(&path, false).is_err());
@@ -105,10 +102,8 @@ mod tests {
 
     #[test]
     fn test_canonicalize_normal_path() {
-        let mut fs = FileSystem::new();
-
         // "/etc" on the host, "/" on the guest
-        fs.set_root("/etc");
+        let mut fs = FileSystem::with_root("/etc");
 
         assert_eq!(
             fs.canonicalize(&PathBuf::from("/acpi/./../acpi//events"), false)
@@ -134,9 +129,7 @@ mod tests {
 
     #[test]
     fn test_canonicalize_no_root_normal_path() {
-        let mut fs = FileSystem::new();
-
-        fs.set_root("/");
+        let fs = FileSystem::with_root("/");
 
         assert_eq!(
             fs.canonicalize(&PathBuf::from("/home/../bin/./../bin/sleep"), false)
@@ -153,10 +146,8 @@ mod tests {
 
     #[test]
     fn test_canonicalize_symlink_not_deref() {
-        let mut fs = FileSystem::new();
-
         // "/bin" on the host, "/" on the guest
-        fs.set_root("/bin");
+        let fs = FileSystem::with_root("/bin");
 
         assert_eq!(
             fs.canonicalize(&PathBuf::from("/sh"), false).unwrap(),

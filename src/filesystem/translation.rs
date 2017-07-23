@@ -122,9 +122,7 @@ mod tests {
 
     #[test]
     fn test_translate_path_without_root() {
-        let mut fs = FileSystem::new();
-
-        fs.set_root("/");
+        let mut fs = FileSystem::with_root("/");
 
         assert_eq!(
             fs.translate_path(&Path::new("/home/../bin/./../bin"), false),
@@ -142,9 +140,7 @@ mod tests {
 
     #[test]
     fn test_translate_path_with_root() {
-        let mut fs = FileSystem::new();
-
-        fs.set_root("/etc/acpi");
+        let mut fs = FileSystem::with_root("/etc/acpi");
 
         assert_eq!(
             fs.translate_path(&Path::new("/events"), false),
@@ -166,10 +162,8 @@ mod tests {
 
     #[test]
     fn test_detranslate_path_root() {
-        let mut fs = FileSystem::new();
-
         // "/home/user" on the host, "/" on the guest
-        fs.set_root("/home/user");
+        let fs = FileSystem::with_root("/home/user");
 
         assert_eq!(
             fs.detranslate_path(&Path::new("/home/user/bin/sleep"), None),
@@ -188,10 +182,8 @@ mod tests {
     }
     #[test]
     fn test_detranslate_path_asymmetric() {
-        let mut fs = FileSystem::new();
-
         // "/home/user" on the host, "/" on the guest
-        fs.set_root("/home/user");
+        let mut fs = FileSystem::with_root("/home/user");
 
         // "/etc/host" in the host, "/etc/guest" in the guest
         fs.add_binding(Binding::new("/etc/host", "/etc/guest", true));
@@ -204,10 +196,8 @@ mod tests {
 
     #[test]
     fn test_detranslate_path_symmetric() {
-        let mut fs = FileSystem::new();
-
         // "/home/user" on the host, "/" on the guest
-        fs.set_root("/home/user");
+        let mut fs = FileSystem::with_root("/home/user");
 
         // "/etc/host" in the host, "/etc/guest" in the guest
         fs.add_binding(Binding::new("/etc/guest", "/etc/guest", true));

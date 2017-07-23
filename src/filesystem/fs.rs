@@ -149,9 +149,7 @@ mod tests {
 
     #[test]
     fn test_fs_belongs_to_guestfs() {
-        let mut fs = FileSystem::new();
-
-        fs.set_root("/etc");
+        let fs = FileSystem::with_root("/etc");
 
         assert_eq!(fs.belongs_to_guestfs(Path::new("/etc")), true);
         assert_eq!(fs.belongs_to_guestfs(Path::new("/etc/.")), true);
@@ -222,9 +220,7 @@ mod tests {
 
     #[test]
     fn test_fs_is_path_executable() {
-        let mut fs = FileSystem::new();
-
-        fs.set_root("/");
+        let fs = FileSystem::with_root("/");
 
         assert!(fs.is_path_executable(&PathBuf::from("/bin/sleep")).is_ok());
         assert!(fs.is_path_executable(&PathBuf::from("/../sleep")).is_err());

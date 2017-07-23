@@ -274,9 +274,7 @@ mod tests {
 
     #[test]
     fn test_expand_shebang_not_script() {
-        let mut fs = FileSystem::new();
-
-        fs.set_root("/");
+        let fs = FileSystem::with_root("/");
 
         // it should detect that `/bin/sleep` has no shebang
         assert_eq!(

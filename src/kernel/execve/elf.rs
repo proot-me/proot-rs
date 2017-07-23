@@ -2,7 +2,7 @@ use std::fs::File;
 use std::io::{SeekFrom, Seek, Read};
 use std::mem;
 use errors::{Error, Result};
-use filesystem::readers::StructReader;
+use filesystem::readers::ExtraReader;
 
 const EI_NIDENT: usize = 16;
 const ET_REL: u16 = 1;

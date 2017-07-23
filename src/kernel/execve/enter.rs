@@ -52,24 +52,17 @@ pub fn translate(pid: Pid, fs: &FileSystem, tracee: &mut Tracee, regs: &Register
     //			return status;
     //	}
 
-    let mut load_info = LoadInfo::from(&host_path)?;
+    let mut load_info = LoadInfo::from(fs, &host_path)?;
 
     load_info.raw_path = Some(raw_path.clone());
     //TODO: use user_path when implemented
     load_info.user_path = Some(raw_path.clone());
     load_info.host_path = Some(host_path.clone());
 
-    //	if (tracee->load_info->interp != NULL) {
-    //		status = extract_load_info(tracee, tracee->load_info->interp);
-    //		if (status < 0)
-    //			return status;
-    //
-    //		/* An ELF interpreter is supposed to be
-    //		 * standalone.  */
-    //		if (tracee->load_info->interp->interp != NULL)
-    //			return -EINVAL;
-    //	}
-    //
+    if load_info.interp.is_none() {
+        return Err(Error::invalid_argument());
+    }
+
     //	compute_load_addresses(tracee);
     //
     //	/* Execute the loader instead of the program.  */

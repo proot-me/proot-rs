@@ -25,6 +25,14 @@ impl FileSystem {
         }
     }
 
+    #[cfg(test)]
+    pub fn with_root(root: &str) -> FileSystem {
+        let mut file_system = FileSystem::new();
+
+        file_system.set_root(root);
+        file_system
+    }
+
     /// Add a binding at the beginning of the list,
     /// so that we get the most recent one when going through them
     /// in the `get_binding` method.

@@ -114,8 +114,9 @@ pub fn expand(fs: &FileSystem, user_path: &Path) -> Result<PathBuf> {
     Ok(result_host_path.unwrap())
 }
 
+//TODO: move this somewhere more appropriate
 /// Translate a guest path and checks that it's executable.
-fn translate_and_check_exec(fs: &FileSystem, guest_path: &Path) -> Result<PathBuf> {
+pub fn translate_and_check_exec(fs: &FileSystem, guest_path: &Path) -> Result<PathBuf> {
     let host_path = fs.translate_path(guest_path, true)?;
 
     fs.is_path_executable(&host_path)?;

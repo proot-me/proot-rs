@@ -4,11 +4,13 @@ use std::io::{Seek, SeekFrom};
 use nix::unistd::{sysconf, SysconfVar};
 use nix::sys::mman::{MapFlags, MAP_PRIVATE, MAP_FIXED, MAP_ANONYMOUS};
 use nix::sys::mman::{ProtFlags, PROT_NONE, PROT_READ, PROT_WRITE, PROT_EXEC};
-use errors::Result;
+use errors::{Error, Result};
 use register::Word;
-use filesystem::readers::StructReader;
+use filesystem::fs::FileSystem;
+use filesystem::readers::ExtraReader;
 use kernel::execve::elf::{PT_LOAD, PT_INTERP, PF_R, PF_W, PF_X};
 use kernel::execve::elf::{ElfHeader, ProgramHeader, ExecutableClass};
+use kernel::execve::shebang::translate_and_check_exec;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Mapping {
@@ -27,7 +29,8 @@ pub struct LoadInfo {
     pub user_path: Option<PathBuf>,
     pub host_path: Option<PathBuf>,
     pub elf_header: ElfHeader,
-    pub mappings: Vec<Mapping>
+    pub mappings: Vec<Mapping>,
+    pub interp: Option<Box<LoadInfo>>,
 }
 
 lazy_static! {
@@ -46,7 +49,8 @@ impl LoadInfo {
             user_path: None,
             host_path: None,
             elf_header: elf_header,
-            mappings: Vec::new()
+            mappings: Vec::new(),
+            interp: None,
         }
     }
 
@@ -55,7 +59,7 @@ impl LoadInfo {
     /// - the program header segments, which contain:
     ///     - mappings
     ///     - interp???
-    pub fn from(host_path: &Path) -> Result<LoadInfo> {
+    pub fn from(fs: &FileSystem, host_path: &Path) -> Result<LoadInfo> {
         let mut file = File::open(host_path)?;
         let (elf_header, mut file) = ElfHeader::extract_from(&mut file)?;
 
@@ -82,15 +86,18 @@ impl LoadInfo {
 
             match segment_type {
                 PT_LOAD => load_info.add_mapping(&program_header)?,
-                PT_INTERP => load_info.add_interp(&program_header)?,
-                _ => ()
+                PT_INTERP => {
+                    load_info.add_interp(fs, &program_header, &mut file)?;
+                }
+                _ => (),
             };
         }
 
         Ok(load_info)
     }
 
-    /// Processes a program header into a Mapping, which is then added to the mappings list.
+    /// Processes a program header segment into a Mapping,
+    /// which is then added to the mappings list.
     fn add_mapping(&mut self, program_header: &ProgramHeader) -> Result<()> {
         let vaddr = get!(program_header, p_vaddr, Word)?;
         let memsz = get!(program_header, p_memsz, Word)?;
@@ -134,7 +141,7 @@ impl LoadInfo {
                     length: end_address - start_address,
                     clear_length: 0,
                     flags: MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED,
-                    prot: prot
+                    prot: prot,
                 };
 
                 self.mappings.push(new_mapping);
@@ -147,8 +154,40 @@ impl LoadInfo {
     }
 
 
-    fn add_interp(&mut self, program_header: &ProgramHeader) -> Result<()> {
-        println!("interp: {:?}", program_header);
+    fn add_interp(&mut self, fs: &FileSystem, program_header: &ProgramHeader, file: &mut File) -> Result<()> {
+        // Only one PT_INTERP segment is allowed.
+        if self.interp.is_some() {
+            return Err(Error::invalid_argument());
+        }
+
+        let user_path_size = get!(program_header, p_filesz, usize)?;
+        let user_path_offset = get!(program_header, p_offset, u64)?;
+        let user_path = file.pread_path_at(user_path_size, user_path_offset)?;
+
+        //TODO: implement load info for QEMU
+        //        /* When a QEMU command was specified:
+        //         *
+        //         * - if it's a foreign binary we are reading the ELF
+        //         *   interpreter of QEMU instead.
+        //         *
+        //         * - if it's a host binary, we are reading its ELF
+        //         *   interpreter.
+        //         *
+        //         * In both case, it lies in "/host-rootfs" from a guest
+        //         * point-of-view.  */
+        //        if (tracee->qemu != NULL && user_path[0] == '/') {
+        //            user_path = talloc_asprintf(tracee->ctx, "%s%s", HOST_ROOTFS, user_path);
+        //            if (user_path == NULL)
+        //                return -ENOMEM;
+        //        }
+
+        let host_path = translate_and_check_exec(fs, &user_path)?;
+        let mut load_info = LoadInfo::from(fs, &host_path)?;
+
+        load_info.host_path = Some(host_path);
+        load_info.user_path = Some(user_path);
+
+        self.interp = Some(Box::new(load_info));
 
         Ok(())
     }
@@ -178,10 +217,12 @@ mod tests {
     use super::*;
     use std::path::PathBuf;
     use errors::Error;
+    use filesystem::fs::FileSystem;
 
     #[test]
     fn test_load_info_from_invalid_path() {
-        let result = LoadInfo::from(&PathBuf::from("/../../.."));
+        let fs = FileSystem::with_root("/");
+        let result = LoadInfo::from(&fs, &PathBuf::from("/../../.."));
 
         assert!(result.is_err());
         assert_eq!(Error::is_a_directory(), result.unwrap_err());
@@ -189,7 +230,8 @@ mod tests {
 
     #[test]
     fn test_load_info_from_path_not_executable() {
-        let result = LoadInfo::from(&PathBuf::from("/etc/init/acpid.conf"));
+        let fs = FileSystem::with_root("/");
+        let result = LoadInfo::from(&fs, &PathBuf::from("/etc/init/acpid.conf"));
 
         assert!(result.is_err());
         assert_eq!(Error::cant_exec(), result.unwrap_err());
@@ -197,7 +239,8 @@ mod tests {
 
     #[test]
     fn test_load_info_from_path_has_mappings() {
-        let result = LoadInfo::from(&PathBuf::from("/bin/sleep"));
+        let fs = FileSystem::with_root("/");
+        let result = LoadInfo::from(&fs, &PathBuf::from("/bin/sleep"));
 
         assert!(result.is_ok());
 

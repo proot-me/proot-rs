@@ -248,4 +248,21 @@ mod tests {
 
         assert!(load_info.mappings.len() > 0);
     }
+
+    #[test]
+    fn test_load_info_from_path_has_interp() {
+        let fs = FileSystem::with_root("/");
+        let result = LoadInfo::from(&fs, &PathBuf::from("/bin/sleep"));
+
+        assert!(result.is_ok());
+
+        let load_info = result.unwrap();
+
+        assert!(load_info.interp.is_some());
+
+        let interp = load_info.interp.unwrap();
+
+        assert!(interp.host_path.is_some());
+        assert!(interp.user_path.is_some());
+    }
 }

@@ -1,5 +1,5 @@
 use errors::Result;
-use kernel::syscall_exit::SyscallExitResult;
+use kernel::exit::SyscallExitResult;
 
 pub fn enter() -> Result<()> {
     Ok(())

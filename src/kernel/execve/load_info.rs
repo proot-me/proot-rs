@@ -154,7 +154,12 @@ impl LoadInfo {
     }
 
 
-    fn add_interp(&mut self, fs: &FileSystem, program_header: &ProgramHeader, file: &mut File) -> Result<()> {
+    fn add_interp(
+        &mut self,
+        fs: &FileSystem,
+        program_header: &ProgramHeader,
+        file: &mut File,
+    ) -> Result<()> {
         // Only one PT_INTERP segment is allowed.
         if self.interp.is_some() {
             return Err(Error::invalid_argument());

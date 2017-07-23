@@ -9,7 +9,7 @@ pub mod shebang;
 use nix::unistd::Pid;
 use errors::Result;
 use register::Registers;
-use kernel::syscall_exit::SyscallExitResult;
+use kernel::exit::SyscallExitResult;
 use filesystem::fs::FileSystem;
 use process::tracee::Tracee;
 

@@ -7,7 +7,7 @@ use nix::sys::ptrace::ptrace::*;
 use nix::sys::ptrace::ptrace;
 use errors::{Error, Result};
 use register::Registers;
-use kernel::{syscall_enter, syscall_exit};
+use kernel::{enter, exit};
 use process::proot::InfoBag;
 use filesystem::fs::FileSystem;
 
@@ -253,7 +253,7 @@ impl Tracee {
         // if (status > 0)
         //     return 0;
 
-        let status = syscall_enter::translate(self.pid.into(), fs, self, regs);
+        let status = enter::translate(self.pid.into(), fs, self, regs);
 
         // status2 = notify_extensions(tracee, SYSCALL_ENTER_END, status, 0);
         // if (status2 < 0)
@@ -275,7 +275,7 @@ impl Tracee {
         if self.status.is_err() {
             // poke_reg(tracee, SYSARG_RESULT, (word_t) tracee->status);
         } else {
-            let syscall_exit_result = syscall_exit::translate(regs);
+            let syscall_exit_result = exit::translate(regs);
 
             if !syscall_exit_result.is_none() {
                 // poke_reg(tracee, SYSARG_RESULT, (word_t) status.get_value());

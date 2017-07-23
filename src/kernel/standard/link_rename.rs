@@ -1,4 +1,4 @@
-use kernel::syscall_exit::SyscallExitResult;
+use kernel::exit::SyscallExitResult;
 use errors::Result;
 
 /// Translates link and rename kernel

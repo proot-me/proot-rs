@@ -1,5 +1,5 @@
 use kernel::standard::link_rename;
-use kernel::syscall_exit::SyscallExitResult;
+use kernel::exit::SyscallExitResult;
 use errors::Result;
 
 pub fn enter() -> Result<()> {

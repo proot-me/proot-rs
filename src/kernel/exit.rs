@@ -1,4 +1,4 @@
-use kernel::syscall_type::{SyscallType, syscall_type_from_sysnum};
+use kernel::groups::{SyscallGroup, syscall_group_from_sysnum};
 use kernel::execve;
 use kernel::heap::*;
 use kernel::ptrace::*;
@@ -33,26 +33,26 @@ impl SyscallExitResult {
 }
 
 pub fn translate(regs: &Registers) -> SyscallExitResult {
-    let systype = syscall_type_from_sysnum(regs.sys_num);
+    let systype = syscall_group_from_sysnum(regs.sys_num);
 
     println!("exit  \t({:?}, \t{:?})", regs.sys_num, systype);
 
     match systype {
-        SyscallType::Brk => brk::exit(),
-        SyscallType::GetCwd => getcwd::exit(),
-        SyscallType::Accept => accept::exit(),
-        SyscallType::GetSockOrPeerName => get_sockorpeer_name::exit(),
-        SyscallType::SocketCall => socketcall::exit(),
-        SyscallType::Chdir => chdir::exit(),
-        SyscallType::Rename => link_rename::exit(),
-        SyscallType::RenameAt => rename_at::exit(),
-        SyscallType::ReadLink => readlink_at::exit(),
-        SyscallType::ReadLinkAt => readlink_at::exit(),
+        SyscallGroup::Brk => brk::exit(),
+        SyscallGroup::GetCwd => getcwd::exit(),
+        SyscallGroup::Accept => accept::exit(),
+        SyscallGroup::GetSockOrPeerName => get_sockorpeer_name::exit(),
+        SyscallGroup::SocketCall => socketcall::exit(),
+        SyscallGroup::Chdir => chdir::exit(),
+        SyscallGroup::Rename => link_rename::exit(),
+        SyscallGroup::RenameAt => rename_at::exit(),
+        SyscallGroup::ReadLink => readlink_at::exit(),
+        SyscallGroup::ReadLinkAt => readlink_at::exit(),
         #[cfg(all(target_os = "linux", target_arch = "x86_64"))]
-        SyscallType::Uname => uname::exit(),
-        SyscallType::Execve => execve::exit(),
-        SyscallType::Ptrace => ptrace::exit(),
-        SyscallType::Wait => wait::exit(),
+        SyscallGroup::Uname => uname::exit(),
+        SyscallGroup::Execve => execve::exit(),
+        SyscallGroup::Ptrace => ptrace::exit(),
+        SyscallGroup::Wait => wait::exit(),
         _ => SyscallExitResult::None,
     }
 }

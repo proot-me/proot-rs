@@ -6,7 +6,7 @@ use std::path::PathBuf;
 pub trait ExtraReader {
     /// Reads the context of a file, and extracts + transmutes its content into a structure.
     fn read_struct<T>(&mut self) -> Result<T>;
-    /// Reads a path of the given size, while not moving the file cursor.
+    /// Reads a path of the given size at a given offset, while not moving the file cursor.
     fn pread_path_at(&mut self, path_size: usize, offset: u64) -> Result<PathBuf>;
 }
 
@@ -29,7 +29,7 @@ impl ExtraReader for File {
     fn pread_path_at(&mut self, path_size: usize, offset: u64) -> Result<PathBuf> {
         // save the initial position
         let initial_pos = self.seek(SeekFrom::Current(0)).unwrap();
-        let mut buffer = vec![0; path_size - 1]; // the -1 is to avoid the null char `\0`
+        let mut buffer = vec![0; path_size];
 
         // move the cursor to the offset
         self.seek(SeekFrom::Start(offset))?;

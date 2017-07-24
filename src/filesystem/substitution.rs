@@ -24,7 +24,9 @@ impl Substitutor for FileSystem {
         let maybe_binding = self.get_binding(path, direction.0);
 
         if maybe_binding.is_none() {
-            return Err(Error::no_such_file_or_dir("when substituting binding, no binding found"));
+            return Err(Error::no_such_file_or_dir(
+                "when substituting binding, no binding found",
+            ));
         }
         let binding = maybe_binding.unwrap();
 
@@ -85,7 +87,9 @@ mod tests {
 
         assert_eq!(
             fs.substitute_binding(&Path::new("/../../../.."), Direction(Host, Guest)),
-            Err(Error::no_such_file_or_dir("when substituting binding, no binding found"))
+            Err(Error::no_such_file_or_dir(
+                "when substituting binding, no binding found",
+            ))
         ); // invalid path
 
         assert_eq!(
@@ -94,8 +98,13 @@ mod tests {
         ); // "/etc" => "/media"
 
         assert_eq!(
-            fs.substitute_binding(&Path::new("/media/folder/subfolder"), Direction(Host, Guest)),
-            Err(Error::no_such_file_or_dir("when substituting binding, no binding found"))
+            fs.substitute_binding(
+                &Path::new("/media/folder/subfolder"),
+                Direction(Host, Guest),
+            ),
+            Err(Error::no_such_file_or_dir(
+                "when substituting binding, no binding found",
+            ))
         ); // the path isn't translatable to the guest fs
 
         assert_eq!(

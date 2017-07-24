@@ -98,11 +98,11 @@ impl From<CharsError> for Error {
 impl error::Error for Error {
     fn description(&self) -> &str {
         match self {
-            &Error::InvalidPath(message) => "Invalid path",
+            &Error::InvalidPath(_) => "Invalid path",
             &Error::InvalidUtf8 => "Invalid UTF-8 string",
-            &Error::Sys(ref errno, message) => errno.desc(),
+            &Error::Sys(ref errno, _) => errno.desc(),
             &Error::IOError(_) => "IO Error",
-            &Error::UnsupportedOperation(message) => "Unsupported Operation (",
+            &Error::UnsupportedOperation(_) => "Unsupported Operation",
         }
     }
 }
@@ -114,7 +114,9 @@ impl fmt::Display for Error {
             &Error::InvalidUtf8 => write!(f, "Invalid UTF-8 string"),
             &Error::Sys(errno, message) => write!(f, "{:?}: {} ({})", errno, errno.desc(), message),
             &Error::IOError(io_error_kind) => write!(f, "IO Error: {:?}", io_error_kind),
-            &Error::UnsupportedOperation(message) => write!(f, "Unsupported Operation ({})", message),
+            &Error::UnsupportedOperation(message) => {
+                write!(f, "Unsupported Operation ({})", message)
+            }
         }
     }
 }

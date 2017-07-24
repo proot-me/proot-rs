@@ -19,7 +19,9 @@ impl Canonicalizer for FileSystem {
         let mut guest_path = PathBuf::new();
 
         if user_path.is_relative() {
-            return Err(Error::invalid_argument("when canonicalizing a relative path"));
+            return Err(Error::invalid_argument(
+                "when canonicalizing a relative path",
+            ));
         }
 
         let mut it = user_path.components();
@@ -65,7 +67,9 @@ impl Canonicalizer for FileSystem {
                     // For this latter case, we check that the symlink points to a directory once
                     // it is canonicalized, at the end of this loop.
                     if !is_last_component && !file_type.is_dir() && !file_type.is_symlink() {
-                        return Err(Error::not_a_directory("when canonicalizing an intermediate path"));
+                        return Err(Error::not_a_directory(
+                            "when canonicalizing an intermediate path",
+                        ));
                     }
 
                     // Nothing special to do if it's not a link or if we explicitly ask to not
@@ -99,7 +103,8 @@ mod tests {
 
         assert_eq!(
             fs.canonicalize(&path, false),
-            Err(Error::invalid_argument("when canonicalizing invalid path")));
+            Err(Error::invalid_argument("when canonicalizing invalid path"))
+        );
     }
 
     #[test]

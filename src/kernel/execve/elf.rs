@@ -38,7 +38,7 @@ pub enum ExecutableClass {
 
 /// Use T = u32 for 32bits, and T = u64 for 64bits.
 #[repr(C)]
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Debug, PartialEq)]
 pub struct ParameterizedProgramHeader<T> {
     pub p_type: u32,
     pub p_flags: u32,
@@ -50,32 +50,33 @@ pub struct ParameterizedProgramHeader<T> {
     pub p_align: T,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Debug, PartialEq)]
 pub enum ProgramHeader {
     ProgramHeader32(ParameterizedProgramHeader<u32>),
     ProgramHeader64(ParameterizedProgramHeader<u64>),
 }
 
 impl ProgramHeader {
+    #[inline]
     pub fn apply<
         V,
-        F32: FnOnce(ParameterizedProgramHeader<u32>) -> Result<V>,
-        F64: FnOnce(ParameterizedProgramHeader<u64>) -> Result<V>,
+        F32: FnOnce(&ParameterizedProgramHeader<u32>) -> Result<V>,
+        F64: FnOnce(&ParameterizedProgramHeader<u64>) -> Result<V>,
     >(
         &self,
         func32: F32,
         func64: F64,
     ) -> Result<V> {
-        match *self {
-            ProgramHeader::ProgramHeader32(program_header) => func32(program_header),
-            ProgramHeader::ProgramHeader64(program_header) => func64(program_header),
+        match self {
+            &ProgramHeader::ProgramHeader32(ref program_header) => func32(program_header),
+            &ProgramHeader::ProgramHeader64(ref program_header) => func64(program_header),
         }
     }
 }
 
 /// Use T = u32 for 32bits, and T = u64 for 64bits.
 #[repr(C)]
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Debug, PartialEq)]
 pub struct ParameterizedElfHeader<T> {
     pub e_ident: [u8; EI_NIDENT], // identifier; it should start with ['\x7f', 'E', 'L', 'F'].
     pub e_type: u16,
@@ -94,13 +95,17 @@ pub struct ParameterizedElfHeader<T> {
 }
 
 impl<T> ParameterizedElfHeader<T> {
+    #[inline]
     pub fn is_exec_or_dyn(&self) -> Result<()> {
         match self.e_type {
             self::ET_EXEC | self::ET_DYN => Ok(()),
-            _ => Err(Error::invalid_argument("when checking elf header type, not supported type")),
+            _ => Err(Error::invalid_argument(
+                "when checking elf header type, not supported type",
+            )),
         }
     }
 
+    #[inline]
     pub fn is_known_phentsize(&self) -> Result<()> {
         let program_header_size = mem::size_of::<ParameterizedProgramHeader<T>>() as u16;
 
@@ -108,13 +113,20 @@ impl<T> ParameterizedElfHeader<T> {
             true => Ok(()),
             false => {
                 // note(tracee, WARNING, INTERNAL, "%d: unsupported size of program header.", fd);
-                Err(Error::not_supported("when checking program header size, mismatch with struct size"))
+                Err(Error::not_supported(
+                    "when checking program header size, mismatch with struct size",
+                ))
             }
         }
     }
+
+    #[inline]
+    pub fn is_position_independent(&self) -> Result<bool> {
+        Ok(self.e_type == self::ET_DYN)
+    }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Debug, PartialEq)]
 pub enum ElfHeader {
     ElfHeader32(ParameterizedElfHeader<u32>),
     ElfHeader64(ParameterizedElfHeader<u64>),
@@ -126,6 +138,7 @@ impl ElfHeader {
     /// Returns an error if something happened (`io::Error`),
     /// `None` if it's not an ELF-executable,
     /// and an `ElfHeader` if it was successful.
+    #[inline]
     pub fn extract_from<'a>(file: &'a mut File) -> Result<(Self, &'a mut File)> {
         let (executable_class, file) = ElfHeader::extract_class(file)?;
 
@@ -143,6 +156,7 @@ impl ElfHeader {
     /// Reads the five first characters of a file,
     /// to determine whether or not it's an ELF executable,
     /// and whether the executable is 32 or 64 bits.
+    #[inline]
     fn extract_class<'a>(file: &'a mut File) -> Result<(ExecutableClass, &'a mut File)> {
         let mut buffer = [0; 5];
 
@@ -153,32 +167,53 @@ impl ElfHeader {
                 match exe_class as i32 {
                     1 => Ok((ExecutableClass::Class32, file)),
                     2 => Ok((ExecutableClass::Class64, file)),
-                    _ => Err(Error::cant_exec("when extracting elf from unknown executable class")),
+                    _ => Err(Error::cant_exec(
+                        "when extracting elf from unknown executable class",
+                    )),
                 }
             }
-            _ => Err(Error::cant_exec("when extracting elf header from non executable file")),
+            _ => Err(Error::cant_exec(
+                "when extracting elf header from non executable file",
+            )),
         }
     }
 
+    #[inline]
     pub fn get_class(&self) -> ExecutableClass {
-        match *self {
-            ElfHeader::ElfHeader32(_) => ExecutableClass::Class32,
-            ElfHeader::ElfHeader64(_) => ExecutableClass::Class64,
+        match self {
+            &ElfHeader::ElfHeader32(_) => ExecutableClass::Class32,
+            &ElfHeader::ElfHeader64(_) => ExecutableClass::Class64,
         }
     }
 
+    #[inline]
     pub fn apply<
         V,
-        F32: FnOnce(ParameterizedElfHeader<u32>) -> Result<V>,
-        F64: FnOnce(ParameterizedElfHeader<u64>) -> Result<V>,
+        F32: FnOnce(&ParameterizedElfHeader<u32>) -> Result<V>,
+        F64: FnOnce(&ParameterizedElfHeader<u64>) -> Result<V>,
     >(
         &self,
         func32: F32,
         func64: F64,
     ) -> Result<V> {
-        match *self {
-            ElfHeader::ElfHeader32(elf_header) => func32(elf_header),
-            ElfHeader::ElfHeader64(elf_header) => func64(elf_header),
+        match self {
+            &ElfHeader::ElfHeader32(ref elf_header) => func32(elf_header),
+            &ElfHeader::ElfHeader64(ref elf_header) => func64(elf_header),
+        }
+    }
+    #[inline]
+    pub fn apply_mut<
+        V,
+        F32: FnOnce(&mut ParameterizedElfHeader<u32>) -> Result<V>,
+        F64: FnOnce(&mut ParameterizedElfHeader<u64>) -> Result<V>,
+    >(
+        &mut self,
+        func32: F32,
+        func64: F64,
+    ) -> Result<V> {
+        match self {
+            &mut ElfHeader::ElfHeader32(ref mut elf_header) => func32(elf_header),
+            &mut ElfHeader::ElfHeader64(ref mut elf_header) => func64(elf_header),
         }
     }
 }

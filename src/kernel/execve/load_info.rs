@@ -12,7 +12,7 @@ use kernel::execve::elf::{PT_LOAD, PT_INTERP, PF_R, PF_W, PF_X};
 use kernel::execve::elf::{ElfHeader, ProgramHeader, ExecutableClass};
 use kernel::execve::shebang::translate_and_check_exec;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Debug, PartialEq)]
 pub struct Mapping {
     addr: Word,
     length: Word,
@@ -23,7 +23,7 @@ pub struct Mapping {
     offset: Word,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Debug, PartialEq)]
 pub struct LoadInfo {
     pub raw_path: Option<PathBuf>,
     pub user_path: Option<PathBuf>,
@@ -40,6 +40,13 @@ lazy_static! {
         };
     static ref PAGE_MASK: Word = !(*PAGE_SIZE - 1);
 }
+
+//TODO: move these in arch.rs and do cfg for each env
+const HAS_LOADER_32BIT: bool = true;
+const EXEC_PIC_ADDRESS: Word = 0x500000000000;
+const INTERP_PIC_ADDRESS: Word = 0x6f0000000000;
+const EXEC_PIC_ADDRESS_32: Word = 0x0f000000;
+const INTERP_PIC_ADDRESS_32: Word = 0xaf000000;
 
 
 impl LoadInfo {
@@ -67,6 +74,7 @@ impl LoadInfo {
         apply!(elf_header, |header| header.is_exec_or_dyn())?;
         apply!(elf_header, |header| header.is_known_phentsize())?;
 
+        let executable_class = elf_header.get_class();
         let program_headers_offset = get!(elf_header, e_phoff, u64)?;
         let program_headers_count = get!(elf_header, e_phnum)?;
 
@@ -77,7 +85,7 @@ impl LoadInfo {
 
         // We will read all the program headers, and extract info from them.
         for _ in 0..program_headers_count {
-            let program_header = match elf_header.get_class() {
+            let program_header = match executable_class {
                 ExecutableClass::Class32 => ProgramHeader::ProgramHeader32(file.read_struct()?),
                 ExecutableClass::Class64 => ProgramHeader::ProgramHeader64(file.read_struct()?),
             };
@@ -162,12 +170,15 @@ impl LoadInfo {
     ) -> Result<()> {
         // Only one PT_INTERP segment is allowed.
         if self.interp.is_some() {
-            return Err(Error::invalid_argument("when translating execve, double interp"));
+            return Err(Error::invalid_argument(
+                "when translating execve, double interp",
+            ));
         }
 
         let user_path_size = get!(program_header, p_filesz, usize)?;
         let user_path_offset = get!(program_header, p_offset, u64)?;
-        let user_path = file.pread_path_at(user_path_size, user_path_offset)?;
+        // the -1 is to avoid the null char `\0`
+        let user_path = file.pread_path_at(user_path_size - 1, user_path_offset)?;
 
         //TODO: implement load info for QEMU
         //        /* When a QEMU command was specified:
@@ -194,6 +205,49 @@ impl LoadInfo {
 
         self.interp = Some(Box::new(load_info));
 
+        Ok(())
+    }
+
+    /// Add @load_base to each adresses of @load_info.
+    #[inline]
+    fn add_load_base(&mut self, load_base: Word) -> Result<()> {
+        for mapping in &mut self.mappings {
+            mapping.addr += load_base;
+        }
+
+        self.elf_header.apply_mut(
+            |mut header32| {
+                header32.e_entry += load_base as u32;
+                Ok(())
+            },
+            |mut header64| {
+                header64.e_entry += load_base as u64;
+                Ok(())
+            },
+        )
+    }
+
+    /// Compute the final load address for each position independent objects of @tracee.
+    pub fn compute_load_addresses(&mut self, is_interp: bool) -> Result<()> {
+        let is_pos_indep = apply!(self.elf_header, |header| header.is_position_independent())?;
+        let (load_base_32, load_base) = match is_interp {
+            false => (EXEC_PIC_ADDRESS_32, EXEC_PIC_ADDRESS), // exec
+            true => (INTERP_PIC_ADDRESS_32, INTERP_PIC_ADDRESS), // interp
+        };
+
+        if is_pos_indep && self.mappings.get(0).unwrap().addr == 0 {
+            if HAS_LOADER_32BIT && self.elf_header.get_class() == ExecutableClass::Class32 {
+                self.add_load_base(load_base_32)?;
+            } else {
+                self.add_load_base(load_base)?;
+            }
+        }
+
+        if !is_interp {
+            if let Some(ref mut interp_load_info) = self.interp {
+                interp_load_info.compute_load_addresses(true)?;
+            }
+        }
         Ok(())
     }
 }
@@ -223,6 +277,7 @@ mod tests {
     use std::path::PathBuf;
     use errors::Error;
     use filesystem::fs::FileSystem;
+    use register::Word;
 
     #[test]
     fn test_load_info_from_invalid_path() {
@@ -239,7 +294,10 @@ mod tests {
         let result = LoadInfo::from(&fs, &PathBuf::from("/etc/init/acpid.conf"));
 
         assert!(result.is_err());
-        assert_eq!(Error::cant_exec("when extracting elf header from non executable file"), result.unwrap_err());
+        assert_eq!(
+            Error::cant_exec("when extracting elf header from non executable file"),
+            result.unwrap_err()
+        );
     }
 
     #[test]
@@ -269,5 +327,22 @@ mod tests {
 
         assert!(interp.host_path.is_some());
         assert!(interp.user_path.is_some());
+    }
+
+    #[test]
+    #[cfg(all(target_os = "linux", any(target_arch = "x86_64")))]
+    fn test_load_info_compute_load_addresses() {
+        let fs = FileSystem::with_root("/");
+        let result = LoadInfo::from(&fs, &PathBuf::from("/bin/sleep"));
+        let load_info = result.unwrap();
+        let mut interp = load_info.interp.unwrap();
+
+        let before_e_entry = get!(interp.elf_header, e_entry, Word).unwrap();
+
+        interp.compute_load_addresses(true).unwrap();
+
+        let after_e_entry = get!(interp.elf_header, e_entry, Word).unwrap();
+
+        assert!(after_e_entry > before_e_entry);
     }
 }

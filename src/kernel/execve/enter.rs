@@ -60,11 +60,15 @@ pub fn translate(pid: Pid, fs: &FileSystem, tracee: &mut Tracee, regs: &Register
     load_info.host_path = Some(host_path.clone());
 
     if load_info.interp.is_none() {
-        return Err(Error::invalid_argument("when translating enter execve, interp is none"));
+        return Err(Error::invalid_argument(
+            "when translating enter execve, interp is none",
+        ));
     }
 
-    //	compute_load_addresses(tracee);
-    //
+    load_info.compute_load_addresses(false)?;
+
+    println!("{:#?}", load_info);
+
     //	/* Execute the loader instead of the program.  */
     //	loader_path = get_loader_path(tracee);
     //	if (loader_path == NULL)

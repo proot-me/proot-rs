@@ -14,7 +14,7 @@ use filesystem::fs::FileSystem;
 //TODO: remove this when a nix PR will have added them
 mod ptrace_events {
     use nix::sys::ptrace::ptrace::*;
-    use nix::sys::ioctl::libc::{c_int, SIGTRAP, SIGSTOP};
+    use libc::{c_int, SIGTRAP, SIGSTOP};
 
     pub type PtraceSignalEvent = c_int;
 

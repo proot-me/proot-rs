@@ -105,7 +105,7 @@ mod tests {
             Err(Error::no_such_file_or_dir(
                 "when substituting binding, no binding found",
             ))
-        ); // the path isn't translatable to the guest fs
+        ); // the path isn't translatable to the guest fs (it's outside of the proot jail)
 
         assert_eq!(
             fs.substitute_binding(&Path::new("/etc/folder/subfolder"), Direction(Guest, Host)),
@@ -152,7 +152,7 @@ mod tests {
         let (path, file_type) = fs.substitute_intermediary_and_glue(&Path::new("/events"))
             .expect("no error");
 
-        assert_eq!(path, PathBuf::from("/etc/acpi/events"));
+        assert_eq!(path, PathBuf::from("/etc/acpi/events")); // "/" => "/etc/acpi/"
         assert!(file_type.unwrap().is_dir());
 
         fs.add_binding(Binding::new("/bin", "/bin", true));
@@ -161,14 +161,14 @@ mod tests {
         let (path_2, file_type_2) = fs.substitute_intermediary_and_glue(&Path::new("/bin/sh"))
             .expect("no error");
 
-        assert_eq!(path_2, PathBuf::from("/bin/sh"));
+        assert_eq!(path_2, PathBuf::from("/bin/sh")); // no change in path, because symmetric binding
         assert!(file_type_2.unwrap().is_symlink());
 
         // testing a file
         let (path_3, file_type_3) = fs.substitute_intermediary_and_glue(&Path::new("/bin/true"))
             .expect("no error");
 
-        assert_eq!(path_3, PathBuf::from("/bin/true"));
+        assert_eq!(path_3, PathBuf::from("/bin/true")); // same here
         assert!(file_type_3.unwrap().is_file());
     }
 

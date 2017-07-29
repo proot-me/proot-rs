@@ -64,6 +64,13 @@ pub fn translate(pid: Pid, fs: &FileSystem, tracee: &mut Tracee, regs: &Register
             "when translating enter execve, interp is none",
         ));
     }
+    if let Some(ref interp) = load_info.interp {
+        if interp.interp.is_some() {
+            return Err(Error::invalid_argument(
+                "when translating enter execve, an ELF interpreter is supposed to be standalone.",
+            ));
+        }
+    }
 
     load_info.compute_load_addresses(false)?;
 

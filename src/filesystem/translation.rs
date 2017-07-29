@@ -157,7 +157,7 @@ mod tests {
         assert_eq!(
             fs.translate_path(&Path::new("/bin/../home"), false),
             Ok(PathBuf::from("/etc/acpi/home"))
-        ); // checking that the substitution only happens at the end
+        ); // checking that the substitution only happens at the end ("/" is translated, not "/bin")
     }
 
     #[test]
@@ -167,18 +167,18 @@ mod tests {
 
         assert_eq!(
             fs.detranslate_path(&Path::new("/home/user/bin/sleep"), None),
-            Ok(Some(PathBuf::from("/bin/sleep"))) // "/home/user" -> "/"
-        );
+            Ok(Some(PathBuf::from("/bin/sleep")))
+        ); // "/home/user" -> "/"
 
         assert_eq!(
             fs.detranslate_path(&Path::new("/home/user"), None),
-            Ok(Some(PathBuf::from("/"))) // "/home/user" -> "/"
-        );
+            Ok(Some(PathBuf::from("/")))
+        ); // "/home/user" -> "/"
 
         assert_eq!(
             fs.detranslate_path(&Path::new("/home/user/home/other_user"), None),
-            Ok(Some(PathBuf::from("/home/other_user"))) // "/home/user" -> "/"
-        );
+            Ok(Some(PathBuf::from("/home/other_user")))
+        ); // "/home/user" -> "/"
     }
     #[test]
     fn test_detranslate_path_asymmetric() {
@@ -205,7 +205,7 @@ mod tests {
         assert_eq!(
             fs.detranslate_path(&Path::new("/etc/guest/something"), None),
             Ok(None)
-        ); //
+        ); // no change in path, because it's a symmetric binding
 
         //TODO: detranslate symlink tests
     }

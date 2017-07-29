@@ -16,7 +16,6 @@ pub const PF_X: u32 = 1;
 pub const PF_W: u32 = 2;
 pub const PF_R: u32 = 4;
 
-
 /// Use TSigned = i32 and TUnsigned = u32 for 32bits,
 /// and TSigned = u64 and TUnsigned = u64 for 64bits
 pub struct DynamicEntry<TSigned, TUnsigned> {

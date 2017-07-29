@@ -159,6 +159,6 @@ mod tests {
         assert_eq!(
             fs.canonicalize(&PathBuf::from("/sh"), false).unwrap(),
             PathBuf::from("/sh")
-        );
+        ); // "/sh" is a symlink, and is not dereferenced
     }
 }

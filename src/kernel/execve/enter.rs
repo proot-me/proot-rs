@@ -9,6 +9,8 @@ use kernel::sysarg::get_sysarg_path;
 use kernel::execve::shebang;
 use kernel::execve::load_info::LoadInfo;
 
+const LOADER_EXE: &'static [u8] = include_bytes!("loader/binary_loader_exe");
+
 pub fn translate(pid: Pid, fs: &FileSystem, tracee: &mut Tracee, regs: &Registers) -> Result<()> {
     //TODO: implement this part for ptrace translation
     //	if (IS_NOTIFICATION_PTRACED_LOAD_DONE(tracee)) {
@@ -73,8 +75,6 @@ pub fn translate(pid: Pid, fs: &FileSystem, tracee: &mut Tracee, regs: &Register
     }
 
     load_info.compute_load_addresses(false)?;
-
-    println!("{:#?}", load_info);
 
     //	/* Execute the loader instead of the program.  */
     //	loader_path = get_loader_path(tracee);

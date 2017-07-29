@@ -162,6 +162,7 @@ impl ElfHeader {
         file.read_exact(&mut buffer)?;
 
         match buffer {
+            // 0x7f, E, L, F, executable_class
             [0x7f, 69, 76, 70, exe_class] => {
                 match exe_class as i32 {
                     1 => Ok((ExecutableClass::Class32, file)),

@@ -8,3 +8,4 @@ Cargo.lock
 .idea/
 PRoot-rust.iml
 *.rs.bk
+/src/kernel/execve/loader/binary_loader_exe

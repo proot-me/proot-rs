@@ -2,6 +2,7 @@
 name = "proot-rs"
 version = "0.1.0"
 authors = ["vincenthage"]
+build = "src/build_loader.rs"
 
 [dependencies]
 libc = "0.2.25"
@@ -9,3 +10,6 @@ nix = "0.9.0"
 clap = "2.25.1"
 syscall = "0.2.1"
 lazy_static = "0.2.8"
+
+[build-dependencies]
+gcc = { git = "https://github.com/vincenthage/gcc-rs", branch = "master" }

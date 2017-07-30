@@ -1,10 +1,10 @@
 use nix::errno::Errno;
 use errors::{Result, Error};
-use register::{Registers, Word};
 use filesystem::fs::FileSystem;
 use filesystem::translation::Translator;
 use process::tracee::Tracee;
-use kernel::sysarg::get_sysarg_path;
+use register::reader::PtraceReader;
+use register::SysArgIndex;
 use kernel::execve::shebang;
 use kernel::execve::load_info::LoadInfo;
 use kernel::execve::loader::LoaderFile;
@@ -12,7 +12,7 @@ use kernel::execve::loader::LoaderFile;
 pub fn translate(
     fs: &FileSystem,
     tracee: &mut Tracee,
-    regs: &Registers,
+    regs: &PtraceReader,
     loader: &LoaderFile,
 ) -> Result<()> {
     //TODO: implement this part for ptrace translation
@@ -26,7 +26,7 @@ pub fn translate(
     //		return 0;
     //	}
 
-    let raw_path = get_sysarg_path(tracee.get_pid(), regs.sys_arg_1 as *mut Word)?;
+    let raw_path = regs.get_sysarg_path(SysArgIndex::SysArg1)?;
     //TODO: return user path
     let host_path = match shebang::expand(fs, &raw_path) {
         Ok(path) => path,

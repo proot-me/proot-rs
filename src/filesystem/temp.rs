@@ -24,7 +24,7 @@ impl TempFile {
         Self { path: TempFile::create_temp_path(prefix) }
     }
 
-    pub fn get_file(&self) -> Result<fs::File> {
+    pub fn create_file(&self) -> Result<fs::File> {
         Ok(fs::File::create(&self.path)?)
     }
 }
@@ -37,11 +37,10 @@ impl Drop for TempFile {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::path::PathBuf;
+    use std::io::Write;
 
     #[test]
     fn test_temp_file_has_correct_path() {
@@ -62,10 +61,15 @@ mod tests {
             assert!(!temp_file_path.exists());
 
             {
-                let file = temp_file.get_file().unwrap();
+                let mut file = temp_file.create_file().expect("create temp file");
 
                 // the file must have been created and must exist
                 assert!(temp_file_path.exists());
+                assert!(file.metadata().unwrap().len() == 0);
+
+                file.write(&"test".as_bytes()).expect("writing in temp file");
+
+                assert!(file.metadata().unwrap().len() > 0);
             }
 
             // it must persist even after the File is dropped

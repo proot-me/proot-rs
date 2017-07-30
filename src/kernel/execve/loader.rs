@@ -12,10 +12,13 @@ pub trait LoaderFile {
 
 impl LoaderFile for TempFile {
     fn prepare_loader(&self) -> Result<()> {
-        let mut file = self.get_file()?;
+        let mut file = self.create_file()?;
         let mut perms = file.metadata()?.permissions();
 
+        // copy the binary loader in this temporary file
         file.write_all(LOADER_EXE)?;
+
+        // make it readable and executable
         perms.set_mode(S_IRUSR | S_IXUSR);
         file.set_permissions(perms)?;
 
@@ -36,7 +39,7 @@ mod tests {
             // the loader doesn't exist yet
             assert!(!loader_path.exists());
 
-            loader.prepare_loader();
+            loader.prepare_loader().unwrap();
 
             // the loader must exist now
             assert!(loader_path.exists());

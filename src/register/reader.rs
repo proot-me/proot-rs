@@ -7,24 +7,32 @@ use errors::Error;
 use nix::unistd::Pid;
 use nix::sys::ptrace::ptrace;
 use nix::sys::ptrace::ptrace::PTRACE_PEEKDATA;
-use register::Word;
+use register::{Word, SysArgIndex, Registers};
 
-/// Retrieves a path from one of the syscall's arguments.
-///
-/// * `pid` is the process ID of the tracee
-/// * `src_sysarg` is the result of `get_reg` applied to one of the registers.
-///    It contains the address of the path's string in the memory space of the tracee.
-#[inline]
-pub fn get_sysarg_path(pid: Pid, src_sysarg: *mut Word) -> Result<PathBuf> {
-    if src_sysarg.is_null() {
-        /// Check if the parameter is not NULL. Technically we should
-        /// not return an error for this special value since it is
-        /// allowed for some kernel, utimensat(2) for instance.
-        Ok(PathBuf::new())
-    } else {
-        /// Get the path from the tracee's memory space.
-        read_path(pid, src_sysarg)
+pub trait PtraceReader {
+    fn get_sysarg_path(&self, sys_arg: SysArgIndex) -> Result<PathBuf>;
+}
+
+impl PtraceReader for Registers {
+    /// Retrieves a path from one of the syscall's arguments.
+    ///
+    /// Returns `Ok(path)` with path being a valid path if successful,
+    /// `Ok(PathBuf::new())` if the syscall argument is null, or an error.
+    #[inline]
+    fn get_sysarg_path(&self, sys_arg: SysArgIndex) -> Result<PathBuf> {
+        let src_sysarg = self.get_arg(sys_arg) as *mut Word;
+
+        if src_sysarg.is_null() {
+            // Check if the parameter is not NULL. Technically we should
+            // not return an error for this special value since it is
+            // allowed for some kernel, utimensat(2) for instance.
+            Ok(PathBuf::new())
+        } else {
+            // Get the path from the tracee's memory space.
+            read_path(self.pid, src_sysarg)
+        }
     }
+
 }
 
 /// Intermediary function that retrieves bytes from the tracee's memory space
@@ -41,6 +49,7 @@ fn read_path(pid: Pid, src_path: *mut Word) -> Result<PathBuf> {
 
     Ok(PathBuf::from(unsafe { String::from_utf8_unchecked(bytes) }))
 }
+
 
 /// Reads a string from the memory space of a tracee.
 ///
@@ -74,7 +83,6 @@ fn read_string(pid: Pid, src_string: *mut Word, max_size: usize) -> Result<Vec<u
             unsafe { src_string.offset(i) as *mut c_void },
             null_mut(),
         )? as Word;
-        //TODO: find a way to do thing for 4 bytes (32bits procs)
         let letters = convert_word_to_bytes(word);
 
         for &letter in &letters {
@@ -127,16 +135,17 @@ fn convert_word_to_bytes(value_to_convert: Word) -> [u8; 8] {
     unsafe { transmute(value_to_convert) }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use std::ptr::null_mut;
     use std::ffi::CString;
-    use nix::unistd::execvp;
+    use std::mem;
+    use libc::user_regs_struct;
+    use nix::unistd::{execvp, getpid};
     use utils::tests::fork_test;
     use syscall::nr::MKDIR;
-    use register::Word;
+    use register::{Word, SysArgIndex};
 
     #[test]
     #[cfg(target_pointer_width = "64")]
@@ -173,9 +182,15 @@ mod tests {
 
     #[test]
     fn test_sysarg_get_sysarg_path_return_empty_if_given_null_src_() {
-        let path = get_sysarg_path(Pid::from_raw(0), null_mut()).unwrap();
+        let raw_regs: user_regs_struct = unsafe { mem::zeroed() };
+        let regs = Registers::from(getpid(), &raw_regs);
 
-        assert_eq!(path.to_str().unwrap(), "");
+        assert_eq!(regs.get_sysarg_path(SysArgIndex::SysArg1).unwrap().to_str().unwrap(), "");
+        assert_eq!(regs.get_sysarg_path(SysArgIndex::SysArg2).unwrap().to_str().unwrap(), "");
+        assert_eq!(regs.get_sysarg_path(SysArgIndex::SysArg3).unwrap().to_str().unwrap(), "");
+        assert_eq!(regs.get_sysarg_path(SysArgIndex::SysArg4).unwrap().to_str().unwrap(), "");
+        assert_eq!(regs.get_sysarg_path(SysArgIndex::SysArg5).unwrap().to_str().unwrap(), "");
+        assert_eq!(regs.get_sysarg_path(SysArgIndex::SysArg6).unwrap().to_str().unwrap(), "");
     }
 
     #[test]
@@ -193,7 +208,7 @@ mod tests {
             // parent
             |pid, regs| {
                 if regs.sys_num == MKDIR {
-                    let dir_path = get_sysarg_path(pid, regs.sys_arg_1 as *mut Word).unwrap();
+                    let dir_path = regs.get_sysarg_path(SysArgIndex::SysArg1).unwrap();
 
                     // we're checking that the string read in the tracee's memory
                     // corresponds to what has been given to the execve command

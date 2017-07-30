@@ -1,8 +1,9 @@
-use process::tracee::Tracee;
-use filesystem::fs::FileSystem;
 use std::collections::HashMap;
 use std::ptr::null_mut;
 use std::ffi::CString;
+use process::tracee::Tracee;
+use filesystem::fs::FileSystem;
+use filesystem::temp::TempFile;
 
 // libc
 use libc::{siginfo_t, c_int, c_void, pid_t};
@@ -25,11 +26,19 @@ pub struct InfoBag {
     /// Used to know if the first raw sigtrap has been processed
     /// (and if the `set_ptrace_options` step is required).
     pub deliver_sigtrap: bool,
+    /// Binary loader, used by `execve`.
+    /// The content of the binary is actually inlined in `proot-rs`
+    /// (see `src/kernel/execve/loader`), and is extracted into a temporary file before use.
+    /// This temporary file struct makes sure the file is deleted when it's dropped.
+    pub loader: TempFile,
 }
 
 impl InfoBag {
     pub fn new() -> InfoBag {
-        InfoBag { deliver_sigtrap: false }
+        InfoBag {
+            deliver_sigtrap: false,
+            loader: TempFile::new("prooted"),
+        }
     }
 }
 

@@ -31,6 +31,7 @@ impl Error {
         Error::Sys(errno::ENOENT, message)
     }
 
+    #[cfg(test)]
     pub fn is_a_directory(message: &'static str) -> Error {
         Error::Sys(errno::EISDIR, message)
     }

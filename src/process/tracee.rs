@@ -187,13 +187,13 @@ impl Tracee {
                 }
             }
         }
-        self.translate_syscall(fs);
+        self.translate_syscall(fs, info_bag);
     }
 
     /// Retrieves the registers,
     /// handles either the enter or exit stage of the system call,
     /// and pushes the registers.
-    fn translate_syscall(&mut self, fs: &FileSystem) {
+    fn translate_syscall(&mut self, fs: &FileSystem, info_bag: &InfoBag) {
         // We retrieve the registers of the current tracee.
         // They contain the system call's number, arguments and other register's info.
         let regs = match Registers::retrieve(self.pid) {
@@ -208,7 +208,7 @@ impl Tracee {
                 // tracee->restore_original_regs = false;
 
                 // save_current_regs(tracee, ORIGINAL);
-                let status = self.translate_syscall_enter(fs, &regs);
+                let status = self.translate_syscall_enter(fs, info_bag, &regs);
                 // save_current_regs(tracee, MODIFIED);
 
                 if status.is_err() {
@@ -246,14 +246,19 @@ impl Tracee {
         // push_regs
     }
 
-    fn translate_syscall_enter(&mut self, fs: &FileSystem, regs: &Registers) -> Result<()> {
+    fn translate_syscall_enter(
+        &mut self,
+        fs: &FileSystem,
+        info_bag: &InfoBag,
+        regs: &Registers,
+    ) -> Result<()> {
         // status = notify_extensions(tracee, SYSCALL_ENTER_START, 0, 0);
         // if (status < 0)
         //     goto end;
         // if (status > 0)
         //     return 0;
 
-        let status = enter::translate(self.pid.into(), fs, self, regs);
+        let status = enter::translate(fs, info_bag, self, regs);
 
         // status2 = notify_extensions(tracee, SYSCALL_ENTER_END, status, 0);
         // if (status2 < 0)
@@ -295,6 +300,7 @@ impl Tracee {
         println!("new child: {:?}", event);
     }
 
+    #[inline]
     pub fn restart(&mut self) {
         match self.restart_how {
             TraceeRestartMethod::WithoutExitStage => {
@@ -337,11 +343,12 @@ impl Tracee {
         ptrace_setoptions(self.pid.into(), default_options).expect("set ptrace options");
     }
 
-    #[cfg(test)]
+    #[inline]
     pub fn get_pid(&self) -> Pid {
         self.pid
     }
 
+    #[inline]
     pub fn set_new_exec(&mut self, maybe_new_exe: Option<PathBuf>) {
         self.new_exe = maybe_new_exe;
     }

@@ -1,4 +1,3 @@
-use nix::unistd::Pid;
 use nix::errno::Errno;
 use errors::{Result, Error};
 use register::{Registers, Word};
@@ -8,10 +7,14 @@ use process::tracee::Tracee;
 use kernel::sysarg::get_sysarg_path;
 use kernel::execve::shebang;
 use kernel::execve::load_info::LoadInfo;
+use kernel::execve::loader::LoaderFile;
 
-const LOADER_EXE: &'static [u8] = include_bytes!("loader/binary_loader_exe");
-
-pub fn translate(pid: Pid, fs: &FileSystem, tracee: &mut Tracee, regs: &Registers) -> Result<()> {
+pub fn translate(
+    fs: &FileSystem,
+    tracee: &mut Tracee,
+    regs: &Registers,
+    loader: &LoaderFile,
+) -> Result<()> {
     //TODO: implement this part for ptrace translation
     //	if (IS_NOTIFICATION_PTRACED_LOAD_DONE(tracee)) {
     //		/* Syscalls can now be reported to its ptracer.  */
@@ -23,7 +26,7 @@ pub fn translate(pid: Pid, fs: &FileSystem, tracee: &mut Tracee, regs: &Register
     //		return 0;
     //	}
 
-    let raw_path = get_sysarg_path(pid, regs.sys_arg_1 as *mut Word)?;
+    let raw_path = get_sysarg_path(tracee.get_pid(), regs.sys_arg_1 as *mut Word)?;
     //TODO: return user path
     let host_path = match shebang::expand(fs, &raw_path) {
         Ok(path) => path,
@@ -76,15 +79,17 @@ pub fn translate(pid: Pid, fs: &FileSystem, tracee: &mut Tracee, regs: &Register
 
     load_info.compute_load_addresses(false)?;
 
-    //	/* Execute the loader instead of the program.  */
-    //	loader_path = get_loader_path(tracee);
-    //	if (loader_path == NULL)
-    //		return -ENOENT;
-    //
+    // Execute the loader instead of the program
+    loader.prepare_loader()?;
+
+
+
     //	status = set_sysarg_path(tracee, loader_path, SYSARG_1);
     //	if (status < 0)
     //		return status;
     //
+
+    //TODO: implemented ptracee translation
     //	/* Mask to its ptracer kernel performed by the loader.  */
     //	tracee->as_ptracee.ignore_loader_syscalls = true;
     //

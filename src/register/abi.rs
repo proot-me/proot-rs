@@ -5,19 +5,19 @@
 #[macro_use]
 pub mod regs_offset {
     macro_rules! get_reg {
-        ($regs:ident, SysArgNum)    => ($regs.orig_rax);
-        ($regs:ident, SysArg1)      => ($regs.rdi);
-        ($regs:ident, SysArg2)      => ($regs.rsi);
-        ($regs:ident, SysArg3)      => ($regs.rdx);
-        ($regs:ident, SysArg4)      => ($regs.r10);
-        ($regs:ident, SysArg5)      => ($regs.r8);
-        ($regs:ident, SysArg6)      => ($regs.r9);
-        ($regs:ident, SysArgResult) => ($regs.rax);
-        ($regs:ident, StackPointer) => ($regs.rsp);
-        ($regs:ident, InstrPointer) => ($regs.rip);
-        ($regs:ident, RtldFini)     => ($regs.rdx);
-        ($regs:ident, StateFlags)   => ($regs.eflags);
-        ($regs:ident, UserArg1)     => ($regs.rdi);
+        ($regs:expr, SysArgNum)    => ($regs.orig_rax);
+        ($regs:expr, SysArg1)      => ($regs.rdi);
+        ($regs:expr, SysArg2)      => ($regs.rsi);
+        ($regs:expr, SysArg3)      => ($regs.rdx);
+        ($regs:expr, SysArg4)      => ($regs.r10);
+        ($regs:expr, SysArg5)      => ($regs.r8);
+        ($regs:expr, SysArg6)      => ($regs.r9);
+        ($regs:expr, SysArgResult) => ($regs.rax);
+        ($regs:expr, StackPointer) => ($regs.rsp);
+        ($regs:expr, InstrPointer) => ($regs.rip);
+        ($regs:expr, RtldFini)     => ($regs.rdx);
+        ($regs:expr, StateFlags)   => ($regs.eflags);
+        ($regs:expr, UserArg1)     => ($regs.rdi);
     }
 }
 
@@ -25,18 +25,18 @@ pub mod regs_offset {
 #[macro_use]
 pub mod regs_offset {
     macro_rules! get_reg {
-        ($regs:ident, SysArgNum)    => ($regs.orig_eax);
-        ($regs:ident, SysArg1)      => ($regs.ebx);
-        ($regs:ident, SysArg2)      => ($regs.ecx);
-        ($regs:ident, SysArg3)      => ($regs.edx);
-        ($regs:ident, SysArg4)      => ($regs.esi);
-        ($regs:ident, SysArg5)      => ($regs.edi);
-        ($regs:ident, SysArg6)      => ($regs.ebp);
-        ($regs:ident, SysArgResult) => ($regs.eax);
-        ($regs:ident, StackPointer) => ($regs.esp);
-        ($regs:ident, InstrPointer) => ($regs.eip);
-        ($regs:ident, RtldFini)     => ($regs.edx);
-        ($regs:ident, StateFlags)   => ($regs.eflags);
-        ($regs:ident, UserArg1)     => ($regs.eax);
+        ($regs:expr, SysArgNum)    => ($regs.orig_eax);
+        ($regs:expr, SysArg1)      => ($regs.ebx);
+        ($regs:expr, SysArg2)      => ($regs.ecx);
+        ($regs:expr, SysArg3)      => ($regs.edx);
+        ($regs:expr, SysArg4)      => ($regs.esi);
+        ($regs:expr, SysArg5)      => ($regs.edi);
+        ($regs:expr, SysArg6)      => ($regs.ebp);
+        ($regs:expr, SysArgResult) => ($regs.eax);
+        ($regs:expr, StackPointer) => ($regs.esp);
+        ($regs:expr, InstrPointer) => ($regs.eip);
+        ($regs:expr, RtldFini)     => ($regs.edx);
+        ($regs:expr, StateFlags)   => ($regs.eflags);
+        ($regs:expr, UserArg1)     => ($regs.eax);
     }
 }

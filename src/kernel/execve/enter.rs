@@ -3,7 +3,7 @@ use errors::{Result, Error};
 use filesystem::fs::FileSystem;
 use filesystem::translation::Translator;
 use process::tracee::Tracee;
-use register::reader::PtraceReader;
+use register::PtraceReader;
 use register::SysArgIndex;
 use kernel::execve::shebang;
 use kernel::execve::load_info::LoadInfo;

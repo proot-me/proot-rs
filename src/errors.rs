@@ -51,6 +51,10 @@ impl Error {
     pub fn not_supported(message: &'static str) -> Error {
         Error::Sys(errno::EOPNOTSUPP, message)
     }
+
+    pub fn bad_address(message: &'static str) -> Error {
+        Error::Sys(errno::EFAULT, message)
+    }
 }
 
 impl From<errno::Errno> for Error {

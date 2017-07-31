@@ -1,25 +1,21 @@
 use std::path::{Path, PathBuf};
 use errors::Result;
-use register::{Registers, SysArgIndex};
+use register::{Registers, SysArgIndex, PtraceMemoryAllocator};
 
 pub trait PtraceWriter {
-    fn sys_arg_path(&self, sys_arg: SysArgIndex, new_path: &Path) -> Result<()>;
+    fn sys_arg_path(&mut self, sys_arg: SysArgIndex, new_path: &Path) -> Result<()>;
 }
 
 impl PtraceWriter for Registers {
-    fn sys_arg_path(&self, sys_arg: SysArgIndex, new_path: &Path) -> Result<()> {
+    fn sys_arg_path(&mut self, sys_arg: SysArgIndex, new_path: &Path) -> Result<()> {
+        let tracee_ptr = self.alloc_mem(new_path.as_os_str().len() as isize)?;
+
         Ok(())
     }
 }
 
 /*
 
-/**
- * Copy @size bytes of the data pointed to by @tracer_ptr into a
- * @tracee's memory block and make the @reg argument of the current
- * syscall points to this new block.  This function returns -errno if
- * an error occured, otherwise 0.
- */
 static int set_sysarg_data(Tracee *tracee, const void *tracer_ptr, word_t size, Reg reg)
 {
 	word_t tracee_ptr;

@@ -32,7 +32,6 @@ impl PtraceReader for Registers {
             read_path(self.pid, src_sysarg)
         }
     }
-
 }
 
 /// Intermediary function that retrieves bytes from the tracee's memory space
@@ -149,7 +148,7 @@ mod tests {
 
     #[test]
     #[cfg(target_pointer_width = "64")]
-    fn test_sysarg_convert_word_to_bytes() {
+    fn test_reader_convert_word_to_bytes() {
         let number: Word = 'h' as u64 + 'e' as u64 * 256 + 'l' as u64 * 256 * 256 +
             'l' as u64 * 256 * 256 * 256 +
             'o' as u64 * 256 * 256 * 256 * 256;
@@ -172,7 +171,7 @@ mod tests {
 
     #[test]
     #[cfg(target_pointer_width = "32")]
-    fn test_sysarg_convert_word_to_bytes() {
+    fn test_reader_convert_word_to_bytes() {
         let number: Word = 'h' as u64 + 'e' as u64 * 256 + 'l' as u64 * 256 * 256 +
             'o' as u64 * 256 * 256 * 256;
         let bytes = convert_word_to_bytes(number);
@@ -181,7 +180,7 @@ mod tests {
     }
 
     #[test]
-    fn test_sysarg_get_sysarg_path_return_empty_if_given_null_src_() {
+    fn test_reader_get_sysarg_path_return_empty_if_given_null_src_() {
         let raw_regs: user_regs_struct = unsafe { mem::zeroed() };
         let regs = Registers::from(getpid(), raw_regs);
         let args = [SysArg1, SysArg2, SysArg3, SysArg4, SysArg5, SysArg6];
@@ -197,7 +196,7 @@ mod tests {
     ///
     /// The test is a success if the MKDIR syscall is detected (with its corresponding signum),
     /// and if the first argument of the syscall correspond to the path given to the initial command.
-    fn test_sysarg_get_sysarg_path_for_mkdir_test() {
+    fn test_reader_get_sysarg_path_for_mkdir_test() {
         let test_path = "my/impossible/test/path";
 
         fork_test(

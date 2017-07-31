@@ -8,11 +8,13 @@ and all this without requiring admin rights (`ptrace` do not require any special
 
 So for instance, this command:
 ```
-proot-rs -R /home/user/myfolder mkdir /subfolder
+proot-rs -R /home/user/ mkdir /myfolder
 ```
+(`-R` defines a new root and adds usual bindings like `/bin`)
+
 will be equivalent to:
 ```
-mkdir /home/user/myfolder/subfolder
+mkdir /home/user/myfolder/
 ```
 
 Hence, you can apply `proot-rs` to a whole program in order sandbox it.

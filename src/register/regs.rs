@@ -19,10 +19,11 @@ pub enum SysArgIndex {
 
 pub struct Registers {
     pub pid: Pid,
-    pub raw_regs: user_regs_struct,
+    pub original_regs: user_regs_struct,
     pub sys_num: usize,
     pub sys_args: [Word; 6],
     pub sys_arg_result: i32,
+    pub stack_pointer: Word,
 }
 
 impl Registers {
@@ -33,7 +34,7 @@ impl Registers {
     pub fn from(pid: Pid, raw_regs: user_regs_struct) -> Self {
         Self {
             pid: pid,
-            raw_regs: raw_regs,
+            original_regs: raw_regs,
             sys_num: get_reg!(raw_regs, SysArgNum) as usize,
             sys_args: [
                 get_reg!(raw_regs, SysArg1),
@@ -44,6 +45,7 @@ impl Registers {
                 get_reg!(raw_regs, SysArg6),
             ],
             sys_arg_result: get_reg!(raw_regs, SysArgResult) as i32,
+            stack_pointer: get_reg!(raw_regs, StackPointer),
         }
     }
 

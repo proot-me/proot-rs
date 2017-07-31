@@ -21,21 +21,12 @@ impl SyscallExitResult {
             _ => false,
         }
     }
-
-    /*
-    pub fn get_value(&self) -> c_int {
-        match *self {
-            SyscallExitResult::Value(value) => value,
-            SyscallExitResult::None => panic!("asked for value, but syscall exit result is none")
-        }
-    }
-    */
 }
 
 pub fn translate(regs: &Registers) -> SyscallExitResult {
-    let systype = syscall_group_from_sysnum(regs.get_sys_num());
+    let systype = syscall_group_from_sysnum(regs.sys_num);
 
-    println!("exit  \t({:?}, \t{:?})", regs.get_sys_num(), systype);
+    println!("exit  \t({:?}, \t{:?})", regs.sys_num, systype);
 
     match systype {
         SyscallGroup::Brk => brk::exit(),

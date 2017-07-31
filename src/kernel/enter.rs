@@ -17,9 +17,9 @@ pub fn translate(
     tracee: &mut Tracee,
     regs: &Registers,
 ) -> Result<()> {
-    let sys_type = syscall_group_from_sysnum(regs.get_sys_num());
+    let sys_type = syscall_group_from_sysnum(regs.sys_num);
 
-    println!("enter  \t({:?}, \t{:?}) ", regs.get_sys_num(), sys_type);
+    println!("enter  \t({:?}, \t{:?}) ", regs.sys_num, sys_type);
 
     match sys_type {
         Accept => accept::enter(),

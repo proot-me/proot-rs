@@ -68,7 +68,7 @@ fn read_string(pid: Pid, src_string: *mut Word, max_size: usize) -> Result<Vec<u
     // if (belongs_to_heap_prealloc(tracee, dest_tracee))
     //	return -EFAULT;
 
-    //todo: HAVE_PROCESS_VM (when necessary)
+    //todo: HAVE_PROCESS_VM
 
     let word_size = size_of::<Word>();
     let nb_trailing_bytes = (max_size % word_size) as isize;
@@ -138,14 +138,14 @@ fn convert_word_to_bytes(value_to_convert: Word) -> [u8; 8] {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::ptr::null_mut;
     use std::ffi::CString;
     use std::mem;
     use libc::user_regs_struct;
     use nix::unistd::{execvp, getpid};
     use utils::tests::fork_test;
     use syscall::nr::MKDIR;
-    use register::{Word, SysArgIndex};
+    use register::Word;
+    use register::SysArgIndex::*;
 
     #[test]
     #[cfg(target_pointer_width = "64")]
@@ -183,14 +183,12 @@ mod tests {
     #[test]
     fn test_sysarg_get_sysarg_path_return_empty_if_given_null_src_() {
         let raw_regs: user_regs_struct = unsafe { mem::zeroed() };
-        let regs = Registers::from(getpid(), &raw_regs);
+        let regs = Registers::from(getpid(), raw_regs);
+        let args = [SysArg1, SysArg2, SysArg3, SysArg4, SysArg5, SysArg6];
 
-        assert_eq!(regs.get_sysarg_path(SysArgIndex::SysArg1).unwrap().to_str().unwrap(), "");
-        assert_eq!(regs.get_sysarg_path(SysArgIndex::SysArg2).unwrap().to_str().unwrap(), "");
-        assert_eq!(regs.get_sysarg_path(SysArgIndex::SysArg3).unwrap().to_str().unwrap(), "");
-        assert_eq!(regs.get_sysarg_path(SysArgIndex::SysArg4).unwrap().to_str().unwrap(), "");
-        assert_eq!(regs.get_sysarg_path(SysArgIndex::SysArg5).unwrap().to_str().unwrap(), "");
-        assert_eq!(regs.get_sysarg_path(SysArgIndex::SysArg6).unwrap().to_str().unwrap(), "");
+        for arg in args.iter() {
+            assert_eq!(regs.get_sysarg_path(*arg).unwrap().to_str().unwrap(), "");
+        }
     }
 
     #[test]
@@ -206,7 +204,7 @@ mod tests {
             // expecting an error (because the path doesn't exit)
             1,
             // parent
-            |pid, regs| {
+            |_, regs| {
                 if regs.sys_num == MKDIR {
                     let dir_path = regs.get_sysarg_path(SysArgIndex::SysArg1).unwrap();
 

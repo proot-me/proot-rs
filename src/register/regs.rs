@@ -5,48 +5,53 @@ use errors::Result;
 use nix::unistd::Pid;
 use nix::sys::ptrace::ptrace;
 use nix::sys::ptrace::ptrace::PTRACE_GETREGS;
+use register::Word;
 
-/// Specify the ABI registers (syscall argument passing, stack pointer).
-/// See sysdeps/unix/sysv/linux/${ARCH}/syscall.S from the GNU C Library.
-#[cfg(all(target_os = "linux", any(target_arch = "x86_64")))]
-#[macro_use]
-pub mod regs_offset {
-    macro_rules! get_reg {
-        ($regs:ident, SysArgNum)    => ($regs.orig_rax);
-        ($regs:ident, SysArg1)      => ($regs.rdi);
-        ($regs:ident, SysArg2)      => ($regs.rsi);
-        ($regs:ident, SysArg3)      => ($regs.rdx);
-        ($regs:ident, SysArg4)      => ($regs.r10);
-        ($regs:ident, SysArg5)      => ($regs.r8);
-        ($regs:ident, SysArg6)      => ($regs.r9);
-        ($regs:ident, SysArgResult) => ($regs.rax);
-        ($regs:ident, StackPointer) => ($regs.rsp);
-        ($regs:ident, InstrPointer) => ($regs.rip);
-        ($regs:ident, RtldFini)     => ($regs.rdx);
-        ($regs:ident, StateFlags)   => ($regs.eflags);
-        ($regs:ident, UserArg1)     => ($regs.rdi);
+#[derive(Debug, Copy, Clone)]
+pub enum SysArgIndex {
+    SysArg1 = 0,
+    SysArg2,
+    SysArg3,
+    SysArg4,
+    SysArg5,
+    SysArg6,
+}
+
+pub struct Registers {
+    pub pid: Pid,
+    pub raw_regs: user_regs_struct,
+    pub sys_num: usize,
+    pub sys_args: [Word; 6],
+    pub sys_arg_result: i32,
+}
+
+impl Registers {
+    pub fn retrieve(pid: Pid) -> Result<Self> {
+        Ok(Registers::from(pid, fetch_all_regs(pid)?))
+    }
+
+    pub fn from(pid: Pid, raw_regs: user_regs_struct) -> Self {
+        Self {
+            pid: pid,
+            raw_regs: raw_regs,
+            sys_num: get_reg!(raw_regs, SysArgNum) as usize,
+            sys_args: [
+                get_reg!(raw_regs, SysArg1),
+                get_reg!(raw_regs, SysArg2),
+                get_reg!(raw_regs, SysArg3),
+                get_reg!(raw_regs, SysArg4),
+                get_reg!(raw_regs, SysArg5),
+                get_reg!(raw_regs, SysArg6),
+            ],
+            sys_arg_result: get_reg!(raw_regs, SysArgResult) as i32,
+        }
+    }
+
+    pub fn get_arg(&self, index: SysArgIndex) -> Word {
+        self.sys_args[index as usize]
     }
 }
 
-#[cfg(all(target_os = "linux", any(target_arch = "x86")))]
-#[macro_use]
-pub mod regs_offset {
-    macro_rules! get_reg {
-        ($regs:ident, SysArgNum)    => ($regs.orig_eax);
-        ($regs:ident, SysArg1)      => ($regs.ebx);
-        ($regs:ident, SysArg2)      => ($regs.ecx);
-        ($regs:ident, SysArg3)      => ($regs.edx);
-        ($regs:ident, SysArg4)      => ($regs.esi);
-        ($regs:ident, SysArg5)      => ($regs.edi);
-        ($regs:ident, SysArg6)      => ($regs.ebp);
-        ($regs:ident, SysArgResult) => ($regs.eax);
-        ($regs:ident, StackPointer) => ($regs.esp);
-        ($regs:ident, InstrPointer) => ($regs.eip);
-        ($regs:ident, RtldFini)     => ($regs.edx);
-        ($regs:ident, StateFlags)   => ($regs.eflags);
-        ($regs:ident, UserArg1)     => ($regs.eax);
-    }
-}
 
 /// Copy all @tracee's general purpose registers into a dedicated cache.
 /// Returns either `Ok(regs)` or `Err(Sys(errno))` or `Err(InvalidPath)`.

@@ -47,7 +47,7 @@ impl PtraceReader for Registers {
 }
 
 /// Intermediary function that retrieves bytes from the tracee's memory space
-/// and collects them into a null-terminated CString.
+/// and collects them into a NON null-terminated CString.
 ///
 /// It also checks that the number of bytes isn't too long.
 #[inline]
@@ -66,7 +66,7 @@ fn read_path(pid: Pid, src_path: *mut Word) -> Result<PathBuf> {
 ///
 /// It uses `ptrace(PEEK_DATA)` to read it word by word
 /// (1 word = 1 c_ulong = 1 u32 or 1 u64 = 4 or 8 u8 = 4 or 8 char).
-/// The copy stops when a null character `\0` is encountered,
+/// The copy stops when a null character `\0` is encountered (which is not added),
 /// The bytes contained at the string's address are returned as a Vector of u8.
 ///
 /// * `pid` is the pid of the tracee.

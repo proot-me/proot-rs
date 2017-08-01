@@ -99,7 +99,7 @@ pub mod tests {
                 Exited(pid, exit_status) => {
                     assert_eq!(pid, child);
 
-                    // the tracee should have exited with an OK status (exit code 0)
+                    // the tracee should have exited with the expected status
                     assert_eq!(exit_status, expected_status);
                     break;
                 }

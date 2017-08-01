@@ -1,4 +1,3 @@
-use std::path::{Path, PathBuf};
 use std::usize::MAX as USIZE_MAX;
 use errors::{Result, Error};
 use register::{Word, Registers};
@@ -16,7 +15,7 @@ impl PtraceMemoryAllocator for Registers {
     /// Allocate @size bytes in the @tracee's memory space.
     ///
     /// The register calling this method will have its stack pointer
-    /// directly modified. The tracee is not modified.
+    /// directly modified. The tracee is not modified now.
     /// The registers will have to be pushed for the updates to take place.
     ///
     /// This function should only be called in sysenter since the
@@ -25,7 +24,7 @@ impl PtraceMemoryAllocator for Registers {
     /// pointer should be handled with care since it is used by the
     /// process to retrieve argc, argv, envp, and auxv).
     ///
-    /// `size` can be negative.
+    /// `size` can be negative (no idea why; is it necessary?).
     ///
     /// Returns the address of the allocated memory in the @tracee's memory
     /// space, otherwise an error.

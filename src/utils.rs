@@ -33,7 +33,7 @@ pub mod tests {
     /// The child process will be traced on, and will execute its respective function (2nd arg).
     /// The parent process will wait and loop for events from the tracee (child process).
     /// It only stops when the parent function (1st arg) returns true.
-    pub fn fork_test<FuncParent: Fn(Pid, &Registers) -> bool, FuncChild: Fn()>(
+    pub fn fork_test<FuncParent: Fn(Pid, &mut Registers) -> bool, FuncChild: Fn()>(
         expected_exit_signal: i8,
         func_parent: FuncParent,
         func_child: FuncChild,
@@ -59,9 +59,9 @@ pub mod tests {
                         match waitpid(child, Some(__WALL)).expect("event loop waitpid") {
                             PtraceSyscall(pid) => {
                                 assert_eq!(pid, child);
-                                let regs = Registers::retrieve(pid).expect("fetch regs");
+                                let mut regs = Registers::retrieve(pid).expect("fetch regs");
 
-                                if func_parent(pid, &regs) {
+                                if func_parent(pid, &mut regs) {
                                     break;
                                 }
                             }

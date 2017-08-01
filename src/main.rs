@@ -7,6 +7,7 @@ extern crate clap;
 extern crate syscall;
 #[macro_use]
 extern crate lazy_static;
+extern crate byteorder;
 
 mod errors;
 mod utils;

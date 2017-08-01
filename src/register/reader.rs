@@ -9,6 +9,18 @@ use nix::sys::ptrace::ptrace;
 use nix::sys::ptrace::ptrace::PTRACE_PEEKDATA;
 use register::{Word, SysArgIndex, Registers};
 
+#[cfg(target_pointer_width = "32")]
+#[inline]
+pub fn convert_word_to_bytes(value_to_convert: Word) -> [u8; 4] {
+    unsafe { transmute(value_to_convert) }
+}
+
+#[cfg(target_pointer_width = "64")]
+#[inline]
+pub fn convert_word_to_bytes(value_to_convert: Word) -> [u8; 8] {
+    unsafe { transmute(value_to_convert) }
+}
+
 pub trait PtraceReader {
     fn get_sysarg_path(&self, sys_arg: SysArgIndex) -> Result<PathBuf>;
 }
@@ -64,10 +76,11 @@ fn read_path(pid: Pid, src_path: *mut Word) -> Result<PathBuf> {
 fn read_string(pid: Pid, src_string: *mut Word, max_size: usize) -> Result<Vec<u8>> {
     let mut bytes: Vec<u8> = Vec::with_capacity(max_size);
 
+    //TODO: belongs_to_heap_prealloc
     // if (belongs_to_heap_prealloc(tracee, dest_tracee))
     //	return -EFAULT;
 
-    //todo: HAVE_PROCESS_VM
+    //TODO: implement HAVE_PROCESS_VM
 
     let word_size = size_of::<Word>();
     let nb_trailing_bytes = (max_size % word_size) as isize;
@@ -75,22 +88,18 @@ fn read_string(pid: Pid, src_string: *mut Word, max_size: usize) -> Result<Vec<u
 
     // Copy one word by one word, except for the last one.
     for i in 0..nb_full_words {
+        let src_addr = unsafe { src_string.offset(i) as *mut c_void };
+
         // ptrace returns a c_long/Word that we will interpret as an 8-letters word
-        let word = ptrace(
-            PTRACE_PEEKDATA,
-            pid,
-            unsafe { src_string.offset(i) as *mut c_void },
-            null_mut(),
-        )? as Word;
+        let word = ptrace(PTRACE_PEEKDATA, pid, src_addr, null_mut())? as Word;
         let letters = convert_word_to_bytes(word);
 
         for &letter in &letters {
             // Stop once an end-of-string is detected.
             if letter as char == '\0' {
+                // bytes.push(letter); // we do not add the null byte to the path
                 bytes.shrink_to_fit();
 
-                // No need to add the \0 null character now,
-                // as it will be added when converting the bytes in a CString.
                 return Ok(bytes);
             }
             bytes.push(letter);
@@ -120,18 +129,6 @@ fn read_string(pid: Pid, src_string: *mut Word, max_size: usize) -> Result<Vec<u
 
 	return i * sizeof(word_t) + j + 1;
     */
-}
-
-#[cfg(target_pointer_width = "32")]
-#[inline]
-fn convert_word_to_bytes(value_to_convert: Word) -> [u8; 4] {
-    unsafe { transmute(value_to_convert) }
-}
-
-#[cfg(target_pointer_width = "64")]
-#[inline]
-fn convert_word_to_bytes(value_to_convert: Word) -> [u8; 8] {
-    unsafe { transmute(value_to_convert) }
 }
 
 #[cfg(test)]

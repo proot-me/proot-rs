@@ -49,8 +49,14 @@ impl Registers {
         }
     }
 
+    #[inline]
     pub fn get_arg(&self, index: SysArgIndex) -> Word {
         self.sys_args[index as usize]
+    }
+
+    #[inline]
+    pub fn set_arg(&mut self, index: SysArgIndex, new_value: Word) {
+        self.sys_args[index as usize] = new_value;
     }
 }
 

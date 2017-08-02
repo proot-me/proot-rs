@@ -50,6 +50,11 @@ impl Registers {
     }
 
     #[inline]
+    pub fn get_pid(&self) -> Pid {
+        self.pid
+    }
+
+    #[inline]
     pub fn get_arg(&self, index: SysArgIndex) -> Word {
         self.sys_args[index as usize]
     }
@@ -59,7 +64,6 @@ impl Registers {
         self.sys_args[index as usize] = new_value;
     }
 }
-
 
 /// Copy all @tracee's general purpose registers into a dedicated cache.
 /// Returns either `Ok(regs)` or `Err(Sys(errno))` or `Err(InvalidPath)`.
@@ -96,7 +100,7 @@ mod tests {
             // expecting a normal execution
             0,
             // parent
-            |_, _| {
+            |_, _, _| {
                 // we stop on the first syscall;
                 // the fact that no panic was sparked until now means that the regs were OK
                 return true;
@@ -120,7 +124,7 @@ mod tests {
             // expecting a normal execution
             0,
             // parent
-            |_, regs| {
+            |regs, _, _| {
                 // we only stop when the NANOSLEEP syscall is detected
                 return regs.sys_num == NANOSLEEP;
             },

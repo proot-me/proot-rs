@@ -41,7 +41,7 @@ impl PtraceReader for Registers {
             Ok(PathBuf::new())
         } else {
             // Get the path from the tracee's memory space.
-            read_path(self.pid, src_sysarg)
+            read_path(self.get_pid(), src_sysarg)
         }
     }
 }
@@ -142,6 +142,7 @@ mod tests {
     use syscall::nr::MKDIR;
     use register::Word;
     use register::SysArgIndex::*;
+    use register::Registers;
 
     #[test]
     #[cfg(target_pointer_width = "64")]
@@ -200,7 +201,7 @@ mod tests {
             // expecting an error (because the path doesn't exit)
             1,
             // parent
-            |_, regs| {
+            |regs, _, _| {
                 if regs.sys_num == MKDIR {
                     let dir_path = regs.get_sysarg_path(SysArgIndex::SysArg1).unwrap();
 

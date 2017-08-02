@@ -17,7 +17,7 @@ use kernel::execve::loader::LoaderFile;
 pub fn enter(
     fs: &FileSystem,
     tracee: &mut Tracee,
-    regs: &Registers,
+    regs: &mut Registers,
     loader: &LoaderFile,
 ) -> Result<()> {
     enter::translate(fs, tracee, regs, loader)

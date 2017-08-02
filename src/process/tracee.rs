@@ -196,7 +196,7 @@ impl Tracee {
     fn translate_syscall(&mut self, fs: &FileSystem, info_bag: &InfoBag) {
         // We retrieve the registers of the current tracee.
         // They contain the system call's number, arguments and other register's info.
-        let regs = match Registers::retrieve(self.pid) {
+        let mut regs = match Registers::retrieve(self.pid) {
             Ok(regs) => regs,
             Err(_) => return,
         };
@@ -208,7 +208,7 @@ impl Tracee {
                 // tracee->restore_original_regs = false;
 
                 // save_current_regs(tracee, ORIGINAL);
-                let status = self.translate_syscall_enter(fs, info_bag, &regs);
+                let status = self.translate_syscall_enter(fs, info_bag, &mut regs);
                 // save_current_regs(tracee, MODIFIED);
 
                 if status.is_err() {
@@ -250,7 +250,7 @@ impl Tracee {
         &mut self,
         fs: &FileSystem,
         info_bag: &InfoBag,
-        regs: &Registers,
+        regs: &mut Registers,
     ) -> Result<()> {
         // status = notify_extensions(tracee, SYSCALL_ENTER_START, 0, 0);
         // if (status < 0)
@@ -376,7 +376,7 @@ mod tests {
             // expecting a normal execution
             0,
             // parent
-            |_, _| {
+            |_, _, _| {
                 // we stop on the first syscall;
                 // the fact that no panic was sparked until now
                 // means that the set_trace_options call was OK

@@ -24,6 +24,13 @@ impl Translator for FileSystem {
             //TODO: dir_fd != AT_FDCWD
         }
 
+        #[cfg(not(test))]
+        println!(
+            "\t translate({} + {})",
+            guest_path.display(),
+            user_path.display()
+        );
+
         //TODO: log verbose
         // VERBOSE(tracee, 2, "pid %d: translate(\"%s\" + \"%s\")",
         //         tracee != NULL ? tracee->pid : 0, result, user_path);
@@ -38,12 +45,16 @@ impl Translator for FileSystem {
         guest_path.push(user_path);
         guest_path = self.canonicalize(&guest_path, deref_final)?;
         let host_path = self.substitute_binding(&guest_path, Direction(Guest, Host))?;
+        let result = host_path.unwrap_or(guest_path);
+
+        #[cfg(not(test))]
+        println!("\t\t -> {}", result.display());
 
         //TODO: log verbose
         // VERBOSE(tracee, 2, "pid %d:          -> \"%s\"",
         //         tracee != NULL ? tracee->pid : 0, result);
 
-        Ok(host_path.unwrap_or(guest_path))
+        Ok(result)
     }
 
     /// Translates a path from `host` to `guest`.

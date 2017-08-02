@@ -3,8 +3,7 @@ use errors::{Result, Error};
 use filesystem::fs::FileSystem;
 use filesystem::translation::Translator;
 use process::tracee::Tracee;
-use register::PtraceReader;
-use register::SysArgIndex;
+use register::{PtraceReader, PtraceWriter, Registers, SysArgIndex};
 use kernel::execve::shebang;
 use kernel::execve::load_info::LoadInfo;
 use kernel::execve::loader::LoaderFile;
@@ -12,7 +11,7 @@ use kernel::execve::loader::LoaderFile;
 pub fn translate(
     fs: &FileSystem,
     tracee: &mut Tracee,
-    regs: &PtraceReader,
+    regs: &mut Registers,
     loader: &LoaderFile,
 ) -> Result<()> {
     //TODO: implement this part for ptrace translation
@@ -82,12 +81,11 @@ pub fn translate(
     // Execute the loader instead of the program
     loader.prepare_loader()?;
 
-
-
-    //	status = set_sysarg_path(tracee, loader_path, SYSARG_1);
-    //	if (status < 0)
-    //		return status;
-    //
+    // Save the loader path in the register, so that the loader will be executed instead.
+    regs.set_sysarg_path(
+        SysArgIndex::SysArg1,
+        loader.get_loader_path(),
+    )?;
 
     //TODO: implemented ptracee translation
     //	/* Mask to its ptracer kernel performed by the loader.  */
@@ -96,4 +94,56 @@ pub fn translate(
     //	return 0;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::ffi::CString;
+    use nix::unistd::{Pid, execvp};
+    use syscall::nr::{EXECVE, NANOSLEEP};
+    use utils::tests::fork_test;
+    use filesystem::fs::FileSystem;
+    use register::PtraceReader;
+
+    #[test]
+    fn test_execve_translate_enter() {
+        let fs = FileSystem::with_root("/");
+        let mut at_least_one_translation_occured = false;
+
+        fork_test(
+            // expecting a normal execution
+            0,
+            // parent
+            |mut regs, mut tracee, info_bag| {
+                if regs.sys_num == EXECVE {
+                    let dir_path = regs.get_sysarg_path(SysArgIndex::SysArg1).unwrap();
+                    let file_exists = dir_path.exists();
+
+                    // if the file executed by execve exists, we expect the translation to go well.
+                    if file_exists {
+                        assert_eq!(Ok(()), translate(&fs, tracee, regs, &info_bag.loader));
+                        at_least_one_translation_occured = true;
+                    }
+                    return false;
+                } else if regs.sys_num == NANOSLEEP {
+                    // we expect at least one successful translation to have occurred
+                    assert!(at_least_one_translation_occured);
+
+                    // we stop when the NANOSLEEP syscall is detected
+                    return true;
+                } else {
+                    return false;
+                }
+            },
+            // child
+            || {
+                // calling the sleep function, which should call the NANOSLEEP syscall
+                execvp(
+                    &CString::new("sleep").unwrap(),
+                    &[CString::new(".").unwrap(), CString::new("0").unwrap()],
+                ).expect("failed execvp sleep");
+            },
+        );
+    }
 }

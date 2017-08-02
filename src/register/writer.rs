@@ -9,7 +9,7 @@ use nix::sys::ptrace::ptrace::{PTRACE_POKEDATA, PTRACE_PEEKDATA};
 use std::io::Cursor;
 use byteorder::{LittleEndian, ReadBytesExt};
 use errors::Result;
-use register::{Word, Registers, SysArgIndex, PtraceMemoryAllocator};
+use register::{Word, SysArgIndex, PtraceMemoryAllocator, Registers};
 use register::reader::convert_word_to_bytes;
 
 #[cfg(target_pointer_width = "32")]
@@ -72,13 +72,19 @@ impl PtraceWriter for Registers {
             let word = buf.read_uint::<LittleEndian>(word_size).unwrap() as Word;
             let dest_addr = unsafe { dest_tracee.offset(i) as *mut c_void };
 
-            ptrace(PTRACE_POKEDATA, self.pid, dest_addr, word as *mut c_void)?;
+            ptrace(
+                PTRACE_POKEDATA,
+                self.get_pid(),
+                dest_addr,
+                word as *mut c_void,
+            )?;
         }
 
         // Copy the bytes in the last word carefully since we have to
         // overwrite only the relevant ones.
         let last_dest_addr = unsafe { dest_tracee.offset(nb_full_words) as *mut c_void };
-        let existing_word = ptrace(PTRACE_PEEKDATA, self.pid, last_dest_addr, null_mut())? as Word;
+        let existing_word =
+            ptrace(PTRACE_PEEKDATA, self.get_pid(), last_dest_addr, null_mut())? as Word;
         let mut bytes = convert_word_to_bytes(existing_word);
 
         // The trailing bytes are merged with the existing bytes. For example:
@@ -91,7 +97,12 @@ impl PtraceWriter for Registers {
 
         let last_word = convert_bytes_to_word(bytes);
         // We can now safely write the final word.
-        ptrace(PTRACE_POKEDATA, self.pid, last_dest_addr, last_word as *mut c_void)?;
+        ptrace(
+            PTRACE_POKEDATA,
+            self.get_pid(),
+            last_dest_addr,
+            last_word as *mut c_void,
+        )?;
 
         Ok(())
     }
@@ -102,7 +113,7 @@ impl PtraceWriter for Registers {
 mod tests {
     use super::*;
     use std::ffi::CString;
-    use nix::unistd::{execvp};
+    use nix::unistd::execvp;
     use utils::tests::fork_test;
     use syscall::nr::MKDIR;
     use register::PtraceReader;
@@ -116,7 +127,7 @@ mod tests {
             // expecting an error (because the path doesn't exit)
             1,
             // parent
-            |_, regs| {
+            |regs, _, _| {
                 if regs.sys_num == MKDIR {
                     let dir_path = regs.get_sysarg_path(SysArgIndex::SysArg1).unwrap();
 
@@ -125,7 +136,10 @@ mod tests {
                     assert_eq!(dir_path, PathBuf::from(test_path));
 
                     // we write the new path
-                    assert!(regs.set_sysarg_path(SysArgIndex::SysArg1, &PathBuf::from(test_path_2)).is_ok());
+                    assert!(
+                        regs.set_sysarg_path(SysArgIndex::SysArg1, &PathBuf::from(test_path_2))
+                            .is_ok()
+                    );
 
                     // we read the new path from the tracee's memory
                     let dir_path_2 = regs.get_sysarg_path(SysArgIndex::SysArg1).unwrap();

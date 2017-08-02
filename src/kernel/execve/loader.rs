@@ -1,5 +1,6 @@
 use std::io::Write;
 use std::os::unix::fs::PermissionsExt;
+use std::path::Path;
 use libc::{S_IRUSR, S_IXUSR};
 use errors::Result;
 use filesystem::temp::TempFile;
@@ -8,6 +9,7 @@ const LOADER_EXE: &'static [u8] = include_bytes!("loader/binary_loader_exe");
 
 pub trait LoaderFile {
     fn prepare_loader(&self) -> Result<()>;
+    fn get_loader_path(&self) -> &Path;
 }
 
 impl LoaderFile for TempFile {
@@ -23,6 +25,10 @@ impl LoaderFile for TempFile {
         file.set_permissions(perms)?;
 
         Ok(())
+    }
+
+    fn get_loader_path(&self) -> &Path {
+        &self.path
     }
 }
 

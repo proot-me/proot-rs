@@ -2,7 +2,6 @@
 #[cfg(test)]
 pub mod tests {
     use std::ptr::null_mut;
-    use std::ops::Fn;
     use nix::unistd::{getpid, fork, ForkResult, Pid};
     use nix::sys::signal::kill;
     use nix::sys::signal::Signal::SIGSTOP;
@@ -16,7 +15,7 @@ pub mod tests {
     use register::Registers;
 
     /// Allow tests to fork and deal with child processes without mixing them.
-    fn test_in_subprocess<F: Fn()>(func: F) {
+    fn test_in_subprocess<F: FnMut()>(mut func: F) {
         let pid = fork();
         match pid {
             Ok(ForkResult::Child) => {
@@ -33,24 +32,23 @@ pub mod tests {
     /// The child process will be traced on, and will execute its respective function (2nd arg).
     /// The parent process will wait and loop for events from the tracee (child process).
     /// It only stops when the parent function (1st arg) returns true.
-    pub fn fork_test<FuncParent: Fn(Pid, &mut Registers) -> bool, FuncChild: Fn()>(
+    pub fn fork_test<FuncParent: FnMut(&mut Registers, &mut Tracee, &mut InfoBag) -> bool, FuncChild: FnMut()>(
         expected_exit_signal: i8,
-        func_parent: FuncParent,
-        func_child: FuncChild,
+        mut func_parent: FuncParent,
+        mut func_child: FuncChild,
     ) {
-
         test_in_subprocess(|| {
             match fork().expect("fork in test") {
                 ForkResult::Parent { child } => {
-                    let info_bag = &mut InfoBag::new();
-                    let tracee = Tracee::new(child);
+                    let mut info_bag = InfoBag::new();
+                    let mut tracee = Tracee::new(child);
 
                     // the parent will wait for the child's signal before calling set_ptrace_options
                     assert_eq!(
-                        waitpid(Pid::from_raw(-1), Some(__WALL)).expect("event loop waitpid"),
+                        waitpid(child, Some(__WALL)).expect("event loop waitpid"),
                         Stopped(child, SIGSTOP)
                     );
-                    tracee.set_ptrace_options(info_bag);
+                    tracee.set_ptrace_options(&mut info_bag);
 
                     restart(child);
 
@@ -59,9 +57,9 @@ pub mod tests {
                         match waitpid(child, Some(__WALL)).expect("event loop waitpid") {
                             PtraceSyscall(pid) => {
                                 assert_eq!(pid, child);
-                                let mut regs = Registers::retrieve(pid).expect("fetch regs");
+                                let mut regs = Registers::retrieve(child).expect("fetch regs");
 
-                                if func_parent(pid, &mut regs) {
+                                if func_parent(&mut regs, &mut tracee, &mut info_bag) {
                                     break;
                                 }
                             }

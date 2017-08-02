@@ -15,7 +15,7 @@ pub fn translate(
     fs: &FileSystem,
     info_bag: &InfoBag,
     tracee: &mut Tracee,
-    regs: &Registers,
+    regs: &mut Registers,
 ) -> Result<()> {
     let sys_type = syscall_group_from_sysnum(regs.sys_num);
 

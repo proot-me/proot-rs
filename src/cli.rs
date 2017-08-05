@@ -1,12 +1,13 @@
 use clap::{App, Arg};
-use filesystem::fs::FileSystem;
+use std::path::PathBuf;
+use filesystem::FileSystem;
 use filesystem::binding::Binding;
 use filesystem::validation::{binding_validator, path_validator};
 
 pub const DEFAULT_ROOTFS: &'static str = "/";
 pub const DEFAULT_CWD: &'static str = ".";
 
-pub fn get_config(fs: &mut FileSystem) {
+pub fn parse_config(fs: &mut FileSystem) {
     let matches = App::new("proot-rsc")
         .arg(Arg::with_name("rootfs")
             .short("r")
@@ -47,5 +48,6 @@ pub fn get_config(fs: &mut FileSystem) {
 
     // option -w
     let cwd: &str = matches.value_of("cwd").unwrap();
-    fs.set_cwd(cwd);
+    fs.set_cwd(PathBuf::from(cwd));
 }
+

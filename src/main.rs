@@ -17,14 +17,22 @@ mod filesystem;
 mod cli;
 mod process;
 
+use std::process::exit;
 use process::sigactions;
 use process::proot::{PRoot, stop_program, show_info};
-use filesystem::fs::FileSystem;
+use filesystem::{FileSystem, Initialiser};
 
 fn main() {
     // step 1: CLI parsing
     let mut fs: FileSystem = FileSystem::new();
-    cli::get_config(&mut fs);
+
+    cli::parse_config(&mut fs);
+
+    if let Err(error) = fs.initialize() {
+        eprintln!("Error during file system initialization: {}", error);
+        exit(-1);
+    }
+
     let mut proot: PRoot = PRoot::new(fs);
 
     // step 2: Start the first tracee
@@ -39,5 +47,5 @@ fn main() {
     // step 4: Listen to and deal with tracees events
     proot.event_loop();
 
-    println!("{:?}", proot);
+    println!("{:#?}", proot);
 }

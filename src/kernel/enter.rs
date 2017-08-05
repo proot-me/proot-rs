@@ -7,7 +7,7 @@ use kernel::standard::*;
 use kernel::groups::syscall_group_from_sysnum;
 use kernel::groups::SyscallGroup::*;
 use register::Registers;
-use filesystem::fs::FileSystem;
+use filesystem::FileSystem;
 use process::tracee::Tracee;
 use process::proot::InfoBag;
 

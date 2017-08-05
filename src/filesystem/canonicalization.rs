@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf, Component};
 use errors::{Error, Result};
-use filesystem::fs::FileSystem;
+use filesystem::FileSystem;
 use filesystem::substitution::Substitutor;
 
 pub trait Canonicalizer {
@@ -26,12 +26,12 @@ impl Canonicalizer for FileSystem {
 
         let mut it = user_path.components();
         // we need the `next` component to know if the current one is the last one
-        let mut maybe_next_component = it.next();
+        let mut next_comp = it.next();
 
-        while maybe_next_component.is_some() {
-            let component = maybe_next_component.unwrap();
-            maybe_next_component = it.next();
-            let is_last_component = maybe_next_component.is_none();
+        while next_comp.is_some() {
+            let component = next_comp.unwrap();
+            next_comp = it.next();
+            let is_last_component = next_comp.is_none();
 
             match component {
                 Component::RootDir => {
@@ -44,13 +44,8 @@ impl Canonicalizer for FileSystem {
                     continue;
                 }
                 Component::ParentDir => {
-                    if guest_path.pop() {
-                        continue;
-                    } else {
-                        // the path is invalid, as it didn't manage to remove the last component
-                        // (it's probably a path like "/..").
-                        return Err(Error::invalid_argument("when canonicalizing invalid path"));
-                    }
+                    guest_path.pop();
+                    continue;
                 }
                 Component::Normal(path_part) => {
                     guest_path.push(path_part);
@@ -92,18 +87,19 @@ impl Canonicalizer for FileSystem {
 mod tests {
     use super::*;
     use std::path::PathBuf;
-    use filesystem::fs::FileSystem;
+    use nix::sys::stat::{S_IRWXU, S_IRWXG, S_IRWXO};
+    use filesystem::FileSystem;
     use filesystem::binding::Binding;
 
     #[test]
     fn test_canonicalize_invalid_path() {
         // "/home/user" on the host, "/" on the guest
         let fs = FileSystem::with_root("/home/user");
-        let path = PathBuf::from("/../../../test");
+        let path = PathBuf::from("/my/impossible/path");
 
         assert_eq!(
             fs.canonicalize(&path, false),
-            Err(Error::invalid_argument("when canonicalizing invalid path"))
+            Err(Error::no_such_file_or_dir("when substituting intermediary without glue"))
         );
     }
 
@@ -119,13 +115,16 @@ mod tests {
         );
 
         assert_eq!(
-            fs.canonicalize(&PathBuf::from("/acpi/./../acpi//events"), false)
+            fs.canonicalize(&PathBuf::from("/./../../.././../."), false)
                 .unwrap(),
-            PathBuf::from("/acpi/events")
+            PathBuf::from("/")
         );
 
         fs.set_root("/etc/acpi");
         fs.add_binding(Binding::new("/usr/bin", "/bin", true));
+
+        // necessary, because nor "/bin" nor "/home" exist in "/etc/acpi"
+        fs.set_glue_type(S_IRWXU | S_IRWXG | S_IRWXO);
 
         assert_eq!(
             fs.canonicalize(&PathBuf::from("/bin/../home"), false)
@@ -136,13 +135,16 @@ mod tests {
 
     #[test]
     fn test_canonicalize_no_root_normal_path() {
-        let fs = FileSystem::with_root("/");
+        let mut fs = FileSystem::with_root("/");
 
         assert_eq!(
             fs.canonicalize(&PathBuf::from("/home/../bin/./../bin/sleep"), false)
                 .unwrap(),
             PathBuf::from("/bin/sleep")
         );
+
+        // necessary, because nor "/test" probably doesn't exist
+        fs.set_glue_type(S_IRWXU | S_IRWXG | S_IRWXO);
 
         assert_eq!(
             fs.canonicalize(&PathBuf::from("/bin/../test"), false)

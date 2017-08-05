@@ -1,9 +1,10 @@
 use std::path::{Path, PathBuf};
 use std::fs::FileType;
+use nix::sys::stat::Mode;
 use errors::{Error, Result};
 use filesystem::binding::Direction;
 use filesystem::binding::Side::{Guest, Host};
-use filesystem::fs::FileSystem;
+use filesystem::FileSystem;
 
 pub trait Substitutor {
     fn substitute_binding(&self, path: &Path, direction: Direction) -> Result<Option<PathBuf>>;
@@ -45,7 +46,7 @@ impl Substitutor for FileSystem {
     #[inline]
     fn substitute_intermediary_and_glue(
         &self,
-        guest_path: &Path,
+        guest_path: &Path
     ) -> Result<(PathBuf, Option<FileType>)> {
         let substituted_path = self.substitute_binding(guest_path, Direction(Guest, Host))?;
         let host_path = substituted_path.unwrap_or(guest_path.to_path_buf());
@@ -53,17 +54,21 @@ impl Substitutor for FileSystem {
         match self.get_direct_metadata(&host_path) {
             Ok(metadata) => Ok((host_path, Some(metadata.file_type()))),
             Err(_) => {
-                //TODO: implement glue
-                //        /* Build the glue between the hostfs and the guestfs during
-                //         * the initialization of a binding.  */
-                //        if (status < 0 && tracee->glue_type != 0) {
-                //            statl.st_mode = build_glue(tracee, guest_path, host_path, finality);
-                //            if (statl.st_mode == 0)
-                //                status = -1;
-                //        }
+                if self.get_glue_type() != &Mode::empty() {
+                    //TODO: implement glue
+                    //        /* Build the glue between the hostfs and the guestfs during
+                    //         * the initialization of a binding.  */
+                    //        if (status < 0 && tracee->glue_type != 0) {
+                    //            statl.st_mode = build_glue(tracee, guest_path, host_path, finality);
+                    //            if (statl.st_mode == 0)
+                    //                status = -1;
+                    //        }
 
-                // for now we return the same path
-                Ok((host_path, None))
+                    // for now we return the same path
+                    Ok((host_path, None))
+                } else {
+                    Err(Error::no_such_file_or_dir("when substituting intermediary without glue"))
+                }
             }
         }
     }
@@ -76,7 +81,7 @@ mod tests {
     use errors::Error;
     use filesystem::binding::Binding;
     use filesystem::binding::Side::{Host, Guest};
-    use filesystem::fs::FileSystem;
+    use filesystem::FileSystem;
 
     #[test]
     fn test_substitute_binding_root_and_asymmetric() {

@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::ptr::null_mut;
 use std::ffi::CString;
 use process::tracee::Tracee;
-use filesystem::fs::FileSystem;
+use filesystem::FileSystem;
 use filesystem::temp::TempFile;
 
 // libc
@@ -19,8 +19,7 @@ use nix::unistd::{getpid, fork, execvp, ForkResult};
 use nix::sys::wait::{waitpid, __WALL};
 use nix::sys::wait::WaitStatus::*;
 
-/// Used to store global info common to all tracees,
-/// without having to loose ownership on the whole `PRoot` object.
+/// Used to store global info common to all tracees. Rename into `Configuration`?
 #[derive(Debug)]
 pub struct InfoBag {
     /// Used to know if the first raw sigtrap has been processed
@@ -159,10 +158,10 @@ impl PRoot {
     }
 
     fn handle_standard_event(&mut self, tracee_pid: Pid, signal: Option<Signal>) {
-        let (wrapped_tracee, fs_ref, info_bag) = self.get_mut_tracee_and_all(tracee_pid);
+        let (wrapped_tracee, fs, info_bag) = self.get_mut_tracee_and_all(tracee_pid);
         let mut tracee = wrapped_tracee.expect("get stopped tracee");
 
-        tracee.handle_event(fs_ref, info_bag, signal);
+        tracee.handle_event(fs, info_bag, signal);
         tracee.restart();
     }
 

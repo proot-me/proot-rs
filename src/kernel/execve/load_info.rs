@@ -6,7 +6,7 @@ use nix::sys::mman::{MapFlags, MAP_PRIVATE, MAP_FIXED, MAP_ANONYMOUS};
 use nix::sys::mman::{ProtFlags, PROT_NONE, PROT_READ, PROT_WRITE, PROT_EXEC};
 use errors::{Error, Result};
 use register::Word;
-use filesystem::fs::FileSystem;
+use filesystem::FileSystem;
 use filesystem::readers::ExtraReader;
 use kernel::execve::elf::{PT_LOAD, PT_INTERP, PF_R, PF_W, PF_X};
 use kernel::execve::elf::{ElfHeader, ProgramHeader, ExecutableClass};
@@ -276,7 +276,7 @@ mod tests {
     use super::*;
     use std::path::PathBuf;
     use errors::Error;
-    use filesystem::fs::FileSystem;
+    use filesystem::FileSystem;
     use register::Word;
 
     #[test]

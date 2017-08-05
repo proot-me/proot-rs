@@ -1,7 +1,6 @@
 use nix::errno::Errno;
 use errors::{Result, Error};
-use filesystem::fs::FileSystem;
-use filesystem::translation::Translator;
+use filesystem::{FileSystem, Translator};
 use process::tracee::Tracee;
 use register::{PtraceReader, PtraceWriter, Registers, SysArgIndex};
 use kernel::execve::shebang;
@@ -100,10 +99,10 @@ pub fn translate(
 mod tests {
     use super::*;
     use std::ffi::CString;
-    use nix::unistd::{Pid, execvp};
+    use nix::unistd::execvp;
     use syscall::nr::{EXECVE, NANOSLEEP};
     use utils::tests::fork_test;
-    use filesystem::fs::FileSystem;
+    use filesystem::FileSystem;
     use register::PtraceReader;
 
     #[test]

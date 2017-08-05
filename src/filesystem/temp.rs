@@ -54,7 +54,7 @@ mod tests {
     #[test]
     fn test_temp_file_is_created_and_deleted() {
         let temp_file_path = {
-            let temp_file = TempFile::new("test-1");
+            let temp_file = TempFile::new("test-2");
             let temp_file_path = temp_file.path.to_owned();
 
             // the file must not exist before creating the file

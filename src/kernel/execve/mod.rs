@@ -10,7 +10,7 @@ mod loader;
 use errors::Result;
 use register::Registers;
 use kernel::exit::SyscallExitResult;
-use filesystem::fs::FileSystem;
+use filesystem::FileSystem;
 use process::tracee::Tracee;
 use kernel::execve::loader::LoaderFile;
 

@@ -2,8 +2,7 @@ use std::path::{Path, PathBuf};
 use std::fs::File;
 use std::io::Read;
 use errors::{Error, Result};
-use filesystem::fs::FileSystem;
-use filesystem::translation::Translator;
+use filesystem::{FileSystem, Translator};
 
 /// Expand in argv[] the shebang of `user_path`, if any.  This function
 /// returns -errno if an error occurred, 1 if a shebang was found and
@@ -264,7 +263,7 @@ fn extract(host_path: &Path) -> Result<Option<PathBuf>> {
 mod tests {
     use super::*;
     use std::path::PathBuf;
-    use filesystem::fs::FileSystem;
+    use filesystem::FileSystem;
 
     #[test]
     fn test_extract_shebang_not_script() {

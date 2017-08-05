@@ -1,5 +1,6 @@
 use std::path::{Path, PathBuf};
 use std::fs::Metadata;
+use nix::sys::stat::Mode;
 use errors::Result;
 use filesystem::binding::{Binding, Side};
 use filesystem::binding::Side::Host;
@@ -14,6 +15,8 @@ pub struct FileSystem {
     cwd: PathBuf,
     /// Guest root (the binding associated to `/`)
     root: PathBuf,
+    /// Use for glue (//TODO: explain when implemented)
+    glue_type: Mode
 }
 
 impl FileSystem {
@@ -22,6 +25,7 @@ impl FileSystem {
             bindings: vec![],
             cwd: PathBuf::from("."),
             root: PathBuf::from("/"),
+            glue_type: Mode::empty()
         }
     }
 
@@ -41,27 +45,6 @@ impl FileSystem {
     #[inline]
     pub fn add_binding(&mut self, binding: Binding) {
         self.bindings.insert(0, binding);
-    }
-
-    #[inline]
-    pub fn set_cwd(&mut self, cwd: &str) {
-        self.cwd = PathBuf::from(cwd);
-    }
-
-    #[inline]
-    pub fn get_cwd(&self) -> &PathBuf {
-        &self.cwd
-    }
-
-    #[inline]
-    pub fn set_root(&mut self, root: &str) {
-        self.root = PathBuf::from(root);
-        self.add_binding(Binding::new(root, "/", true));
-    }
-
-    #[inline]
-    pub fn get_root(&self) -> &PathBuf {
-        &self.root
     }
 
     #[inline]
@@ -137,6 +120,37 @@ impl FileSystem {
         //
         //	return 0;
         Ok(())
+    }
+
+    #[inline]
+    pub fn set_cwd(&mut self, cwd: PathBuf) {
+        self.cwd = cwd;
+    }
+
+    #[inline]
+    pub fn get_cwd(&self) -> &PathBuf {
+        &self.cwd
+    }
+
+    #[inline]
+    pub fn set_root(&mut self, root: &str) {
+        self.root = PathBuf::from(root);
+        self.add_binding(Binding::new(root, "/", true));
+    }
+
+    #[inline]
+    pub fn get_root(&self) -> &PathBuf {
+        &self.root
+    }
+
+    #[inline]
+    pub fn get_glue_type(&self) -> &Mode {
+        &self.glue_type
+    }
+
+    #[inline]
+    pub fn set_glue_type(&mut self, mode: Mode) {
+        self.glue_type = mode;
     }
 }
 

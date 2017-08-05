@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 use errors::Result;
 use filesystem::binding::Direction;
 use filesystem::binding::Side::{Host, Guest};
-use filesystem::fs::FileSystem;
+use filesystem::FileSystem;
 use filesystem::substitution::Substitutor;
 use filesystem::canonicalization::Canonicalizer;
 
@@ -22,6 +22,8 @@ impl Translator for FileSystem {
             guest_path.push(self.get_cwd().to_path_buf());
 
             //TODO: dir_fd != AT_FDCWD
+        } else {
+            guest_path.push(PathBuf::from("/"))
         }
 
         #[cfg(not(test))]
@@ -128,8 +130,9 @@ impl Translator for FileSystem {
 mod tests {
     use super::*;
     use std::path::{Path, PathBuf};
+    use nix::sys::stat::{S_IRWXU, S_IRWXG, S_IRWXO};
     use filesystem::binding::Binding;
-    use filesystem::fs::FileSystem;
+    use filesystem::FileSystem;
 
     #[test]
     fn test_translate_path_without_root() {
@@ -159,6 +162,9 @@ mod tests {
         ); // "/home/test" -> "/etc/acpi"
 
         fs.add_binding(Binding::new("/usr/bin", "/bin", true));
+
+        // necessary, because "/bin/true" probably doesn't exist in "/etc/acpi"
+        fs.set_glue_type(S_IRWXU | S_IRWXG | S_IRWXO);
 
         assert_eq!(
             fs.translate_path(&Path::new("/bin/true"), false),

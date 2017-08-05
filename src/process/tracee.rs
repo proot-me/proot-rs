@@ -9,7 +9,7 @@ use errors::{Error, Result};
 use register::Registers;
 use kernel::{enter, exit};
 use process::proot::InfoBag;
-use filesystem::fs::FileSystem;
+use filesystem::FileSystem;
 
 //TODO: remove this when a nix PR will have added them
 mod ptrace_events {

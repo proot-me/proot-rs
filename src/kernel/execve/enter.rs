@@ -1,18 +1,13 @@
 use nix::errno::Errno;
 use errors::{Result, Error};
-use filesystem::{FileSystem, Translator};
+use filesystem::Translator;
 use process::tracee::Tracee;
 use register::{PtraceReader, PtraceWriter, Registers, SysArgIndex};
 use kernel::execve::shebang;
 use kernel::execve::load_info::LoadInfo;
 use kernel::execve::loader::LoaderFile;
 
-pub fn translate(
-    fs: &FileSystem,
-    tracee: &mut Tracee,
-    regs: &mut Registers,
-    loader: &LoaderFile,
-) -> Result<()> {
+pub fn translate(tracee: &mut Tracee, regs: &mut Registers, loader: &LoaderFile) -> Result<()> {
     //TODO: implement this part for ptrace translation
     //	if (IS_NOTIFICATION_PTRACED_LOAD_DONE(tracee)) {
     //		/* Syscalls can now be reported to its ptracer.  */
@@ -26,7 +21,7 @@ pub fn translate(
 
     let raw_path = regs.get_sysarg_path(SysArgIndex::SysArg1)?;
     //TODO: return user path
-    let host_path = match shebang::expand(fs, &raw_path) {
+    let host_path = match shebang::expand(&tracee.fs, &raw_path) {
         Ok(path) => path,
         // The Linux kernel actually returns -EACCES when trying to execute a directory.
         Err(Error::Sys(Errno::EISDIR, _)) => return Err(Error::from(Errno::EACCES)),
@@ -42,10 +37,10 @@ pub fn translate(
     //	Remember the new value for "/proc/self/exe".  It points to
     //	a canonicalized guest path, hence detranslate_path()
     //	instead of using user_path directly.  */
-    if let Ok(maybe_path) = fs.detranslate_path(&host_path, None) {
-        tracee.set_new_exec(Some(maybe_path.unwrap_or(host_path.clone())));
+    if let Ok(maybe_path) = tracee.fs.detranslate_path(&host_path, None) {
+        tracee.new_exe = Some(maybe_path.unwrap_or(host_path.clone()));
     } else {
-        tracee.set_new_exec(None);
+        tracee.new_exe = None;
     }
 
     //TODO: implement runner for qemu
@@ -55,7 +50,7 @@ pub fn translate(
     //			return status;
     //	}
 
-    let mut load_info = LoadInfo::from(fs, &host_path)?;
+    let mut load_info = LoadInfo::from(&tracee.fs, &host_path)?;
 
     load_info.raw_path = Some(raw_path.clone());
     //TODO: use user_path when implemented
@@ -102,15 +97,14 @@ mod tests {
     use nix::unistd::execvp;
     use syscall::nr::{EXECVE, NANOSLEEP};
     use utils::tests::fork_test;
-    use filesystem::FileSystem;
     use register::PtraceReader;
 
     #[test]
     fn test_execve_translate_enter() {
-        let fs = FileSystem::with_root("/");
         let mut at_least_one_translation_occured = false;
 
         fork_test(
+            "/",
             // expecting a normal execution
             0,
             // parent
@@ -121,7 +115,7 @@ mod tests {
 
                     // if the file executed by execve exists, we expect the translation to go well.
                     if file_exists {
-                        assert_eq!(Ok(()), translate(&fs, tracee, regs, &info_bag.loader));
+                        assert_eq!(Ok(()), translate(tracee, regs, &info_bag.loader));
                         at_least_one_translation_occured = true;
                     }
                     return false;

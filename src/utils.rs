@@ -13,6 +13,7 @@ pub mod tests {
     use process::proot::InfoBag;
     use process::tracee::Tracee;
     use register::Registers;
+    use filesystem::FileSystem;
 
     /// Allow tests to fork and deal with child processes without mixing them.
     fn test_in_subprocess<F: FnMut()>(mut func: F) {
@@ -32,7 +33,11 @@ pub mod tests {
     /// The child process will be traced on, and will execute its respective function (2nd arg).
     /// The parent process will wait and loop for events from the tracee (child process).
     /// It only stops when the parent function (1st arg) returns true.
-    pub fn fork_test<FuncParent: FnMut(&mut Registers, &mut Tracee, &mut InfoBag) -> bool, FuncChild: FnMut()>(
+    pub fn fork_test<
+        FuncParent: FnMut(&mut Registers, &mut Tracee, &mut InfoBag) -> bool,
+        FuncChild: FnMut(),
+    >(
+        fs_root: &str,
         expected_exit_signal: i8,
         mut func_parent: FuncParent,
         mut func_child: FuncChild,
@@ -41,7 +46,7 @@ pub mod tests {
             match fork().expect("fork in test") {
                 ForkResult::Parent { child } => {
                     let mut info_bag = InfoBag::new();
-                    let mut tracee = Tracee::new(child);
+                    let mut tracee = Tracee::new(child, FileSystem::with_root(fs_root));
 
                     // the parent will wait for the child's signal before calling set_ptrace_options
                     assert_eq!(

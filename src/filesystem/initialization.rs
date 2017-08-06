@@ -20,7 +20,7 @@ impl Initialiser for FileSystem {
         // Prepare the base in case cwd is relative.
         let mut raw_cwd = match self.get_cwd().is_relative() {
             true => getcwd()?,
-            false => PathBuf::new()
+            false => PathBuf::new(),
         };
 
         raw_cwd.push(self.get_cwd());
@@ -32,8 +32,11 @@ impl Initialiser for FileSystem {
             Ok(path) => path,
             Err(err) => {
                 //TODO: log error
-                eprintln!("proot warning: can't chdir (\"{}\") in the guest rootfs: {}",
-                          raw_cwd.display(), err);
+                eprintln!(
+                    "proot warning: can't chdir (\"{}\") in the guest rootfs: {}",
+                    raw_cwd.display(),
+                    err
+                );
                 println!("proot info: default working directory is now \"/\"");
                 PathBuf::from("/")
             }

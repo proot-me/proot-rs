@@ -33,10 +33,10 @@ fn main() {
         exit(-1);
     }
 
-    let mut proot: PRoot = PRoot::new(fs);
+    let mut proot: PRoot = PRoot::new();
 
     // step 2: Start the first tracee
-    proot.launch_process();
+    proot.launch_process(fs);
 
     // what follows (event loop) is only for the main thread,
     // as the child thread will stop after executing the `kernel.execve` command

@@ -50,4 +50,3 @@ pub fn parse_config(fs: &mut FileSystem) {
     let cwd: &str = matches.value_of("cwd").unwrap();
     fs.set_cwd(PathBuf::from(cwd));
 }
-

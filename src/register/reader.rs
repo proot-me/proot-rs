@@ -198,6 +198,7 @@ mod tests {
         let test_path = "my/impossible/test/path";
 
         fork_test(
+            "/",
             // expecting an error (because the path doesn't exit)
             1,
             // parent

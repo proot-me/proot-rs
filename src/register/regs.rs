@@ -97,6 +97,7 @@ mod tests {
     #[test]
     fn fetch_regs_test() {
         fork_test(
+            "/",
             // expecting a normal execution
             0,
             // parent
@@ -121,6 +122,7 @@ mod tests {
     /// the test is a success if the NANOSLEEP syscall is detected (with its corresponding signum).
     fn fetch_regs_sysnum_sleep_test() {
         fork_test(
+            "/",
             // expecting a normal execution
             0,
             // parent

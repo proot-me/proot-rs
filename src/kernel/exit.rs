@@ -6,6 +6,7 @@ use kernel::socket::*;
 use kernel::standard::*;
 use libc::c_int;
 use register::Registers;
+use process::tracee::Tracee;
 
 pub enum SyscallExitResult {
     /// The SYSARG_RESULT register will be poked and changed to the c_int value.
@@ -23,7 +24,7 @@ impl SyscallExitResult {
     }
 }
 
-pub fn translate(regs: &Registers) -> SyscallExitResult {
+pub fn translate(tracee: &Tracee, regs: &Registers) -> SyscallExitResult {
     let systype = syscall_group_from_sysnum(regs.sys_num);
 
     println!("exit  \t({:?}, \t{:?})", regs.sys_num, systype);
@@ -41,7 +42,7 @@ pub fn translate(regs: &Registers) -> SyscallExitResult {
         SyscallGroup::ReadLinkAt => readlink_at::exit(),
         #[cfg(all(target_os = "linux", target_arch = "x86_64"))]
         SyscallGroup::Uname => uname::exit(),
-        SyscallGroup::Execve => execve::exit(),
+        SyscallGroup::Execve => execve::exit(tracee, regs),
         SyscallGroup::Ptrace => ptrace::exit(),
         SyscallGroup::Wait => wait::exit(),
         _ => SyscallExitResult::None,

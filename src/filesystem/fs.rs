@@ -16,7 +16,7 @@ pub struct FileSystem {
     /// Guest root (the binding associated to `/`)
     root: PathBuf,
     /// Use for glue (//TODO: explain when implemented)
-    glue_type: Mode
+    glue_type: Mode,
 }
 
 impl FileSystem {
@@ -25,7 +25,7 @@ impl FileSystem {
             bindings: vec![],
             cwd: PathBuf::from("."),
             root: PathBuf::from("/"),
-            glue_type: Mode::empty()
+            glue_type: Mode::empty(),
         }
     }
 

@@ -99,7 +99,9 @@ mod tests {
 
         assert_eq!(
             fs.canonicalize(&path, false),
-            Err(Error::no_such_file_or_dir("when substituting intermediary without glue"))
+            Err(Error::no_such_file_or_dir(
+                "when substituting intermediary without glue",
+            ))
         );
     }
 

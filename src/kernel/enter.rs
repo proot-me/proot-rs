@@ -7,16 +7,10 @@ use kernel::standard::*;
 use kernel::groups::syscall_group_from_sysnum;
 use kernel::groups::SyscallGroup::*;
 use register::Registers;
-use filesystem::FileSystem;
 use process::tracee::Tracee;
 use process::proot::InfoBag;
 
-pub fn translate(
-    fs: &FileSystem,
-    info_bag: &InfoBag,
-    tracee: &mut Tracee,
-    regs: &mut Registers,
-) -> Result<()> {
+pub fn translate(info_bag: &InfoBag, tracee: &mut Tracee, regs: &mut Registers) -> Result<()> {
     let sys_type = syscall_group_from_sysnum(regs.sys_num);
 
     println!("enter  \t({:?}, \t{:?}) ", regs.sys_num, sys_type);
@@ -28,7 +22,7 @@ pub fn translate(
         Chdir => chdir::enter(),
         ChmodAccessMkNodAt => chmod_access_mknod_at::enter(),
         DirLinkAttr => dir_link_attr::enter(),
-        Execve => execve::enter(fs, tracee, regs, &info_bag.loader),
+        Execve => execve::enter(tracee, regs, &info_bag.loader),
         GetCwd => getcwd::enter(),
         GetSockOrPeerName => get_sockorpeer_name::enter(),
         InotifyAddWatch => inotify_add_watch::enter(),

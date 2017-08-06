@@ -46,7 +46,7 @@ impl Substitutor for FileSystem {
     #[inline]
     fn substitute_intermediary_and_glue(
         &self,
-        guest_path: &Path
+        guest_path: &Path,
     ) -> Result<(PathBuf, Option<FileType>)> {
         let substituted_path = self.substitute_binding(guest_path, Direction(Guest, Host))?;
         let host_path = substituted_path.unwrap_or(guest_path.to_path_buf());
@@ -67,7 +67,9 @@ impl Substitutor for FileSystem {
                     // for now we return the same path
                     Ok((host_path, None))
                 } else {
-                    Err(Error::no_such_file_or_dir("when substituting intermediary without glue"))
+                    Err(Error::no_such_file_or_dir(
+                        "when substituting intermediary without glue",
+                    ))
                 }
             }
         }

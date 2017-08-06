@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::ptr::null_mut;
 use std::ffi::CString;
 use process::tracee::Tracee;
+use process::event::EventHandler;
 use filesystem::FileSystem;
 use filesystem::temp::TempFile;
 
@@ -46,17 +47,14 @@ pub struct PRoot {
     info_bag: InfoBag,
     tracees: HashMap<Pid, Tracee>,
     alive_tracees: Vec<Pid>,
-    /// Information related to a file-system name-space.
-    fs: FileSystem,
 }
 
 impl PRoot {
-    pub fn new(fs: FileSystem) -> PRoot {
+    pub fn new() -> PRoot {
         PRoot {
             info_bag: InfoBag::new(),
             tracees: HashMap::new(),
             alive_tracees: vec![],
-            fs: fs,
         }
     }
 
@@ -69,11 +67,11 @@ impl PRoot {
     /// on all the shared memory of the parent and child processes
     /// (heap, libraries...), so both of them will have their own (owned) version
     /// of the PRoot memory.
-    pub fn launch_process(&mut self) {
+    pub fn launch_process(&mut self, initial_fs: FileSystem) {
         match fork().expect("fork in launch process") {
             ForkResult::Parent { child } => {
                 // we create the first tracee
-                self.create_tracee(child);
+                self.create_tracee(child, initial_fs);
             }
             ForkResult::Child => {
                 // Declare the tracee as ptraceable
@@ -158,26 +156,23 @@ impl PRoot {
     }
 
     fn handle_standard_event(&mut self, tracee_pid: Pid, signal: Option<Signal>) {
-        let (wrapped_tracee, fs, info_bag) = self.get_mut_tracee_and_all(tracee_pid);
+        let (wrapped_tracee, info_bag) = self.get_mut_tracee_and_all(tracee_pid);
         let mut tracee = wrapped_tracee.expect("get stopped tracee");
 
-        tracee.handle_event(fs, info_bag, signal);
+        tracee.handle_event(info_bag, signal);
         tracee.restart();
     }
 
     /******** Utilities ****************/
 
-    pub fn create_tracee(&mut self, pid: Pid) -> Option<&Tracee> {
-        self.tracees.insert(pid, Tracee::new(pid));
+    pub fn create_tracee(&mut self, pid: Pid, fs: FileSystem) -> Option<&Tracee> {
+        self.tracees.insert(pid, Tracee::new(pid, fs));
         self.register_alive_tracee(pid);
         self.tracees.get(&pid)
     }
 
-    fn get_mut_tracee_and_all(
-        &mut self,
-        pid: Pid,
-    ) -> (Option<&mut Tracee>, &mut FileSystem, &mut InfoBag) {
-        (self.tracees.get_mut(&pid), &mut self.fs, &mut self.info_bag)
+    fn get_mut_tracee_and_all(&mut self, pid: Pid) -> (Option<&mut Tracee>, &mut InfoBag) {
+        (self.tracees.get_mut(&pid), &mut self.info_bag)
     }
 
     fn register_alive_tracee(&mut self, pid: Pid) {
@@ -209,21 +204,21 @@ mod tests {
     #[test]
     fn create_proot_and_tracee() {
         let fs = FileSystem::new();
-        let mut proot = PRoot::new(fs);
+        let mut proot = PRoot::new();
 
         // tracee 0 shouldn't exist
         {
-            let (tracee, _, _) = proot.get_mut_tracee_and_all(Pid::from_raw(0));
+            let (tracee, _) = proot.get_mut_tracee_and_all(Pid::from_raw(0));
             assert!(tracee.is_none());
         }
 
         {
-            proot.create_tracee(Pid::from_raw(0));
+            proot.create_tracee(Pid::from_raw(0), fs);
         }
 
         // tracee 0 should exist
         {
-            let (tracee, _, _) = proot.get_mut_tracee_and_all(Pid::from_raw(0));
+            let (tracee, _) = proot.get_mut_tracee_and_all(Pid::from_raw(0));
             assert!(tracee.is_some());
         }
     }

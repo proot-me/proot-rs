@@ -29,7 +29,7 @@ impl PtraceMemoryAllocator for Registers {
     /// Returns the address of the allocated memory in the @tracee's memory
     /// space, otherwise an error.
     fn alloc_mem(&mut self, size: isize) -> Result<Word> {
-        let original_stack_pointer = get_reg!(self.original_regs, StackPointer);
+        let original_stack_pointer = get_reg!(self.raw_regs, StackPointer);
 
         // Some ABIs specify an amount of bytes after the stack
         // pointer that shall not be used by anything but the compiler

@@ -16,10 +16,17 @@ pub enum SyscallExitResult {
 }
 
 impl SyscallExitResult {
-    pub fn is_none(&self) -> bool {
+    pub fn is_err(&self) -> bool {
         match *self {
-            SyscallExitResult::None => true,
-            _ => false,
+            SyscallExitResult::None => false,
+            SyscallExitResult::Value(_) => true,
+        }
+    }
+
+    pub fn get_errno(&self) -> i32 {
+        match *self {
+            SyscallExitResult::None => 0,
+            SyscallExitResult::Value(errno) => errno
         }
     }
 }

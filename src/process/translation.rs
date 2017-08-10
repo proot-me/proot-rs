@@ -1,5 +1,5 @@
 use errors::Result;
-use register::Registers;
+use register::{Word, Registers};
 use kernel::{enter, exit};
 use process::proot::InfoBag;
 use process::tracee::{TraceeStatus, TraceeRestartMethod, Tracee};
@@ -7,7 +7,7 @@ use process::tracee::{TraceeStatus, TraceeRestartMethod, Tracee};
 pub trait SyscallTranslator {
     fn translate_syscall(&mut self, info_bag: &InfoBag);
     fn translate_syscall_enter(&mut self, info_bag: &InfoBag, regs: &mut Registers) -> Result<()>;
-    fn translate_syscall_exit(&mut self, regs: &Registers);
+    fn translate_syscall_exit(&mut self, regs: &mut Registers);
 }
 
 impl SyscallTranslator for Tracee {
@@ -17,27 +17,24 @@ impl SyscallTranslator for Tracee {
     fn translate_syscall(&mut self, info_bag: &InfoBag) {
         // We retrieve the registers of the current tracee.
         // They contain the system call's number, arguments and other register's info.
-        let mut regs = match Registers::retrieve(self.pid) {
+        let mut regs = match Registers::fetch_regs(self.pid) {
             Ok(regs) => regs,
             Err(_) => return,
         };
 
         match self.status {
             TraceeStatus::SysEnter => {
-                /* Never restore original register values at the end
-                 * of this stage.  */
-                // tracee->restore_original_regs = false;
+                // Never restore original register values at the end of this stage.
+                regs.push_only_result = false;
 
-                // save_current_regs(tracee, ORIGINAL);
                 let status = self.translate_syscall_enter(info_bag, &mut regs);
-                // save_current_regs(tracee, MODIFIED);
 
                 if status.is_err() {
                     // Remember the tracee status for the "exit" stage and
                     // avoid the actual syscall if an error was reported
                     // by the translation/extension.
-                    // set_sysnum(tracee, PR_void);
-                    // poke_reg(tracee, SYSARG_RESULT, (word_t) status);
+                    regs.void_syscall();
+                    regs.sys_arg_result = status.unwrap_err().get_errno() as Word;
                     self.status = TraceeStatus::Error(status.unwrap_err());
                 } else {
                     self.status = TraceeStatus::SysExit;
@@ -48,23 +45,33 @@ impl SyscallTranslator for Tracee {
                 // there's nothing else to do).
                 if self.restart_how == TraceeRestartMethod::WithoutExitStage {
                     self.status = TraceeStatus::SysEnter;
-                    // poke_reg(tracee, STACK_POINTER, peek_reg(tracee, ORIGINAL, STACK_POINTER));
+                    regs.restore_stack_pointer();
                 }
             }
             TraceeStatus::SysExit |
             TraceeStatus::Error(_) => {
-                /* By default, restore original register values at the
-                 * end of this stage.  */
-                // tracee->restore_original_regs = true;
+                // By default, restore original register values at the end of this stage.
+                regs.push_only_result = true;
 
-                self.translate_syscall_exit(&regs);
+                self.translate_syscall_exit(&mut regs);
 
                 // reset the tracee's status
                 self.status = TraceeStatus::SysEnter;
             }
         }
 
-        // push_regs
+
+
+        //TODO: uncomment when execve is ready
+        //if let Err(error) = regs.push_regs() {
+        //    eprintln!("proot error: Error while pushing regs: {}", error);
+        //}
+
+        // Saving the registers of the sys enter stage,
+        // as these are useful for the sys exit stage translation.
+        if self.status == TraceeStatus::SysExit {
+            self.saved_regs = Some(regs);
+        }
     }
 
     fn translate_syscall_enter(&mut self, info_bag: &InfoBag, regs: &mut Registers) -> Result<()> {
@@ -83,7 +90,7 @@ impl SyscallTranslator for Tracee {
         status
     }
 
-    fn translate_syscall_exit(&mut self, regs: &Registers) {
+    fn translate_syscall_exit(&mut self, regs: &mut Registers) {
         // status = notify_extensions(tracee, SYSCALL_EXIT_START, 0, 0);
         // if (status < 0) {
         //     poke_reg(tracee, SYSARG_RESULT, (word_t) status);
@@ -94,12 +101,12 @@ impl SyscallTranslator for Tracee {
 
         // Set the tracee's errno if an error occurred previously during the translation.
         if self.status.is_err() {
-            // poke_reg(tracee, SYSARG_RESULT, (word_t) tracee->status);
+            regs.sys_arg_result = self.status.get_errno() as Word;
         } else {
-            let syscall_exit_result = exit::translate(self, regs);
+            let result = exit::translate(self, regs);
 
-            if !syscall_exit_result.is_none() {
-                // poke_reg(tracee, SYSARG_RESULT, (word_t) status.get_value());
+            if result.is_err() {
+                regs.sys_arg_result = result.get_errno() as Word;
             }
         }
 

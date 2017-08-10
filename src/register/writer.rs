@@ -72,19 +72,13 @@ impl PtraceWriter for Registers {
             let word = buf.read_uint::<LittleEndian>(word_size).unwrap() as Word;
             let dest_addr = unsafe { dest_tracee.offset(i) as *mut c_void };
 
-            ptrace(
-                PTRACE_POKEDATA,
-                self.get_pid(),
-                dest_addr,
-                word as *mut c_void,
-            )?;
+            ptrace(PTRACE_POKEDATA, self.pid, dest_addr, word as *mut c_void)?;
         }
 
         // Copy the bytes in the last word carefully since we have to
         // overwrite only the relevant ones.
         let last_dest_addr = unsafe { dest_tracee.offset(nb_full_words) as *mut c_void };
-        let existing_word =
-            ptrace(PTRACE_PEEKDATA, self.get_pid(), last_dest_addr, null_mut())? as Word;
+        let existing_word = ptrace(PTRACE_PEEKDATA, self.pid, last_dest_addr, null_mut())? as Word;
         let mut bytes = convert_word_to_bytes(existing_word);
 
         // The trailing bytes are merged with the existing bytes. For example:
@@ -99,7 +93,7 @@ impl PtraceWriter for Registers {
         // We can now safely write the final word.
         ptrace(
             PTRACE_POKEDATA,
-            self.get_pid(),
+            self.pid,
             last_dest_addr,
             last_word as *mut c_void,
         )?;
@@ -128,7 +122,7 @@ mod tests {
             // expecting an error (because the path doesn't exit)
             1,
             // parent
-            |regs, _, _| {
+            |mut regs, _, _| {
                 if regs.sys_num == MKDIR {
                     let dir_path = regs.get_sysarg_path(SysArgIndex::SysArg1).unwrap();
 

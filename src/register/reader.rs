@@ -41,7 +41,7 @@ impl PtraceReader for Registers {
             Ok(PathBuf::new())
         } else {
             // Get the path from the tracee's memory space.
-            read_path(self.get_pid(), src_sysarg)
+            read_path(self.pid, src_sysarg)
         }
     }
 }

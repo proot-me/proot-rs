@@ -115,7 +115,7 @@ mod tests {
 
                     // if the file executed by execve exists, we expect the translation to go well.
                     if file_exists {
-                        assert_eq!(Ok(()), translate(tracee, regs, &info_bag.loader));
+                        assert_eq!(Ok(()), translate(tracee, &mut regs, &info_bag.loader));
                         at_least_one_translation_occured = true;
                     }
                     return false;

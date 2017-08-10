@@ -30,12 +30,14 @@ pub trait PtraceWriter {
         sys_arg: SysArgIndex,
         path: &Path,
         original_regs: Option<&Registers>,
+        justification: &'static str,
     ) -> Result<()>;
     fn set_sysarg_data(
         &mut self,
         sys_arg: SysArgIndex,
         data: &[u8],
         original_regs: Option<&Registers>,
+        justification: &'static str,
     ) -> Result<()>;
     fn write_data(&self, dest_tracee: *mut Word, data: &[u8]) -> Result<()>;
 }
@@ -47,8 +49,14 @@ impl PtraceWriter for Registers {
         sys_arg: SysArgIndex,
         path: &Path,
         original_regs: Option<&Registers>,
+        justification: &'static str,
     ) -> Result<()> {
-        self.set_sysarg_data(sys_arg, path.as_os_str().as_bytes(), original_regs)
+        self.set_sysarg_data(
+            sys_arg,
+            path.as_os_str().as_bytes(),
+            original_regs,
+            justification,
+        )
     }
 
     /// Copies all bytes of `data` to the tracee's memory block
@@ -58,6 +66,7 @@ impl PtraceWriter for Registers {
         sys_arg: SysArgIndex,
         data: &[u8],
         original_regs: Option<&Registers>,
+        justification: &'static str,
     ) -> Result<()> {
         // Allocate space into the tracee's memory to host the new data.
         let tracee_ptr = self.alloc_mem(data.len() as isize, original_regs)?;
@@ -66,7 +75,7 @@ impl PtraceWriter for Registers {
         self.write_data(tracee_ptr as *mut Word, data)?;
 
         // Make this argument point to the new data.
-        self.set(SysArg(sys_arg), tracee_ptr);
+        self.set(SysArg(sys_arg), tracee_ptr, justification);
 
         Ok(())
     }
@@ -159,8 +168,12 @@ mod tests {
 
                     // we write the new path
                     assert!(
-                        regs.set_sysarg_path(SysArg1, &PathBuf::from(test_path_2), None)
-                            .is_ok()
+                        regs.set_sysarg_path(
+                            SysArg1,
+                            &PathBuf::from(test_path_2),
+                            None,
+                            "test sysarg",
+                        ).is_ok()
                     );
 
                     // we read the new path from the tracee's memory

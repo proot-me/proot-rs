@@ -7,7 +7,6 @@ pub fn enter() -> Result<()> {
 }
 
 pub fn exit() -> SyscallExitResult {
-    let new_size = 0;
     //    char referee[PATH_MAX];
     //    char referer[PATH_MAX];
     //    size_t old_size;
@@ -83,5 +82,5 @@ pub fn exit() -> SyscallExitResult {
     //        return SyscallExitResult::Value(status);
     //
     // The value of "status" is used to update the returned value in translate_syscall_exit().
-    SyscallExitResult::Value(new_size)
+    SyscallExitResult::None
 }

@@ -155,7 +155,14 @@ impl Registers {
     }
 
     #[inline]
-    pub fn set(&mut self, register: Register, new_value: Word) {
+    pub fn set(&mut self, register: Register, new_value: Word, justification: &'static str) {
+        println!(
+            "\t\t~ modifying reg: {:?}, new_value: {}, {}",
+            register,
+            new_value,
+            justification
+        );
+
         match register {
             SysNum => self.sys_num = new_value as usize,
             SysArg(index) => self.sys_args[index as usize] = new_value,

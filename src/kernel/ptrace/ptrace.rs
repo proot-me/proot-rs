@@ -6,5 +6,5 @@ pub fn enter() -> Result<()> {
 }
 
 pub fn exit() -> SyscallExitResult {
-    SyscallExitResult::Value(0)
+    SyscallExitResult::None
 }

@@ -76,7 +76,15 @@ pub fn translate(tracee: &mut Tracee, regs: &mut Registers, loader: &LoaderFile)
     loader.prepare_loader()?;
 
     // Save the loader path in the register, so that the loader will be executed instead.
-    regs.set_sysarg_path(SysArg1, loader.get_loader_path(), None)?;
+    //TODO: uncomment this when execve::exit is ready
+    /*
+    regs.set_sysarg_path(
+        SysArg1,
+        loader.get_loader_path(),
+        None,
+        "setting new loader path",
+    )?;
+    */
 
     //TODO: implemented ptracee translation
     //	/* Mask to its ptracer kernel performed by the loader.  */

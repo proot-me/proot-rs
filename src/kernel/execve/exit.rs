@@ -13,5 +13,5 @@ pub fn translate(tracee: &Tracee, regs: &Registers) -> SyscallExitResult {
         tracee.new_exe
     );
 
-    SyscallExitResult::Value(0)
+    SyscallExitResult::None
 }

@@ -29,5 +29,5 @@ pub fn exit() -> SyscallExitResult {
     //    if (status < 0)
     //        return SyscallExitResult::Value(status);
     //
-    SyscallExitResult::Value(0)
+    SyscallExitResult::None
 }

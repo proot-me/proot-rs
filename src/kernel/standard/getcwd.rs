@@ -9,8 +9,6 @@ pub fn enter() -> Result<()> {
 }
 
 pub fn exit() -> SyscallExitResult {
-    let new_size = 0;
-
     //    char path[PATH_MAX];
     //    size_t new_size;
     //    size_t size;
@@ -39,5 +37,5 @@ pub fn exit() -> SyscallExitResult {
     //    if (status < 0)
     //        break;
     //
-    SyscallExitResult::Value(new_size)
+    SyscallExitResult::None
 }

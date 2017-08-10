@@ -1,6 +1,7 @@
 use errors::Result;
 use register::{Word, Registers, SysResult};
 use kernel::{enter, exit};
+use kernel::exit::SyscallExitResult;
 use process::proot::InfoBag;
 use process::tracee::{TraceeStatus, TraceeRestartMethod, Tracee};
 
@@ -34,7 +35,11 @@ impl SyscallTranslator for Tracee {
                     // avoid the actual syscall if an error was reported
                     // by the translation/extension.
                     regs.void_syscall();
-                    regs.set(SysResult, status.unwrap_err().get_errno() as Word);
+                    regs.set(
+                        SysResult,
+                        status.unwrap_err().get_errno() as Word,
+                        "setting errno because of an error that occurred during enter translation",
+                    );
                     self.status = TraceeStatus::Error(status.unwrap_err());
                 } else {
                     self.status = TraceeStatus::SysExit;
@@ -60,10 +65,9 @@ impl SyscallTranslator for Tracee {
             }
         }
 
-        //TODO: fix this
-        //if let Err(error) = regs.push_regs() {
-        //    eprintln!("proot error: Error while pushing regs: {}", error);
-        //}
+        if let Err(error) = regs.push_regs() {
+            eprintln!("proot error: Error while pushing regs: {}", error);
+        }
 
         // Saving the registers of the sys enter stage,
         // as these are useful for the sys exit stage translation.
@@ -73,6 +77,7 @@ impl SyscallTranslator for Tracee {
     }
 
     fn translate_syscall_enter(&mut self, info_bag: &InfoBag, regs: &mut Registers) -> Result<()> {
+        //TODO: notify extensions for SYSCALL_ENTER_START
         // status = notify_extensions(tracee, SYSCALL_ENTER_START, 0, 0);
         // if (status < 0)
         //     goto end;
@@ -81,6 +86,7 @@ impl SyscallTranslator for Tracee {
 
         let status = enter::translate(info_bag, self, regs);
 
+        //TODO: notify extensions for SYSCALL_ENTER_END event
         // status2 = notify_extensions(tracee, SYSCALL_ENTER_END, status, 0);
         // if (status2 < 0)
         //     status = status2;
@@ -89,6 +95,7 @@ impl SyscallTranslator for Tracee {
     }
 
     fn translate_syscall_exit(&mut self, regs: &mut Registers) {
+        //TODO: notify extensions for SYSCALL_EXIT_START event
         // status = notify_extensions(tracee, SYSCALL_EXIT_START, 0, 0);
         // if (status < 0) {
         //     poke_reg(tracee, SYSARG_RESULT, (word_t) status);
@@ -97,17 +104,35 @@ impl SyscallTranslator for Tracee {
         // if (status > 0)
         //     return;
 
-        if self.status.is_err() {
-            // Set the tracee's errno if an error occurred previously during the translation.
-            regs.set(SysResult, self.status.get_errno() as Word);
+        if self.status.is_ok() {
+            // the exit stage translation happens now
+            match exit::translate(self, regs) {
+                SyscallExitResult::None => (), // do not alter the result,
+                SyscallExitResult::Value(value) => {
+                    regs.set(
+                        SysResult,
+                        value as Word,
+                        "setting new syscall result after exit translation",
+                    )
+                }
+                SyscallExitResult::Error(error) => {
+                    regs.set(
+                        SysResult,
+                        // errno is negative
+                        error.get_errno() as Word,
+                        "setting errno because of an error that occurred during exit translation",
+                    )
+                }
+            };
         } else {
-            let result = exit::translate(self, regs);
-
-            if result.is_err() {
-                regs.set(SysResult, result.get_errno() as Word);
-            }
+            regs.set(
+                SysResult,
+                self.status.get_errno() as Word,
+                "setting errno because of an error that occurred previously",
+            );
         }
 
+        //TODO: notify extensions for SYSCALL_EXIT_END event
         // status = notify_extensions(tracee, SYSCALL_EXIT_END, 0, 0);
         // if (status < 0)
         //     poke_reg(tracee, SYSARG_RESULT, (word_t) status);

@@ -73,5 +73,5 @@ pub fn enter() -> Result<()> {
 
 pub fn exit() -> SyscallExitResult {
     // This syscall is fully emulated, see method `enter()` above.
-    SyscallExitResult::Value(0)
+    SyscallExitResult::None
 }

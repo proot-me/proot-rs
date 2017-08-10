@@ -27,6 +27,10 @@ impl TraceeStatus {
         }
     }
 
+    pub fn is_ok(&self) -> bool {
+        !self.is_err()
+    }
+
     pub fn get_errno(&self) -> i32 {
         match *self {
             TraceeStatus::Error(err) => err.get_errno(),

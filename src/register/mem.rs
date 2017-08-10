@@ -61,7 +61,7 @@ impl PtraceMemoryAllocator for Registers {
             false => stack_pointer + (-corrected_size as Word),
         };
 
-        self.set(StackPointer, new_stack_pointer);
+        self.set(StackPointer, new_stack_pointer, "allocating memory");
 
         Ok(new_stack_pointer)
     }

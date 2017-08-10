@@ -62,7 +62,7 @@ pub mod tests {
                         match waitpid(child, Some(__WALL)).expect("event loop waitpid") {
                             PtraceSyscall(pid) => {
                                 assert_eq!(pid, child);
-                                let mut regs = Registers::fetch_regs(child).expect("fetch regs");
+                                let regs = Registers::fetch_regs(child).expect("fetch regs");
 
                                 if func_parent(regs, &mut tracee, &mut info_bag) {
                                     break;

@@ -167,5 +167,5 @@ pub fn exit() -> SyscallExitResult {
     //	}
     //
     //	DEBUG_BRK("brk() = 0x%lx\n", peek_reg(tracee, CURRENT, SYSARG_RESULT));
-    SyscallExitResult::Value(0)
+    SyscallExitResult::None
 }

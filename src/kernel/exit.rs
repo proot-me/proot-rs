@@ -4,31 +4,21 @@ use kernel::heap::*;
 use kernel::ptrace::*;
 use kernel::socket::*;
 use kernel::standard::*;
-use libc::c_int;
-use register::{Registers, SysNum};
+use errors::Error;
+use register::{Word, Registers, SysNum};
 use process::tracee::Tracee;
 
+#[allow(dead_code)]
 pub enum SyscallExitResult {
-    /// The SYSARG_RESULT register will be poked and changed to the c_int value.
-    Value(c_int),
-    /// The SYSARG_RESULT register won't be changed.
+    /// Indicates a new value for the syscall result, that is not an error.
+    /// The SYS_RESULT register will be poked and changed to the new value.
+    Value(Word),
+    /// Indicates an error that happened during the translation.
+    /// The SYS_RESULT register will be poked and changed to the new value.
+    /// More precisely, the new value will be `-errno`.
+    Error(Error),
+    /// The SYS_RESULT register won't be overwritten.
     None,
-}
-
-impl SyscallExitResult {
-    pub fn is_err(&self) -> bool {
-        match *self {
-            SyscallExitResult::None => false,
-            SyscallExitResult::Value(_) => true,
-        }
-    }
-
-    pub fn get_errno(&self) -> i32 {
-        match *self {
-            SyscallExitResult::None => 0,
-            SyscallExitResult::Value(errno) => errno,
-        }
-    }
 }
 
 pub fn translate(tracee: &Tracee, regs: &Registers) -> SyscallExitResult {

@@ -83,5 +83,5 @@ pub fn exit() -> SyscallExitResult {
     //		tracee->fs->cwd = tmp;
     //
     //		status = 0;
-    SyscallExitResult::Value(0)
+    SyscallExitResult::None
 }

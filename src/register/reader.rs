@@ -7,7 +7,7 @@ use errors::Error;
 use nix::unistd::Pid;
 use nix::sys::ptrace::ptrace;
 use nix::sys::ptrace::ptrace::PTRACE_PEEKDATA;
-use register::{Word, SysArgIndex, Registers};
+use register::{Word, SysArg, Registers, SysArgIndex};
 
 #[cfg(target_pointer_width = "32")]
 #[inline]
@@ -32,7 +32,7 @@ impl PtraceReader for Registers {
     /// `Ok(PathBuf::new())` if the syscall argument is null, or an error.
     #[inline]
     fn get_sysarg_path(&self, sys_arg: SysArgIndex) -> Result<PathBuf> {
-        let src_sysarg = self.get_arg(sys_arg) as *mut Word;
+        let src_sysarg = self.get(SysArg(sys_arg)) as *mut Word;
 
         if src_sysarg.is_null() {
             // Check if the parameter is not NULL. Technically we should
@@ -41,7 +41,7 @@ impl PtraceReader for Registers {
             Ok(PathBuf::new())
         } else {
             // Get the path from the tracee's memory space.
-            read_path(self.pid, src_sysarg)
+            read_path(self.get_pid(), src_sysarg)
         }
     }
 }
@@ -140,9 +140,7 @@ mod tests {
     use nix::unistd::{execvp, getpid};
     use utils::tests::fork_test;
     use syscall::nr::MKDIR;
-    use register::Word;
-    use register::SysArgIndex::*;
-    use register::Registers;
+    use register::*;
 
     #[test]
     #[cfg(target_pointer_width = "64")]
@@ -203,8 +201,8 @@ mod tests {
             1,
             // parent
             |regs, _, _| {
-                if regs.sys_num == MKDIR {
-                    let dir_path = regs.get_sysarg_path(SysArgIndex::SysArg1).unwrap();
+                if regs.get(SysNum) as usize == MKDIR {
+                    let dir_path = regs.get_sysarg_path(SysArg1).unwrap();
 
                     // we're checking that the string read in the tracee's memory
                     // corresponds to what has been given to the execve command

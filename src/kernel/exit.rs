@@ -5,7 +5,7 @@ use kernel::ptrace::*;
 use kernel::socket::*;
 use kernel::standard::*;
 use libc::c_int;
-use register::Registers;
+use register::{Registers, SysNum};
 use process::tracee::Tracee;
 
 pub enum SyscallExitResult {
@@ -26,15 +26,15 @@ impl SyscallExitResult {
     pub fn get_errno(&self) -> i32 {
         match *self {
             SyscallExitResult::None => 0,
-            SyscallExitResult::Value(errno) => errno
+            SyscallExitResult::Value(errno) => errno,
         }
     }
 }
 
 pub fn translate(tracee: &Tracee, regs: &Registers) -> SyscallExitResult {
-    let systype = syscall_group_from_sysnum(regs.sys_num);
+    let systype = syscall_group_from_sysnum(regs.get(SysNum) as usize);
 
-    println!("exit  \t({:?}, \t{:?})", regs.sys_num, systype);
+    println!("exit  \t({:?}, \t{:?})", regs.get(SysNum), systype);
 
     match systype {
         SyscallGroup::Brk => brk::exit(),

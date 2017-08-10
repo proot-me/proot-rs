@@ -1,6 +1,6 @@
 use std::usize::MAX as USIZE_MAX;
 use errors::{Result, Error};
-use register::{Word, Registers};
+use register::{Word, Registers, StackPointer};
 
 #[cfg(all(target_os = "linux", target_arch = "x86_64"))]
 const RED_ZONE_SIZE: isize = 128;
@@ -8,7 +8,7 @@ const RED_ZONE_SIZE: isize = 128;
 const RED_ZONE_SIZE: isize = 0;
 
 pub trait PtraceMemoryAllocator {
-    fn alloc_mem(&mut self, size: isize) -> Result<Word>;
+    fn alloc_mem(&mut self, size: isize, original_regs: Option<&Registers>) -> Result<Word>;
 }
 
 impl PtraceMemoryAllocator for Registers {
@@ -28,21 +28,25 @@ impl PtraceMemoryAllocator for Registers {
     ///
     /// Returns the address of the allocated memory in the @tracee's memory
     /// space, otherwise an error.
-    fn alloc_mem(&mut self, size: isize) -> Result<Word> {
-        let original_stack_pointer = get_reg!(self.raw_regs, StackPointer);
+    fn alloc_mem(&mut self, size: isize, original_regs: Option<&Registers>) -> Result<Word> {
+        let original_stack_pointer = match original_regs {
+            Some(regs) => regs.get_raw(StackPointer),
+            None => self.get_raw(StackPointer),
+        };
+        let stack_pointer = self.get(StackPointer);
 
         // Some ABIs specify an amount of bytes after the stack
         // pointer that shall not be used by anything but the compiler
         // (for optimization purpose).
-        let corrected_size = match self.stack_pointer == original_stack_pointer {
+        let corrected_size = match stack_pointer == original_stack_pointer {
             false => size,
             true => size + RED_ZONE_SIZE,
         };
+        let overflow = corrected_size > 0 && stack_pointer <= corrected_size as Word;
+        let underflow = corrected_size < 0 &&
+            stack_pointer >= (USIZE_MAX as Word) - (-corrected_size as Word);
 
-        if (corrected_size > 0 && self.stack_pointer <= corrected_size as Word) ||
-            (corrected_size < 0 &&
-                 self.stack_pointer >= (USIZE_MAX as Word) - (-corrected_size as Word))
-        {
+        if overflow || underflow {
             //TODO: log warning
             // note(tracee, WARNING, INTERNAL, "integer under/overflow detected in %s",
             //     __FUNCTION__);
@@ -52,12 +56,14 @@ impl PtraceMemoryAllocator for Registers {
         }
 
         // Remember the stack grows downward.
-        self.stack_pointer = match corrected_size > 0 {
-            true => self.stack_pointer - (corrected_size as Word),
-            false => self.stack_pointer + (-corrected_size as Word),
+        let new_stack_pointer = match corrected_size > 0 {
+            true => stack_pointer - (corrected_size as Word),
+            false => stack_pointer + (-corrected_size as Word),
         };
 
-        Ok(self.stack_pointer)
+        self.set(StackPointer, new_stack_pointer);
+
+        Ok(new_stack_pointer)
     }
 }
 
@@ -80,7 +86,7 @@ mod tests {
 
         let mut regs = Registers::from(getpid(), raw_regs);
         let alloc_size = 7575;
-        let new_stack_pointer = regs.alloc_mem(alloc_size).unwrap();
+        let new_stack_pointer = regs.alloc_mem(alloc_size, None).unwrap();
 
         // Remember the stack grows downward.
         assert!(new_stack_pointer < starting_stack_pointer);
@@ -99,7 +105,7 @@ mod tests {
 
         let mut regs = Registers::from(getpid(), raw_regs);
         let alloc_size = 7575;
-        let result = regs.alloc_mem(alloc_size);
+        let result = regs.alloc_mem(alloc_size, None);
 
         assert_eq!(
             Err(Error::bad_address(
@@ -118,7 +124,7 @@ mod tests {
 
         let mut regs = Registers::from(getpid(), raw_regs);
         let alloc_size = -7575;
-        let result = regs.alloc_mem(alloc_size);
+        let result = regs.alloc_mem(alloc_size, None);
 
         assert_eq!(
             Err(Error::bad_address(

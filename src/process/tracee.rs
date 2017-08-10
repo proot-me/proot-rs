@@ -30,7 +30,7 @@ impl TraceeStatus {
     pub fn get_errno(&self) -> i32 {
         match *self {
             TraceeStatus::Error(err) => err.get_errno(),
-            _ => 0
+            _ => 0,
         }
     }
 }

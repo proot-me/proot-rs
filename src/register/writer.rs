@@ -1,4 +1,4 @@
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::os::unix::ffi::OsStrExt;
 use std::mem;
 use std::ptr::null_mut;
@@ -9,7 +9,7 @@ use nix::sys::ptrace::ptrace::{PTRACE_POKEDATA, PTRACE_PEEKDATA};
 use std::io::Cursor;
 use byteorder::{LittleEndian, ReadBytesExt};
 use errors::Result;
-use register::{Word, SysArgIndex, PtraceMemoryAllocator, Registers};
+use register::{Word, SysArgIndex, PtraceMemoryAllocator, Registers, SysArg};
 use register::reader::convert_word_to_bytes;
 
 #[cfg(target_pointer_width = "32")]
@@ -25,28 +25,48 @@ pub fn convert_bytes_to_word(value_to_convert: [u8; 8]) -> Word {
 }
 
 pub trait PtraceWriter {
-    fn set_sysarg_path(&mut self, sys_arg: SysArgIndex, path: &Path) -> Result<()>;
-    fn set_sysarg_data(&mut self, sys_arg: SysArgIndex, data: &[u8]) -> Result<()>;
+    fn set_sysarg_path(
+        &mut self,
+        sys_arg: SysArgIndex,
+        path: &Path,
+        original_regs: Option<&Registers>,
+    ) -> Result<()>;
+    fn set_sysarg_data(
+        &mut self,
+        sys_arg: SysArgIndex,
+        data: &[u8],
+        original_regs: Option<&Registers>,
+    ) -> Result<()>;
     fn write_data(&self, dest_tracee: *mut Word, data: &[u8]) -> Result<()>;
 }
 
 impl PtraceWriter for Registers {
     /// Converts `path` into bytes before calling the following function.
-    fn set_sysarg_path(&mut self, sys_arg: SysArgIndex, path: &Path) -> Result<()> {
-        self.set_sysarg_data(sys_arg, path.as_os_str().as_bytes())
+    fn set_sysarg_path(
+        &mut self,
+        sys_arg: SysArgIndex,
+        path: &Path,
+        original_regs: Option<&Registers>,
+    ) -> Result<()> {
+        self.set_sysarg_data(sys_arg, path.as_os_str().as_bytes(), original_regs)
     }
 
     /// Copies all bytes of `data` to the tracee's memory block
     /// and makes `sys_arg` point to this new block.
-    fn set_sysarg_data(&mut self, sys_arg: SysArgIndex, data: &[u8]) -> Result<()> {
+    fn set_sysarg_data(
+        &mut self,
+        sys_arg: SysArgIndex,
+        data: &[u8],
+        original_regs: Option<&Registers>,
+    ) -> Result<()> {
         // Allocate space into the tracee's memory to host the new data.
-        let tracee_ptr = self.alloc_mem(data.len() as isize)?;
+        let tracee_ptr = self.alloc_mem(data.len() as isize, original_regs)?;
 
         // Copy the new data into the previously allocated space.
         self.write_data(tracee_ptr as *mut Word, data)?;
 
         // Make this argument point to the new data.
-        self.set_arg(sys_arg, tracee_ptr);
+        self.set(SysArg(sys_arg), tracee_ptr);
 
         Ok(())
     }
@@ -72,13 +92,19 @@ impl PtraceWriter for Registers {
             let word = buf.read_uint::<LittleEndian>(word_size).unwrap() as Word;
             let dest_addr = unsafe { dest_tracee.offset(i) as *mut c_void };
 
-            ptrace(PTRACE_POKEDATA, self.pid, dest_addr, word as *mut c_void)?;
+            ptrace(
+                PTRACE_POKEDATA,
+                self.get_pid(),
+                dest_addr,
+                word as *mut c_void,
+            )?;
         }
 
         // Copy the bytes in the last word carefully since we have to
         // overwrite only the relevant ones.
         let last_dest_addr = unsafe { dest_tracee.offset(nb_full_words) as *mut c_void };
-        let existing_word = ptrace(PTRACE_PEEKDATA, self.pid, last_dest_addr, null_mut())? as Word;
+        let existing_word =
+            ptrace(PTRACE_PEEKDATA, self.get_pid(), last_dest_addr, null_mut())? as Word;
         let mut bytes = convert_word_to_bytes(existing_word);
 
         // The trailing bytes are merged with the existing bytes. For example:
@@ -93,7 +119,7 @@ impl PtraceWriter for Registers {
         // We can now safely write the final word.
         ptrace(
             PTRACE_POKEDATA,
-            self.pid,
+            self.get_pid(),
             last_dest_addr,
             last_word as *mut c_void,
         )?;
@@ -107,10 +133,11 @@ impl PtraceWriter for Registers {
 mod tests {
     use super::*;
     use std::ffi::CString;
+    use std::path::PathBuf;
     use nix::unistd::execvp;
     use utils::tests::fork_test;
     use syscall::nr::MKDIR;
-    use register::PtraceReader;
+    use register::{PtraceReader, SysNum, SysArg1};
 
     #[test]
     fn test_write_set_sysarg_path_write_same_path() {
@@ -123,8 +150,8 @@ mod tests {
             1,
             // parent
             |mut regs, _, _| {
-                if regs.sys_num == MKDIR {
-                    let dir_path = regs.get_sysarg_path(SysArgIndex::SysArg1).unwrap();
+                if regs.get(SysNum) as usize == MKDIR {
+                    let dir_path = regs.get_sysarg_path(SysArg1).unwrap();
 
                     // we're checking that the string read in the tracee's memory
                     // corresponds to what has been given to the execve command
@@ -132,12 +159,12 @@ mod tests {
 
                     // we write the new path
                     assert!(
-                        regs.set_sysarg_path(SysArgIndex::SysArg1, &PathBuf::from(test_path_2))
+                        regs.set_sysarg_path(SysArg1, &PathBuf::from(test_path_2), None)
                             .is_ok()
                     );
 
                     // we read the new path from the tracee's memory
-                    let dir_path_2 = regs.get_sysarg_path(SysArgIndex::SysArg1).unwrap();
+                    let dir_path_2 = regs.get_sysarg_path(SysArg1).unwrap();
 
                     // the written and newly read paths must be the same
                     assert_eq!(dir_path_2, PathBuf::from(test_path_2));

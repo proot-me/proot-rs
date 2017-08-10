@@ -2,7 +2,7 @@ use nix::errno::Errno;
 use errors::{Result, Error};
 use filesystem::Translator;
 use process::tracee::Tracee;
-use register::{PtraceReader, PtraceWriter, Registers, SysArgIndex};
+use register::{PtraceReader, PtraceWriter, Registers, SysArg1};
 use kernel::execve::shebang;
 use kernel::execve::load_info::LoadInfo;
 use kernel::execve::loader::LoaderFile;
@@ -19,7 +19,7 @@ pub fn translate(tracee: &mut Tracee, regs: &mut Registers, loader: &LoaderFile)
     //		return 0;
     //	}
 
-    let raw_path = regs.get_sysarg_path(SysArgIndex::SysArg1)?;
+    let raw_path = regs.get_sysarg_path(SysArg1)?;
     //TODO: return user path
     let host_path = match shebang::expand(&tracee.fs, &raw_path) {
         Ok(path) => path,
@@ -76,10 +76,7 @@ pub fn translate(tracee: &mut Tracee, regs: &mut Registers, loader: &LoaderFile)
     loader.prepare_loader()?;
 
     // Save the loader path in the register, so that the loader will be executed instead.
-    regs.set_sysarg_path(
-        SysArgIndex::SysArg1,
-        loader.get_loader_path(),
-    )?;
+    regs.set_sysarg_path(SysArg1, loader.get_loader_path(), None)?;
 
     //TODO: implemented ptracee translation
     //	/* Mask to its ptracer kernel performed by the loader.  */
@@ -97,7 +94,7 @@ mod tests {
     use nix::unistd::execvp;
     use syscall::nr::{EXECVE, NANOSLEEP};
     use utils::tests::fork_test;
-    use register::PtraceReader;
+    use register::{PtraceReader, SysNum};
 
     #[test]
     fn test_execve_translate_enter() {
@@ -109,8 +106,8 @@ mod tests {
             0,
             // parent
             |mut regs, mut tracee, info_bag| {
-                if regs.sys_num == EXECVE {
-                    let dir_path = regs.get_sysarg_path(SysArgIndex::SysArg1).unwrap();
+                if regs.get(SysNum) as usize == EXECVE {
+                    let dir_path = regs.get_sysarg_path(SysArg1).unwrap();
                     let file_exists = dir_path.exists();
 
                     // if the file executed by execve exists, we expect the translation to go well.
@@ -119,7 +116,7 @@ mod tests {
                         at_least_one_translation_occured = true;
                     }
                     return false;
-                } else if regs.sys_num == NANOSLEEP {
+                } else if regs.get(SysNum) as usize == NANOSLEEP {
                     // we expect at least one successful translation to have occurred
                     assert!(at_least_one_translation_occured);
 

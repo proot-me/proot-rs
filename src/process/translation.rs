@@ -1,5 +1,5 @@
 use errors::Result;
-use register::{Word, Registers};
+use register::{Word, Registers, SysResult};
 use kernel::{enter, exit};
 use process::proot::InfoBag;
 use process::tracee::{TraceeStatus, TraceeRestartMethod, Tracee};
@@ -25,7 +25,7 @@ impl SyscallTranslator for Tracee {
         match self.status {
             TraceeStatus::SysEnter => {
                 // Never restore original register values at the end of this stage.
-                regs.push_only_result = false;
+                regs.push_only_result(false);
 
                 let status = self.translate_syscall_enter(info_bag, &mut regs);
 
@@ -34,7 +34,7 @@ impl SyscallTranslator for Tracee {
                     // avoid the actual syscall if an error was reported
                     // by the translation/extension.
                     regs.void_syscall();
-                    regs.sys_arg_result = status.unwrap_err().get_errno() as Word;
+                    regs.set(SysResult, status.unwrap_err().get_errno() as Word);
                     self.status = TraceeStatus::Error(status.unwrap_err());
                 } else {
                     self.status = TraceeStatus::SysExit;
@@ -45,13 +45,13 @@ impl SyscallTranslator for Tracee {
                 // there's nothing else to do).
                 if self.restart_how == TraceeRestartMethod::WithoutExitStage {
                     self.status = TraceeStatus::SysEnter;
-                    regs.restore_stack_pointer();
+                    regs.restore_stack_pointer(None);
                 }
             }
             TraceeStatus::SysExit |
             TraceeStatus::Error(_) => {
                 // By default, restore original register values at the end of this stage.
-                regs.push_only_result = true;
+                regs.push_only_result(true);
 
                 self.translate_syscall_exit(&mut regs);
 
@@ -60,9 +60,7 @@ impl SyscallTranslator for Tracee {
             }
         }
 
-
-
-        //TODO: uncomment when execve is ready
+        //TODO: fix this
         //if let Err(error) = regs.push_regs() {
         //    eprintln!("proot error: Error while pushing regs: {}", error);
         //}
@@ -99,14 +97,14 @@ impl SyscallTranslator for Tracee {
         // if (status > 0)
         //     return;
 
-        // Set the tracee's errno if an error occurred previously during the translation.
         if self.status.is_err() {
-            regs.sys_arg_result = self.status.get_errno() as Word;
+            // Set the tracee's errno if an error occurred previously during the translation.
+            regs.set(SysResult, self.status.get_errno() as Word);
         } else {
             let result = exit::translate(self, regs);
 
             if result.is_err() {
-                regs.sys_arg_result = result.get_errno() as Word;
+                regs.set(SysResult, result.get_errno() as Word);
             }
         }
 

@@ -11,6 +11,7 @@ use register::Word;
 const VOID: usize = 0;
 
 #[derive(Debug, Copy, Clone)]
+#[allow(dead_code)]
 pub enum SysArgIndex {
     SysArg1 = 0,
     SysArg2,
@@ -19,22 +20,32 @@ pub enum SysArgIndex {
     SysArg5,
     SysArg6,
 }
-
 use self::SysArgIndex::*;
+
+#[derive(Debug, Copy, Clone)]
+pub enum Register {
+    SysNum,
+    SysArg(SysArgIndex),
+    SysResult,
+    StackPointer,
+}
+use self::Register::*;
+
 
 pub struct Registers {
     /// Pid of the tracee that it was generated from
-    pub pid: Pid,
+    pid: Pid,
     /// Original general purpose registers; they must not be modified, except in `push_regs`
-    pub raw_regs: user_regs_struct,
+    raw_regs: user_regs_struct,
     /// Whether or not to only push `sys_arg_result` in `push_regs`.
-    pub push_only_result: bool,
-    pub sys_num: usize,
-    pub sys_args: [Word; 6],
-    pub sys_arg_result: Word,
-    pub stack_pointer: Word,
+    push_only_result: bool,
+    sys_num: usize,
+    sys_args: [Word; 6],
+    sys_result: Word,
+    stack_pointer: Word,
 }
 
+#[allow(dead_code)]
 impl Registers {
     /// Extracts the most interesting registers from the raw structures,
     /// while keeping it for later purposes (see `push_reg`).
@@ -43,7 +54,7 @@ impl Registers {
             pid: pid,
             raw_regs: raw_regs,
             push_only_result: false,
-            sys_num: get_reg!(raw_regs, SysArgNum) as usize,
+            sys_num: get_reg!(raw_regs, SysNum) as usize,
             sys_args: [
                 get_reg!(raw_regs, SysArg1),
                 get_reg!(raw_regs, SysArg2),
@@ -52,7 +63,7 @@ impl Registers {
                 get_reg!(raw_regs, SysArg5),
                 get_reg!(raw_regs, SysArg6),
             ],
-            sys_arg_result: get_reg!(raw_regs, SysArgResult),
+            sys_result: get_reg!(raw_regs, SysResult),
             stack_pointer: get_reg!(raw_regs, StackPointer),
         }
     }
@@ -73,60 +84,104 @@ impl Registers {
     /// if necessary.
     pub fn push_regs(&mut self) -> Result<()> {
         if !self.where_changed() {
-            return Ok(())
+            return Ok(());
         }
-        
+
         let mut modified_regs: user_regs_struct = self.raw_regs.clone();
 
-        get_reg!(modified_regs, SysArgResult) = self.sys_arg_result as Word;
-
-        // At the very end of a syscall, with regard to the entry,
-        // only the result register can be modified by PRoot.
-        if !self.push_only_result {
-            get_reg!(modified_regs, SysArgNum) = self.sys_num as Word;
-            get_reg!(modified_regs, SysArg1) = self.get_arg(SysArg1);
-            get_reg!(modified_regs, SysArg2) = self.get_arg(SysArg2);
-            get_reg!(modified_regs, SysArg3) = self.get_arg(SysArg3);
-            get_reg!(modified_regs, SysArg4) = self.get_arg(SysArg4);
-            get_reg!(modified_regs, SysArg5) = self.get_arg(SysArg5);
-            get_reg!(modified_regs, SysArg6) = self.get_arg(SysArg6);
-            get_reg!(modified_regs, StackPointer) = self.stack_pointer as Word;
-        }
+        self.apply_to_raw_regs(&mut modified_regs, self.push_only_result);
 
         let p_regs: *mut c_void = &mut modified_regs as *mut _ as *mut c_void;
 
         ptrace(PTRACE_SETREGS, self.pid, null_mut(), p_regs)?;
-
         Ok(())
+    }
+
+    /// Applies the current values to `regs`.
+    fn apply_to_raw_regs(&self, regs: &mut user_regs_struct, only_result: bool) {
+        get_reg!(regs, SysResult) = self.sys_result as Word;
+
+        // At the very end of a syscall, with regard to the entry,
+        // only the result register can be modified by PRoot.
+        if !only_result {
+            get_reg!(regs, SysNum) = self.sys_num as Word;
+            get_reg!(regs, SysArg1) = self.sys_args[0];
+            get_reg!(regs, SysArg2) = self.sys_args[1];
+            get_reg!(regs, SysArg3) = self.sys_args[2];
+            get_reg!(regs, SysArg4) = self.sys_args[3];
+            get_reg!(regs, SysArg5) = self.sys_args[4];
+            get_reg!(regs, SysArg6) = self.sys_args[5];
+            get_reg!(regs, StackPointer) = self.stack_pointer as Word;
+        }
     }
 
     /// Checks whether at least one of the modifiable values is different from the original ones.
     /// If not, there is not point in pushing the registers.
     pub fn where_changed(&self) -> bool {
-        get_reg!(self.raw_regs, SysArg1) != self.get_arg(SysArg1) ||
-            get_reg!(self.raw_regs, SysArgResult) != self.sys_arg_result as u64 ||
-            get_reg!(self.raw_regs, SysArg2) != self.get_arg(SysArg2) ||
-            get_reg!(self.raw_regs, SysArgNum) != self.sys_num as u64 ||
-            get_reg!(self.raw_regs, StackPointer) != self.stack_pointer ||
-            get_reg!(self.raw_regs, SysArg3) != self.get_arg(SysArg3) ||
-            get_reg!(self.raw_regs, SysArg4) != self.get_arg(SysArg4) ||
-            get_reg!(self.raw_regs, SysArg5) != self.get_arg(SysArg5) ||
-            get_reg!(self.raw_regs, SysArg6) != self.get_arg(SysArg6)
+        return get_reg!(self.raw_regs, SysNum) != self.sys_num as u64 ||
+            get_reg!(self.raw_regs, SysArg1) != self.sys_args[0] ||
+            get_reg!(self.raw_regs, SysArg2) != self.sys_args[1] ||
+            get_reg!(self.raw_regs, SysArg3) != self.sys_args[2] ||
+            get_reg!(self.raw_regs, SysArg4) != self.sys_args[3] ||
+            get_reg!(self.raw_regs, SysArg5) != self.sys_args[4] ||
+            get_reg!(self.raw_regs, SysArg6) != self.sys_args[5] ||
+            get_reg!(self.raw_regs, SysResult) != self.sys_result as u64 ||
+            get_reg!(self.raw_regs, StackPointer) != self.stack_pointer;
     }
 
     #[inline]
-    pub fn get_arg(&self, index: SysArgIndex) -> Word {
-        self.sys_args[index as usize]
+    pub fn get(&self, register: Register) -> Word {
+        match register {
+            SysNum => self.sys_num as Word,
+            SysArg(index) => self.sys_args[index as usize],
+            SysResult => self.sys_result,
+            StackPointer => self.stack_pointer,
+        }
     }
 
     #[inline]
-    pub fn set_arg(&mut self, index: SysArgIndex, new_value: Word) {
-        self.sys_args[index as usize] = new_value;
+    pub fn get_raw(&self, register: Register) -> Word {
+        match register {
+            SysNum => get_reg!(self.raw_regs, SysNum),
+            SysArg(SysArg1) => get_reg!(self.raw_regs, SysArg1),
+            SysArg(SysArg2) => get_reg!(self.raw_regs, SysArg2),
+            SysArg(SysArg3) => get_reg!(self.raw_regs, SysArg3),
+            SysArg(SysArg4) => get_reg!(self.raw_regs, SysArg4),
+            SysArg(SysArg5) => get_reg!(self.raw_regs, SysArg5),
+            SysArg(SysArg6) => get_reg!(self.raw_regs, SysArg6),
+            SysResult => get_reg!(self.raw_regs, SysResult),
+            StackPointer => get_reg!(self.raw_regs, StackPointer),
+        }
     }
 
     #[inline]
-    pub fn restore_stack_pointer(&mut self) {
-        self.stack_pointer = get_reg!(self.raw_regs, StackPointer);
+    pub fn set(&mut self, register: Register, new_value: Word) {
+        match register {
+            SysNum => self.sys_num = new_value as usize,
+            SysArg(index) => self.sys_args[index as usize] = new_value,
+            SysResult => self.sys_result = new_value,
+            StackPointer => self.stack_pointer = new_value,
+        };
+    }
+
+    #[inline]
+    pub fn get_pid(&self) -> Pid {
+        self.pid.clone()
+    }
+
+    #[inline]
+    pub fn restore_stack_pointer(&mut self, enter_regs: Option<&mut Registers>) {
+        match enter_regs {
+            // At the exit stage, the original stack pointer is retrieved from the enter stage regs.
+            Some(regs) => self.stack_pointer = regs.get_raw(StackPointer),
+            // At the enter stage, we can use the raw regs directly.
+            None => self.stack_pointer = self.get_raw(StackPointer),
+        }
+    }
+
+    #[inline]
+    pub fn push_only_result(&mut self, only_result: bool) {
+        self.push_only_result = only_result
     }
 
     #[inline]
@@ -137,15 +192,29 @@ impl Registers {
 
 impl fmt::Display for Registers {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "(pid {}: syscall {} - args {:?}, result {}, stack-ptr {})",
-               self.pid, self.sys_num, self.sys_args, self.sys_arg_result, self.stack_pointer)
+        write!(
+            f,
+            "(pid {}: syscall {} - args {:?}, result {}, stack-ptr {})",
+            self.pid,
+            self.sys_num,
+            self.sys_args,
+            self.sys_result,
+            self.stack_pointer
+        )
     }
 }
 
 impl fmt::Debug for Registers {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "(pid {}: syscall {} - args {:?}, result {}, stack-ptr {})",
-               self.pid, self.sys_num, self.sys_args, self.sys_arg_result, self.stack_pointer)
+        write!(
+            f,
+            "(pid {}: syscall {} - args {:?}, result {}, stack-ptr {})",
+            self.pid,
+            self.sys_num,
+            self.sys_args,
+            self.sys_result,
+            self.stack_pointer
+        )
     }
 }
 
@@ -169,7 +238,7 @@ mod tests {
         assert_eq!(true, regs.where_changed()); // syscall number change
 
         let mut regs = Registers::from(Pid::from_raw(-1), raw_regs);
-        regs.sys_arg_result = 123456;
+        regs.sys_result = 123456;
         assert_eq!(true, regs.where_changed()); // sys arg result change
 
         let mut regs = Registers::from(Pid::from_raw(-1), raw_regs);
@@ -261,7 +330,7 @@ mod tests {
                     regs.sys_num = NANOSLEEP;
                     // On successfully sleeping for the requested interval,
                     // nanosleep() returns 0.
-                    regs.sys_arg_result = 0;
+                    regs.sys_result = 0;
                     regs.push_regs().expect("pushing regs");
                     return true;
                 }

@@ -6,14 +6,14 @@ use kernel::socket::*;
 use kernel::standard::*;
 use kernel::groups::syscall_group_from_sysnum;
 use kernel::groups::SyscallGroup::*;
-use register::Registers;
+use register::{Registers, SysNum};
 use process::tracee::Tracee;
 use process::proot::InfoBag;
 
 pub fn translate(info_bag: &InfoBag, tracee: &mut Tracee, regs: &mut Registers) -> Result<()> {
-    let sys_type = syscall_group_from_sysnum(regs.sys_num);
+    let sys_type = syscall_group_from_sysnum(regs.get(SysNum) as usize);
 
-    println!("enter  \t({:?}, \t{:?}) ", regs.sys_num, sys_type);
+    println!("enter  \t({:?}, \t{:?}) ", regs.get(SysNum), sys_type);
 
     match sys_type {
         Accept => accept::enter(),

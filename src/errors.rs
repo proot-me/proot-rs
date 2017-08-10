@@ -18,7 +18,7 @@ impl Error {
     pub fn get_errno(&self) -> i32 {
         match *self {
             Error::Sys(errno, _) => errno as i32,
-            _ => 0 //TODO: specify errno for other types of error
+            _ => 0, //TODO: specify errno for other types of error
         }
     }
 

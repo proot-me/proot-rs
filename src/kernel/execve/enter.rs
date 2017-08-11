@@ -7,7 +7,7 @@ use kernel::execve::shebang;
 use kernel::execve::load_info::LoadInfo;
 use kernel::execve::loader::LoaderFile;
 
-pub fn translate(tracee: &mut Tracee, regs: &mut Registers, loader: &LoaderFile) -> Result<()> {
+pub fn translate(tracee: &mut Tracee, loader: &LoaderFile) -> Result<()> {
     //TODO: implement this part for ptrace translation
     //	if (IS_NOTIFICATION_PTRACED_LOAD_DONE(tracee)) {
     //		/* Syscalls can now be reported to its ptracer.  */
@@ -19,7 +19,7 @@ pub fn translate(tracee: &mut Tracee, regs: &mut Registers, loader: &LoaderFile)
     //		return 0;
     //	}
 
-    let raw_path = regs.get_sysarg_path(SysArg1)?;
+    let raw_path = tracee.regs.get_sysarg_path(SysArg1)?;
     //TODO: return user path
     let host_path = match shebang::expand(&tracee.fs, &raw_path) {
         Ok(path) => path,
@@ -102,7 +102,7 @@ mod tests {
     use nix::unistd::execvp;
     use syscall::nr::{EXECVE, NANOSLEEP};
     use utils::tests::fork_test;
-    use register::{PtraceReader, SysNum};
+    use register::{PtraceReader, Current};
 
     #[test]
     fn test_execve_translate_enter() {
@@ -113,18 +113,18 @@ mod tests {
             // expecting a normal execution
             0,
             // parent
-            |mut regs, mut tracee, info_bag| {
-                if regs.get(SysNum) as usize == EXECVE {
-                    let dir_path = regs.get_sysarg_path(SysArg1).unwrap();
+            |mut tracee, info_bag| {
+                if tracee.regs.get_sys_num(Current) == EXECVE {
+                    let dir_path = tracee.regs.get_sysarg_path(SysArg1).unwrap();
                     let file_exists = dir_path.exists();
 
                     // if the file executed by execve exists, we expect the translation to go well.
                     if file_exists {
-                        assert_eq!(Ok(()), translate(tracee, &mut regs, &info_bag.loader));
+                        assert_eq!(Ok(()), translate(tracee, &info_bag.loader));
                         at_least_one_translation_occured = true;
                     }
                     return false;
-                } else if regs.get(SysNum) as usize == NANOSLEEP {
+                } else if tracee.regs.get_sys_num(Current) == NANOSLEEP {
                     // we expect at least one successful translation to have occurred
                     assert!(at_least_one_translation_occured);
 

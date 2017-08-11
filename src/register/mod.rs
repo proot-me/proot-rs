@@ -13,6 +13,7 @@ pub use self::regs::Registers;
 pub use self::regs::Register::*;
 pub use self::regs::SysArgIndex;
 pub use self::regs::SysArgIndex::*;
+pub use self::regs::RegVersion::*;
 pub use self::reader::PtraceReader;
 pub use self::writer::PtraceWriter;
 pub use self::mem::PtraceMemoryAllocator;

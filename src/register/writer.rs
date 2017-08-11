@@ -146,7 +146,7 @@ mod tests {
     use nix::unistd::execvp;
     use utils::tests::fork_test;
     use syscall::nr::MKDIR;
-    use register::{PtraceReader, SysNum, SysArg1};
+    use register::{PtraceReader, SysNum, SysArg1, Current, Original};
 
     #[test]
     fn test_write_set_sysarg_path_write_same_path() {
@@ -155,12 +155,15 @@ mod tests {
 
         fork_test(
             "/",
-            // expecting an error (because the path doesn't exit)
+            // expecting an error (because the first path doesn't exit)
             1,
             // parent
-            |mut regs, _, _| {
-                if regs.get(SysNum) as usize == MKDIR {
-                    let dir_path = regs.get_sysarg_path(SysArg1).unwrap();
+            |mut tracee, _| {
+                if tracee.regs.get_sys_num(Current) == MKDIR {
+                    tracee.regs.set_restore_original_regs(false);
+                    tracee.regs.save_current_regs(Original);
+
+                    let dir_path = tracee.regs.get_sysarg_path(SysArg1).unwrap();
 
                     // we're checking that the string read in the tracee's memory
                     // corresponds to what has been given to the execve command
@@ -168,23 +171,21 @@ mod tests {
 
                     // we write the new path
                     assert!(
-                        regs.set_sysarg_path(
+                        tracee.regs.set_sysarg_path(
                             SysArg1,
                             &PathBuf::from(test_path_2),
                             None,
-                            "test sysarg",
+                            "setting impossible path for push_regs test",
                         ).is_ok()
                     );
 
                     // we read the new path from the tracee's memory
-                    let dir_path_2 = regs.get_sysarg_path(SysArg1).unwrap();
+                    let dir_path_2 = tracee.regs.get_sysarg_path(SysArg1).unwrap();
 
                     // the written and newly read paths must be the same
                     assert_eq!(dir_path_2, PathBuf::from(test_path_2));
 
-                    //TODO: push regs when implemented
-
-                    // we can stop here
+                    // we don't push the regs, we stop here
                     return true;
                 } else {
                     return false;

@@ -8,7 +8,15 @@ use nix::sys::ptrace::ptrace;
 use nix::sys::ptrace::ptrace::{PTRACE_GETREGS, PTRACE_SETREGS};
 use register::Word;
 
-const VOID: usize = 0;
+const VOID: Word = 0;
+
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub enum RegVersion {
+    Current = 0,
+    Original = 1,
+    Modified = 2,
+}
+use self::RegVersion::*;
 
 #[derive(Debug, Copy, Clone)]
 #[allow(dead_code)]
@@ -31,144 +39,201 @@ pub enum Register {
 }
 use self::Register::*;
 
-
 pub struct Registers {
     /// Pid of the tracee that it was generated from
     pid: Pid,
-    /// Original general purpose registers; they must not be modified, except in `push_regs`
-    raw_regs: user_regs_struct,
-    /// Whether or not to only push `sys_arg_result` in `push_regs`.
-    push_only_result: bool,
-    sys_num: usize,
-    sys_args: [Word; 6],
-    sys_result: Word,
-    stack_pointer: Word,
+    registers: [Option<user_regs_struct>; 3],
+    regs_were_changed: bool,
+    restore_original_regs: bool,
 }
 
 #[allow(dead_code)]
 impl Registers {
-    /// Extracts the most interesting registers from the raw structures,
-    /// while keeping it for later purposes (see `push_reg`).
-    pub fn from(pid: Pid, raw_regs: user_regs_struct) -> Self {
+    /// Creates an empty registers bundle.
+    pub fn new(pid: Pid) -> Self {
         Self {
             pid: pid,
-            raw_regs: raw_regs,
-            push_only_result: false,
-            sys_num: get_reg!(raw_regs, SysNum) as usize,
-            sys_args: [
-                get_reg!(raw_regs, SysArg1),
-                get_reg!(raw_regs, SysArg2),
-                get_reg!(raw_regs, SysArg3),
-                get_reg!(raw_regs, SysArg4),
-                get_reg!(raw_regs, SysArg5),
-                get_reg!(raw_regs, SysArg6),
-            ],
-            sys_result: get_reg!(raw_regs, SysResult),
-            stack_pointer: get_reg!(raw_regs, StackPointer),
+            registers: [None, None, None],
+            regs_were_changed: false,
+            restore_original_regs: false
         }
     }
 
-    /// Retrieves all tracee's general purpose registers.
-    pub fn fetch_regs(pid: Pid) -> Result<Self> {
+    #[cfg(test)]
+    /// Same, but with the initial regs. Useful for tests.
+    pub fn from(pid: Pid, raw_regs: user_regs_struct) -> Self {
+        Self {
+            pid: pid,
+            registers: [Some(raw_regs), None, None],
+            regs_were_changed: false,
+            restore_original_regs: false
+        }
+    }
+
+    /// Retrieves a value from one of the registers.
+    ///
+    /// It does not require the registers to be mutable,
+    /// so we allow any register version (even original).
+    ///
+    /// # Safety
+    ///
+    /// Be sure that the register version you're asking for exists,
+    /// otherwise the program will simply panic.
+    /// It is like this so that a backtrace can be retrieved,
+    /// in order to remedy the issue so that it doesn't happen again.
+    #[inline]
+    pub fn get(&self, version: RegVersion, register: Register) -> Word {
+        let raw_regs = self.get_regs(version);
+
+        self.get_raw(raw_regs, register)
+    }
+
+    /// Modifies the value of one of the `Current` registers.
+    ///
+    /// If `new_value` is the same as the current one, `regs_were_changed`
+    /// is not toggled, in order to avoid unnecessary `push_regs`.
+    ///
+    /// # Safety
+    ///
+    /// Be sure that the `Current` registers exist, otherwise the program will panic.
+    /// It is like this so that a backtrace can be retrieved,
+    /// in order to remedy the issue so that it doesn't happen again.
+    #[inline]
+    pub fn set(&mut self, register: Register, new_value: Word, justification: &'static str) {
+        let current_value = self.get(Current, register);
+
+        //TODO: log DEBUG
+        println!(
+            "{}\t\t~ modifying current reg: {:?}, current_value: {}, new_value: {}, {}",
+            self.pid,
+            register,
+            current_value,
+            new_value,
+            justification
+        );
+
+        if current_value == new_value {
+            return;
+        }
+        self.set_raw(register, new_value);
+        self.regs_were_changed = true;
+    }
+
+    /// Saves the `Current` registers into the given `version` ones.
+    ///
+    /// This is the only way to modify the `Original` and `Modified` registers
+    /// in this structure.
+    ///
+    /// Requires the `Current` registers to be defined.
+    #[inline]
+    pub fn save_current_regs(&mut self, version: RegVersion) {
+        if version != Current {
+            let current_regs = self.get_regs(Current).clone();
+
+            self.registers[version as usize] = Some(current_regs);
+        }
+    }
+
+    /// Retrieves all tracee's general purpose registers, and stores them
+    /// in the `Current` registers.
+    pub fn fetch_regs(&mut self) -> Result<()> {
         let mut regs: user_regs_struct = unsafe { mem::zeroed() };
         let p_regs: *mut c_void = &mut regs as *mut _ as *mut c_void;
 
         // Notice the ? at the end, which is the equivalent of `try!`.
         // It will return the error if there is one.
-        ptrace(PTRACE_GETREGS, pid, null_mut(), p_regs)?;
+        ptrace(PTRACE_GETREGS, self.pid, null_mut(), p_regs)?;
 
-        Ok(Registers::from(pid, regs))
-    }
-
-    /// Pushes the cached general purpose registers back to the process,
-    /// if necessary.
-    pub fn push_regs(&mut self) -> Result<()> {
-        if !self.where_changed() {
-            return Ok(());
-        }
-
-        let mut modified_regs: user_regs_struct = self.raw_regs.clone();
-
-        self.apply_to_raw_regs(&mut modified_regs, self.push_only_result);
-
-        let p_regs: *mut c_void = &mut modified_regs as *mut _ as *mut c_void;
-
-        ptrace(PTRACE_SETREGS, self.pid, null_mut(), p_regs)?;
+        self.registers[Current as usize] = Some(regs);
         Ok(())
     }
 
-    /// Applies the current values to `regs`.
-    fn apply_to_raw_regs(&self, regs: &mut user_regs_struct, only_result: bool) {
-        get_reg!(regs, SysResult) = self.sys_result as Word;
+    /// Pushes the `Current` cached general purpose registers back to
+    /// the process, if necessary.
+    ///
+    /// Requires `Current` registers to be defined, and `Original` if
+    /// `restore_original_regs` is enabled.
+    pub fn push_regs(&mut self) -> Result<()> {
+        if !self.regs_were_changed {
+            return Ok(())
+        }
 
-        // At the very end of a syscall, with regard to the entry,
-        // only the result register can be modified by PRoot.
-        if !only_result {
-            get_reg!(regs, SysNum) = self.sys_num as Word;
-            get_reg!(regs, SysArg1) = self.sys_args[0];
-            get_reg!(regs, SysArg2) = self.sys_args[1];
-            get_reg!(regs, SysArg3) = self.sys_args[2];
-            get_reg!(regs, SysArg4) = self.sys_args[3];
-            get_reg!(regs, SysArg5) = self.sys_args[4];
-            get_reg!(regs, SysArg6) = self.sys_args[5];
-            get_reg!(regs, StackPointer) = self.stack_pointer as Word;
+        if self.restore_original_regs {
+            self.restore_regs();
+        }
+
+        let pid = self.pid;
+        let mut current_regs = self.get_mut_regs(Current);
+        let p_regs: *mut c_void = current_regs as *mut _ as *mut c_void;
+
+        ptrace(PTRACE_SETREGS, pid, null_mut(), p_regs)?;
+        Ok(())
+    }
+
+    /// Utility function to retrieve the corresponding register's value
+    /// from a `user_regs_struct` structure.
+    ///
+    /// This function relies on the ABI mapping implemented through the
+    /// `get_reg!` macro.
+    #[inline]
+    fn get_raw(&self, raw_regs: &user_regs_struct, register: Register) -> Word {
+        match register {
+            SysNum => get_reg!(raw_regs, SysNum),
+            SysArg(SysArg1) => get_reg!(raw_regs, SysArg1),
+            SysArg(SysArg2) => get_reg!(raw_regs, SysArg2),
+            SysArg(SysArg3) => get_reg!(raw_regs, SysArg3),
+            SysArg(SysArg4) => get_reg!(raw_regs, SysArg4),
+            SysArg(SysArg5) => get_reg!(raw_regs, SysArg5),
+            SysArg(SysArg6) => get_reg!(raw_regs, SysArg6),
+            SysResult => get_reg!(raw_regs, SysResult),
+            StackPointer => get_reg!(raw_regs, StackPointer),
         }
     }
 
-    /// Checks whether at least one of the modifiable values is different from the original ones.
-    /// If not, there is not point in pushing the registers.
-    pub fn where_changed(&self) -> bool {
-        return get_reg!(self.raw_regs, SysNum) != self.sys_num as u64 ||
-            get_reg!(self.raw_regs, SysArg1) != self.sys_args[0] ||
-            get_reg!(self.raw_regs, SysArg2) != self.sys_args[1] ||
-            get_reg!(self.raw_regs, SysArg3) != self.sys_args[2] ||
-            get_reg!(self.raw_regs, SysArg4) != self.sys_args[3] ||
-            get_reg!(self.raw_regs, SysArg5) != self.sys_args[4] ||
-            get_reg!(self.raw_regs, SysArg6) != self.sys_args[5] ||
-            get_reg!(self.raw_regs, SysResult) != self.sys_result as u64 ||
-            get_reg!(self.raw_regs, StackPointer) != self.stack_pointer;
-    }
-
+    /// Utility function to modify the corresponding register's value
+    /// of a `user_regs_struct` structure.
+    ///
+    /// Though only the `Current` regs are allowed to be modified directly
+    /// (the others are created through saves), so this function only
+    /// applies to the `Current` registers.
+    ///
+    /// This function relies on the ABI mapping implemented through the
+    /// `get_reg!` macro.
+    ///
+    /// Requires the `Current` registers to be defined.
     #[inline]
-    pub fn get(&self, register: Register) -> Word {
-        match register {
-            SysNum => self.sys_num as Word,
-            SysArg(index) => self.sys_args[index as usize],
-            SysResult => self.sys_result,
-            StackPointer => self.stack_pointer,
-        }
-    }
-
-    #[inline]
-    pub fn get_raw(&self, register: Register) -> Word {
-        match register {
-            SysNum => get_reg!(self.raw_regs, SysNum),
-            SysArg(SysArg1) => get_reg!(self.raw_regs, SysArg1),
-            SysArg(SysArg2) => get_reg!(self.raw_regs, SysArg2),
-            SysArg(SysArg3) => get_reg!(self.raw_regs, SysArg3),
-            SysArg(SysArg4) => get_reg!(self.raw_regs, SysArg4),
-            SysArg(SysArg5) => get_reg!(self.raw_regs, SysArg5),
-            SysArg(SysArg6) => get_reg!(self.raw_regs, SysArg6),
-            SysResult => get_reg!(self.raw_regs, SysResult),
-            StackPointer => get_reg!(self.raw_regs, StackPointer),
-        }
-    }
-
-    #[inline]
-    pub fn set(&mut self, register: Register, new_value: Word, justification: &'static str) {
-        println!(
-            "\t\t~ modifying reg: {:?}, new_value: {}, {}",
-            register,
-            new_value,
-            justification
-        );
+    fn set_raw(&mut self, register: Register, new_value: Word) {
+        let raw_regs = self.get_mut_regs(Current);
 
         match register {
-            SysNum => self.sys_num = new_value as usize,
-            SysArg(index) => self.sys_args[index as usize] = new_value,
-            SysResult => self.sys_result = new_value,
-            StackPointer => self.stack_pointer = new_value,
+            SysNum => get_reg!(raw_regs, SysNum) = new_value,
+            SysArg(SysArg1) => get_reg!(raw_regs, SysArg1) = new_value,
+            SysArg(SysArg2) => get_reg!(raw_regs, SysArg2) = new_value,
+            SysArg(SysArg3) => get_reg!(raw_regs, SysArg3) = new_value,
+            SysArg(SysArg4) => get_reg!(raw_regs, SysArg4) = new_value,
+            SysArg(SysArg5) => get_reg!(raw_regs, SysArg5) = new_value,
+            SysArg(SysArg6) => get_reg!(raw_regs, SysArg6) = new_value,
+            SysResult => get_reg!(raw_regs, SysResult) = new_value,
+            StackPointer => get_reg!(raw_regs, StackPointer) = new_value,
         };
+    }
+
+    /// Restore the current regs with the original ones.
+    ///
+    /// Requires both `Current` and `Original` regs to be defined.
+    #[inline]
+    fn restore_regs(&mut self) {
+        let original_regs = &mut self.registers[Original as usize].unwrap();
+        let current_regs = &mut self.registers[Current as usize].unwrap();
+
+        get_reg!(current_regs, SysNum) = get_reg!(original_regs, SysNum);
+        get_reg!(current_regs, SysArg1) = get_reg!(original_regs, SysArg1);
+        get_reg!(current_regs, SysArg2) = get_reg!(original_regs, SysArg2);
+        get_reg!(current_regs, SysArg3) = get_reg!(original_regs, SysArg3);
+        get_reg!(current_regs, SysArg4) = get_reg!(original_regs, SysArg4);
+        get_reg!(current_regs, SysArg5) = get_reg!(original_regs, SysArg5);
+        get_reg!(current_regs, SysArg6) = get_reg!(original_regs, SysArg6);
+        get_reg!(current_regs, StackPointer) = get_reg!(original_regs, StackPointer);
     }
 
     #[inline]
@@ -177,51 +242,85 @@ impl Registers {
     }
 
     #[inline]
-    pub fn restore_stack_pointer(&mut self, enter_regs: Option<&mut Registers>) {
-        match enter_regs {
-            // At the exit stage, the original stack pointer is retrieved from the enter stage regs.
-            Some(regs) => self.stack_pointer = regs.get_raw(StackPointer),
-            // At the enter stage, we can use the raw regs directly.
-            None => self.stack_pointer = self.get_raw(StackPointer),
+    fn get_regs(&self, version: RegVersion) -> &user_regs_struct {
+        match self.registers[version as usize] {
+            Some(ref regs) => regs,
+            None => unreachable!()
         }
     }
 
     #[inline]
-    pub fn push_only_result(&mut self, only_result: bool) {
-        self.push_only_result = only_result
+    fn get_mut_regs(&mut self, version: RegVersion) -> &mut user_regs_struct {
+        match self.registers[version as usize] {
+            Some(ref mut regs) => regs,
+            None => unreachable!()
+        }
+    }
+
+    /// Little utility method to quickly retrieve the syscall number.
+    #[inline]
+    pub fn get_sys_num(&self, version: RegVersion) -> usize {
+        self.get(version, SysNum) as usize
+    }
+
+    /// Little utility method to quickly modify the syscall number.
+    #[inline]
+    pub fn set_sys_num(&mut self, new_value: usize, justification: &'static str) {
+        self.set(SysNum, new_value as Word, justification);
+    }
+
+    /// Little utility method to quickly void the syscall number.
+    #[inline]
+    pub fn cancel_syscall(&mut self, justification: &'static str) {
+        self.set(SysNum, VOID, justification);
     }
 
     #[inline]
-    pub fn void_syscall(&mut self) {
-        self.sys_num = 0;
+    pub fn set_restore_original_regs(&mut self, restore_original_regs: bool) {
+        self.restore_original_regs = restore_original_regs;
     }
-}
 
-impl fmt::Display for Registers {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    /// Little utility method to quickly restore the original version
+    /// of a register.
+    ///
+    /// Requires both `Original` and `Current` registers to be defined.
+    #[inline]
+    pub fn restore_original(&mut self, register: Register, justification: &'static str) {
+        let original_value = self.get(Original, register);
+
+        self.set(register, original_value, justification);
+    }
+
+    #[inline]
+    fn display(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let current_regs = &self.registers[Current as usize].unwrap();
+
         write!(
             f,
-            "(pid {}: syscall {} - args {:?}, result {}, stack-ptr {})",
+            "(pid {}: syscall {} - args [{}, {}, {}, {}, {}, {}], result {}, stack-ptr {})",
             self.pid,
-            self.sys_num,
-            self.sys_args,
-            self.sys_result,
-            self.stack_pointer
+            get_reg!(current_regs, SysNum),
+            get_reg!(current_regs, SysArg1),
+            get_reg!(current_regs, SysArg2),
+            get_reg!(current_regs, SysArg3),
+            get_reg!(current_regs, SysArg4),
+            get_reg!(current_regs, SysArg5),
+            get_reg!(current_regs, SysArg6),
+            get_reg!(current_regs, SysResult),
+            get_reg!(current_regs, StackPointer),
         )
     }
 }
 
 impl fmt::Debug for Registers {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            "(pid {}: syscall {} - args {:?}, result {}, stack-ptr {})",
-            self.pid,
-            self.sys_num,
-            self.sys_args,
-            self.sys_result,
-            self.stack_pointer
-        )
+        self.display(f)
+    }
+}
+
+impl fmt::Display for Registers {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        self.display(f)
     }
 }
 
@@ -235,35 +334,22 @@ mod tests {
 
     #[test]
     fn test_regs_where_changed() {
-        let raw_regs: user_regs_struct = unsafe { mem::zeroed() };
+        let mut regs = Registers::from(Pid::from_raw(-1), unsafe { mem::zeroed() });
 
-        let regs = Registers::from(Pid::from_raw(-1), raw_regs);
-        assert_eq!(false, regs.where_changed()); // no changes
+        assert_eq!(false, regs.regs_were_changed);
 
-        let mut regs = Registers::from(Pid::from_raw(-1), raw_regs);
-        regs.sys_num = 123456;
-        assert_eq!(true, regs.where_changed()); // syscall number change
+        regs.set(SysNum, 123456, "");
 
-        let mut regs = Registers::from(Pid::from_raw(-1), raw_regs);
-        regs.sys_result = 123456;
-        assert_eq!(true, regs.where_changed()); // sys arg result change
-
-        let mut regs = Registers::from(Pid::from_raw(-1), raw_regs);
-        regs.stack_pointer = 123456;
-        assert_eq!(true, regs.where_changed()); // stack pointer
-
-        for i in 0..6 {
-            let mut regs = Registers::from(Pid::from_raw(-1), raw_regs);
-            regs.sys_args[i] = 123456;
-            assert_eq!(true, regs.where_changed()); // stack pointer
-        }
+        assert_eq!(true, regs.regs_were_changed);
+        assert_eq!(123456, regs.get(Current, SysNum));
     }
 
 
     #[test]
     fn test_fetch_regs_should_fail_test() {
-        let regs = Registers::fetch_regs(Pid::from_raw(-1));
-        assert!(regs.is_err());
+        let mut regs = Registers::new(Pid::from_raw(-1));
+
+        assert!(regs.fetch_regs().is_err());
     }
 
     #[test]
@@ -273,7 +359,7 @@ mod tests {
             // expecting a normal execution
             0,
             // parent
-            |_, _, _| {
+            |_, _| {
                 // we stop on the first syscall;
                 // the fact that no panic was sparked until now means that the regs were OK
                 return true;
@@ -298,9 +384,9 @@ mod tests {
             // expecting a normal execution
             0,
             // parent
-            |regs, _, _| {
+            |tracee, _| {
                 // we only stop when the NANOSLEEP syscall is detected
-                return regs.sys_num == NANOSLEEP;
+                return tracee.regs.get_sys_num(Current) == NANOSLEEP;
             },
             // child
             || {
@@ -325,20 +411,23 @@ mod tests {
             // expecting a normal execution
             0,
             // parent
-            |mut regs, _, _| {
-                if regs.sys_num == NANOSLEEP {
+            |mut tracee, _| {
+                if tracee.regs.get_sys_num(Current) == NANOSLEEP {
+                    // NANOSLEEP enter stage
+                    tracee.regs.set_restore_original_regs(false);
+                    tracee.regs.save_current_regs(Original);
+
                     // we cancel the sleep call by voiding it
-                    regs.void_syscall();
-                    regs.push_regs().expect("pushing regs");
+                    tracee.regs.cancel_syscall("cancel sleep for push regs test");
+                    tracee.regs.push_regs().expect("pushing regs");
+
                     // the new syscall will be nanosleep's exit (with a sys num equal to 0)
                     sleep_exit = true;
                 } else if sleep_exit {
-                    // we restore the syscall number
-                    regs.sys_num = NANOSLEEP;
-                    // On successfully sleeping for the requested interval,
-                    // nanosleep() returns 0.
-                    regs.sys_result = 0;
-                    regs.push_regs().expect("pushing regs");
+                    // NANOSLEEP exit stage
+                    tracee.regs.set_restore_original_regs(true);
+                    tracee.regs.set(SysResult, 0, "simulate successful sleep");
+                    tracee.regs.push_regs().expect("pushing regs");
                     return true;
                 }
 

@@ -34,7 +34,7 @@ pub mod tests {
     /// The parent process will wait and loop for events from the tracee (child process).
     /// It only stops when the parent function (1st arg) returns true.
     pub fn fork_test<
-        FuncParent: FnMut(Registers, &mut Tracee, &mut InfoBag) -> bool,
+        FuncParent: FnMut(&mut Tracee, &mut InfoBag) -> bool,
         FuncChild: FnMut(),
     >(
         fs_root: &str,
@@ -62,9 +62,9 @@ pub mod tests {
                         match waitpid(child, Some(__WALL)).expect("event loop waitpid") {
                             PtraceSyscall(pid) => {
                                 assert_eq!(pid, child);
-                                let regs = Registers::fetch_regs(child).expect("fetch regs");
+                                tracee.regs.fetch_regs().expect("fetch regs");
 
-                                if func_parent(regs, &mut tracee, &mut info_bag) {
+                                if func_parent(&mut tracee, &mut info_bag) {
                                     break;
                                 }
                             }

@@ -5,7 +5,7 @@ use kernel::ptrace::*;
 use kernel::socket::*;
 use kernel::standard::*;
 use errors::Error;
-use register::{Word, Registers, SysNum};
+use register::{Word, Registers, Current};
 use process::tracee::Tracee;
 
 #[allow(dead_code)]
@@ -21,12 +21,13 @@ pub enum SyscallExitResult {
     None,
 }
 
-pub fn translate(tracee: &Tracee, regs: &Registers) -> SyscallExitResult {
-    let systype = syscall_group_from_sysnum(regs.get(SysNum) as usize);
+pub fn translate(tracee: &Tracee) -> SyscallExitResult {
+    let syscall_number = tracee.regs.get_sys_num(Current);
+    let syscall_group = syscall_group_from_sysnum(syscall_number);
 
-    println!("exit  \t({:?}, \t{:?})", regs.get(SysNum), systype);
+    println!("exit  \t({:?}, \t{:?})", syscall_number, syscall_group);
 
-    match systype {
+    match syscall_group {
         SyscallGroup::Brk => brk::exit(),
         SyscallGroup::GetCwd => getcwd::exit(),
         SyscallGroup::Accept => accept::exit(),
@@ -39,7 +40,7 @@ pub fn translate(tracee: &Tracee, regs: &Registers) -> SyscallExitResult {
         SyscallGroup::ReadLinkAt => readlink_at::exit(),
         #[cfg(all(target_os = "linux", target_arch = "x86_64"))]
         SyscallGroup::Uname => uname::exit(),
-        SyscallGroup::Execve => execve::exit(tracee, regs),
+        SyscallGroup::Execve => execve::exit(tracee),
         SyscallGroup::Ptrace => ptrace::exit(),
         SyscallGroup::Wait => wait::exit(),
         _ => SyscallExitResult::None,

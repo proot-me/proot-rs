@@ -1,6 +1,6 @@
 use std::usize::MAX as USIZE_MAX;
 use errors::{Result, Error};
-use register::{Word, Registers, StackPointer};
+use register::{Word, Registers, StackPointer, Current, Original};
 
 #[cfg(all(target_os = "linux", target_arch = "x86_64"))]
 const RED_ZONE_SIZE: isize = 128;
@@ -29,11 +29,8 @@ impl PtraceMemoryAllocator for Registers {
     /// Returns the address of the allocated memory in the @tracee's memory
     /// space, otherwise an error.
     fn alloc_mem(&mut self, size: isize, original_regs: Option<&Registers>) -> Result<Word> {
-        let original_stack_pointer = match original_regs {
-            Some(regs) => regs.get_raw(StackPointer),
-            None => self.get_raw(StackPointer),
-        };
-        let stack_pointer = self.get(StackPointer);
+        let original_stack_pointer = self.get(Original, StackPointer);
+        let stack_pointer = self.get(Current, StackPointer);
 
         // Some ABIs specify an amount of bytes after the stack
         // pointer that shall not be used by anything but the compiler
@@ -85,6 +82,9 @@ mod tests {
         get_reg!(raw_regs, StackPointer) = starting_stack_pointer;
 
         let mut regs = Registers::from(getpid(), raw_regs);
+
+        regs.save_current_regs(Original);
+
         let alloc_size = 7575;
         let new_stack_pointer = regs.alloc_mem(alloc_size, None).unwrap();
 
@@ -104,6 +104,9 @@ mod tests {
         get_reg!(raw_regs, StackPointer) = starting_stack_pointer;
 
         let mut regs = Registers::from(getpid(), raw_regs);
+
+        regs.save_current_regs(Original);
+
         let alloc_size = 7575;
         let result = regs.alloc_mem(alloc_size, None);
 
@@ -123,6 +126,9 @@ mod tests {
         get_reg!(raw_regs, StackPointer) = starting_stack_pointer;
 
         let mut regs = Registers::from(getpid(), raw_regs);
+
+        regs.save_current_regs(Original);
+
         let alloc_size = -7575;
         let result = regs.alloc_mem(alloc_size, None);
 

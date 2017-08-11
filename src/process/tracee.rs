@@ -53,14 +53,14 @@ pub enum TraceeRestartMethod {
 pub struct Tracee {
     /// Process identifier.
     pub pid: Pid,
-    /// Whether the tracee is in the enter or exit stage
+    /// Whether the tracee is in the enter or exit stage.
     pub status: TraceeStatus,
-    /// The ptrace's restart method depends on the status (enter or exit) and seccomp on/off
+    /// The ptrace's restart method depends on the status (enter or exit) and seccomp on/off.
     pub restart_how: TraceeRestartMethod,
     /// Contains the bindings and functions used for path translation.
     pub fs: FileSystem,
-    /// Used to remember the registers at the enter stage
-    pub saved_regs: Option<Registers>,
+    /// Cached version of the process' general purpose registers.
+    pub regs: Registers,
     /// State of the seccomp acceleration for this tracee.
     pub seccomp: bool,
     /// Ensure the sysexit stage is always hit under seccomp.
@@ -76,7 +76,7 @@ impl Tracee {
             status: TraceeStatus::SysEnter, // it always starts by the enter stage
             restart_how: TraceeRestartMethod::None,
             fs: fs,
-            saved_regs: None,
+            regs: Registers::new(pid),
             seccomp: false,
             sysexit_pending: false,
             new_exe: None,
@@ -151,7 +151,7 @@ mod tests {
             // expecting a normal execution
             0,
             // parent
-            |_, _, _| {
+            |_, _| {
                 // we stop on the first syscall;
                 // the fact that no panic was sparked until now
                 // means that the set_trace_options call was OK

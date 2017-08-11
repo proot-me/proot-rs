@@ -7,7 +7,7 @@ use errors::Error;
 use nix::unistd::Pid;
 use nix::sys::ptrace::ptrace;
 use nix::sys::ptrace::ptrace::PTRACE_PEEKDATA;
-use register::{Word, SysArg, Registers, SysArgIndex};
+use register::{Word, SysArg, Registers, SysArgIndex, Current};
 
 #[cfg(target_pointer_width = "32")]
 #[inline]
@@ -32,7 +32,7 @@ impl PtraceReader for Registers {
     /// `Ok(PathBuf::new())` if the syscall argument is null, or an error.
     #[inline]
     fn get_sysarg_path(&self, sys_arg: SysArgIndex) -> Result<PathBuf> {
-        let src_sysarg = self.get(SysArg(sys_arg)) as *mut Word;
+        let src_sysarg = self.get(Current, SysArg(sys_arg)) as *mut Word;
 
         if src_sysarg.is_null() {
             // Check if the parameter is not NULL. Technically we should
@@ -200,9 +200,9 @@ mod tests {
             // expecting an error (because the path doesn't exit)
             1,
             // parent
-            |regs, _, _| {
-                if regs.get(SysNum) as usize == MKDIR {
-                    let dir_path = regs.get_sysarg_path(SysArg1).unwrap();
+            |tracee, _| {
+                if tracee.regs.get_sys_num(Current) == MKDIR {
+                    let dir_path = tracee.regs.get_sysarg_path(SysArg1).unwrap();
 
                     // we're checking that the string read in the tracee's memory
                     // corresponds to what has been given to the execve command

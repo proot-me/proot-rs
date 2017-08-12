@@ -29,14 +29,12 @@ pub trait PtraceWriter {
         &mut self,
         sys_arg: SysArgIndex,
         path: &Path,
-        original_regs: Option<&Registers>,
         justification: &'static str,
     ) -> Result<()>;
     fn set_sysarg_data(
         &mut self,
         sys_arg: SysArgIndex,
         data: &[u8],
-        original_regs: Option<&Registers>,
         justification: &'static str,
     ) -> Result<()>;
     fn write_data(&self, dest_tracee: *mut Word, data: &[u8]) -> Result<()>;
@@ -48,13 +46,11 @@ impl PtraceWriter for Registers {
         &mut self,
         sys_arg: SysArgIndex,
         path: &Path,
-        original_regs: Option<&Registers>,
         justification: &'static str,
     ) -> Result<()> {
         self.set_sysarg_data(
             sys_arg,
             path.as_os_str().as_bytes(),
-            original_regs,
             justification,
         )
     }
@@ -65,11 +61,10 @@ impl PtraceWriter for Registers {
         &mut self,
         sys_arg: SysArgIndex,
         data: &[u8],
-        original_regs: Option<&Registers>,
         justification: &'static str,
     ) -> Result<()> {
         // Allocate space into the tracee's memory to host the new data.
-        let tracee_ptr = self.alloc_mem(data.len() as isize, original_regs)?;
+        let tracee_ptr = self.alloc_mem(data.len() as isize)?;
 
         // Copy the new data into the previously allocated space.
         self.write_data(tracee_ptr as *mut Word, data)?;
@@ -146,7 +141,7 @@ mod tests {
     use nix::unistd::execvp;
     use utils::tests::fork_test;
     use syscall::nr::MKDIR;
-    use register::{PtraceReader, SysNum, SysArg1, Current, Original};
+    use register::{PtraceReader, SysArg1, Current, Original};
 
     #[test]
     fn test_write_set_sysarg_path_write_same_path() {
@@ -174,7 +169,6 @@ mod tests {
                         tracee.regs.set_sysarg_path(
                             SysArg1,
                             &PathBuf::from(test_path_2),
-                            None,
                             "setting impossible path for push_regs test",
                         ).is_ok()
                     );

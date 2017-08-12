@@ -8,7 +8,7 @@ const RED_ZONE_SIZE: isize = 128;
 const RED_ZONE_SIZE: isize = 0;
 
 pub trait PtraceMemoryAllocator {
-    fn alloc_mem(&mut self, size: isize, original_regs: Option<&Registers>) -> Result<Word>;
+    fn alloc_mem(&mut self, size: isize) -> Result<Word>;
 }
 
 impl PtraceMemoryAllocator for Registers {
@@ -28,7 +28,7 @@ impl PtraceMemoryAllocator for Registers {
     ///
     /// Returns the address of the allocated memory in the @tracee's memory
     /// space, otherwise an error.
-    fn alloc_mem(&mut self, size: isize, original_regs: Option<&Registers>) -> Result<Word> {
+    fn alloc_mem(&mut self, size: isize) -> Result<Word> {
         let original_stack_pointer = self.get(Original, StackPointer);
         let stack_pointer = self.get(Current, StackPointer);
 
@@ -86,7 +86,7 @@ mod tests {
         regs.save_current_regs(Original);
 
         let alloc_size = 7575;
-        let new_stack_pointer = regs.alloc_mem(alloc_size, None).unwrap();
+        let new_stack_pointer = regs.alloc_mem(alloc_size).unwrap();
 
         // Remember the stack grows downward.
         assert!(new_stack_pointer < starting_stack_pointer);
@@ -108,7 +108,7 @@ mod tests {
         regs.save_current_regs(Original);
 
         let alloc_size = 7575;
-        let result = regs.alloc_mem(alloc_size, None);
+        let result = regs.alloc_mem(alloc_size);
 
         assert_eq!(
             Err(Error::bad_address(
@@ -130,7 +130,7 @@ mod tests {
         regs.save_current_regs(Original);
 
         let alloc_size = -7575;
-        let result = regs.alloc_mem(alloc_size, None);
+        let result = regs.alloc_mem(alloc_size);
 
         assert_eq!(
             Err(Error::bad_address(

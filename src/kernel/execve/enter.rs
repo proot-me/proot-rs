@@ -2,7 +2,7 @@ use nix::errno::Errno;
 use errors::{Result, Error};
 use filesystem::Translator;
 use process::tracee::Tracee;
-use register::{PtraceReader, PtraceWriter, Registers, SysArg1};
+use register::{PtraceReader, SysArg1};
 use kernel::execve::shebang;
 use kernel::execve::load_info::LoadInfo;
 use kernel::execve::loader::LoaderFile;
@@ -81,8 +81,7 @@ pub fn translate(tracee: &mut Tracee, loader: &LoaderFile) -> Result<()> {
     regs.set_sysarg_path(
         SysArg1,
         loader.get_loader_path(),
-        None,
-        "setting new loader path",
+        "during enter execve translation, setting new loader path",
     )?;
     */
 

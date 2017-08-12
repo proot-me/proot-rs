@@ -1,5 +1,5 @@
 use kernel::exit::SyscallExitResult;
-use register::{Registers, SysResult, Current};
+use register::{SysResult, Current};
 use process::tracee::Tracee;
 
 pub fn translate(tracee: &Tracee) -> SyscallExitResult {

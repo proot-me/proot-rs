@@ -12,7 +12,6 @@ pub mod tests {
     use nix::sys::ptrace::ptrace::PTRACE_SYSCALL;
     use process::proot::InfoBag;
     use process::tracee::Tracee;
-    use register::Registers;
     use filesystem::FileSystem;
 
     /// Allow tests to fork and deal with child processes without mixing them.

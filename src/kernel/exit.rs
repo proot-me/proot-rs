@@ -5,7 +5,7 @@ use kernel::ptrace::*;
 use kernel::socket::*;
 use kernel::standard::*;
 use errors::Error;
-use register::{Word, Registers, Current};
+use register::{Word, Current};
 use process::tracee::Tracee;
 
 #[allow(dead_code)]

@@ -65,8 +65,10 @@ pub struct Tracee {
     pub seccomp: bool,
     /// Ensure the sysexit stage is always hit under seccomp.
     pub sysexit_pending: bool,
-    /// Path to the executable, à la /proc/self/exe. Used in `execve`.
+    /// Path to the executable, à la /proc/self/exe. Used in `execve` enter.
     pub new_exe: Option<PathBuf>,
+    /// Path to the executable, à la /proc/self/exe. Used in `execve` exit.
+    pub exe: Option<PathBuf>,
 }
 
 impl Tracee {
@@ -80,6 +82,7 @@ impl Tracee {
             seccomp: false,
             sysexit_pending: false,
             new_exe: None,
+            exe: None
         }
     }
 

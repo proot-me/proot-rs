@@ -1,6 +1,5 @@
 use register::{Word, SysResult, Original, Modified, StackPointer};
 use kernel::{enter, exit};
-use kernel::exit::SyscallExitResult;
 use process::proot::InfoBag;
 use process::tracee::{TraceeStatus, TraceeRestartMethod, Tracee};
 
@@ -38,7 +37,7 @@ impl SyscallTranslator for Tracee {
         // Saving the original registers here.
         // It is paramount in order to restore the regs after the exit stage,
         // and also as memory in order to remember the original values (like
-        // the syscall number).
+        // the syscall number, in case this one is changed during the enter stage).
         self.regs.save_current_regs(Original);
 
         //TODO: notify extensions for SYSCALL_ENTER_START
@@ -99,24 +98,7 @@ impl SyscallTranslator for Tracee {
         //     return;
 
         if self.status.is_ok() {
-            match exit::translate(self) {
-                SyscallExitResult::None => (),
-                SyscallExitResult::Value(value) => {
-                    self.regs.set(
-                        SysResult,
-                        value as Word,
-                        "following exit translation, setting new syscall result",
-                    )
-                }
-                SyscallExitResult::Error(error) => {
-                    self.regs.set(
-                        SysResult,
-                        // errno is negative
-                        error.get_errno() as Word,
-                        "following error during exit translation, setting errno",
-                    )
-                }
-            };
+            exit::translate(self);
         } else {
             self.regs.set(
                 SysResult,

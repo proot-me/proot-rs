@@ -16,6 +16,6 @@ pub fn enter(tracee: &mut Tracee, loader: &LoaderFile) -> Result<()> {
     enter::translate(tracee, loader)
 }
 
-pub fn exit(tracee: &Tracee) -> SyscallExitResult {
+pub fn exit(tracee: &mut Tracee) -> SyscallExitResult {
     exit::translate(tracee)
 }

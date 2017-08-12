@@ -5,11 +5,13 @@ use kernel::ptrace::*;
 use kernel::socket::*;
 use kernel::standard::*;
 use errors::Error;
-use register::{Word, Current};
+use register::{Word, Current, SysResult};
 use process::tracee::Tracee;
 
 #[allow(dead_code)]
 pub enum SyscallExitResult {
+    /// The SYS_RESULT register won't be overwritten.
+    None,
     /// Indicates a new value for the syscall result, that is not an error.
     /// The SYS_RESULT register will be poked and changed to the new value.
     Value(Word),
@@ -17,17 +19,15 @@ pub enum SyscallExitResult {
     /// The SYS_RESULT register will be poked and changed to the new value.
     /// More precisely, the new value will be `-errno`.
     Error(Error),
-    /// The SYS_RESULT register won't be overwritten.
-    None,
 }
 
-pub fn translate(tracee: &Tracee) -> SyscallExitResult {
+pub fn translate(tracee: &mut Tracee) {
     let syscall_number = tracee.regs.get_sys_num(Current);
     let syscall_group = syscall_group_from_sysnum(syscall_number);
 
     println!("exit  \t({:?}, \t{:?})", syscall_number, syscall_group);
 
-    match syscall_group {
+    let result = match syscall_group {
         SyscallGroup::Brk => brk::exit(),
         SyscallGroup::GetCwd => getcwd::exit(),
         SyscallGroup::Accept => accept::exit(),
@@ -44,5 +44,24 @@ pub fn translate(tracee: &Tracee) -> SyscallExitResult {
         SyscallGroup::Ptrace => ptrace::exit(),
         SyscallGroup::Wait => wait::exit(),
         _ => SyscallExitResult::None,
-    }
+    };
+
+    match result {
+        SyscallExitResult::None => (),
+        SyscallExitResult::Value(value) => {
+            tracee.regs.set(
+                SysResult,
+                value as Word,
+                "following exit translation, setting new syscall result",
+            )
+        }
+        SyscallExitResult::Error(error) => {
+            tracee.regs.set(
+                SysResult,
+                // errno is negative
+                error.get_errno() as Word,
+                "following error during exit translation, setting errno",
+            )
+        }
+    };
 }

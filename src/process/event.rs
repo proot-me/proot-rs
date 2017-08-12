@@ -114,11 +114,11 @@ impl EventHandler for Tracee {
 
         // Stop this tracee until PRoot has received
         // the EVENT_*FORK|CLONE notification.
-        //if (tracee->exe == NULL) {
-        //    tracee->sigstop = SIGSTOP_PENDING;
-        //    self.restart_how = TraceeRestartMethod::None;
-        //    return TraceeRestartSignal::Stopped;
-        //}
+        // if self.exe.is_none() {
+        //     tracee->sigstop = SIGSTOP_PENDING;
+        //     self.restart_how = TraceeRestartMethod::None;
+        //     return TraceeRestartSignal::Stopped;
+        // }
     }
 
     fn handle_seccomp_event(&mut self, info_bag: &mut InfoBag, signal: PtraceSignalEvent) {

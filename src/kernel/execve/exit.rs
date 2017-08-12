@@ -1,17 +1,32 @@
+use errors::Result;
 use kernel::exit::SyscallExitResult;
 use register::{SysResult, Current};
 use process::tracee::Tracee;
 
-pub fn translate(tracee: &Tracee) -> SyscallExitResult {
+pub fn translate(tracee: &mut Tracee) -> SyscallExitResult {
+    let syscall_result = tracee.regs.get(Current, SysResult) as isize;
+
     //TODO: implement ptrace execve exit translation
 
-    let syscall_result = tracee.regs.get(Current, SysResult);
+    if syscall_result < 0 {
+        return SyscallExitResult::None;
+    }
 
-    println!(
-        "execve exit: syscall result = {},  {:?}",
-        syscall_result,
-        tracee.new_exe
-    );
+    if tracee.new_exe.is_some() {
+        // Execve happened; commit the new "/proc/self/exe".
+        tracee.exe = tracee.new_exe.take();
+    }
 
-    SyscallExitResult::None
+    //TODO: implement heap
+    // New processes have no heap.
+    //bzero(tracee->heap, sizeof(Heap));
+
+    match transfert_load_script(tracee) {
+        Err(error) => SyscallExitResult::Error(error),
+        Ok(()) => SyscallExitResult::None,
+    }
+}
+
+pub fn transfert_load_script(tracee: &mut Tracee) -> Result<()> {
+    Ok(())
 }

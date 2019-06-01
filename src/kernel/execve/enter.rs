@@ -7,7 +7,7 @@ use kernel::execve::shebang;
 use kernel::execve::load_info::LoadInfo;
 use kernel::execve::loader::LoaderFile;
 
-pub fn translate(tracee: &mut Tracee, loader: &LoaderFile) -> Result<()> {
+pub fn translate(tracee: &mut Tracee, loader: &dyn LoaderFile) -> Result<()> {
     //TODO: implement this part for ptrace translation
     //	if (IS_NOTIFICATION_PTRACED_LOAD_DONE(tracee)) {
     //		/* Syscalls can now be reported to its ptracer.  */

@@ -1,4 +1,3 @@
-#![feature(io)]
 #![feature(slice_patterns)]
 
 extern crate libc;

@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 use std::fs::File;
-use std::io::Read;
+use std::io::{BufRead, BufReader};
 use errors::{Error, Result};
 use filesystem::{FileSystem, Translator};
 
@@ -135,18 +135,19 @@ pub fn translate_and_check_exec(fs: &FileSystem, guest_path: &Path) -> Result<Pa
 //const char *host_path, char user_path[PATH_MAX], char argument[BINPRM_BUF_SIZE]
 fn extract(host_path: &Path) -> Result<Option<PathBuf>> {
     let file = File::open(host_path)?;
-    let mut chars = file.chars();
-
-    match (chars.next().unwrap()?, chars.next().unwrap()?) {
-        ('#', '!') => {}
-        _ => return Ok(None),
+    let mut first_line = String::new();
+    BufReader::new(file).read_line(&mut first_line)?;
+    if !first_line.starts_with("#!") {
+        return Ok(None);
     }
 
-    //TODO: extract shebang
-    unimplemented!("shebang extract");
-
-    //	current_length = 2;
-    //	user_path[0] = '\0';
+    let mut arguments = first_line[2..]
+        .split(" ")
+        .map(|s| s.trim());
+    match arguments.next() {
+        None => Err(Error::InvalidPath("Cannot have empty shebang")),
+        Some(path) => Ok(Some(Path::new(path).to_path_buf()))
+    }
     //
     //	/* Skip leading spaces. */
     //	do {

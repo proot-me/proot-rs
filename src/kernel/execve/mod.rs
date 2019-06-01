@@ -12,7 +12,7 @@ use kernel::exit::SyscallExitResult;
 use process::tracee::Tracee;
 use kernel::execve::loader::LoaderFile;
 
-pub fn enter(tracee: &mut Tracee, loader: &LoaderFile) -> Result<()> {
+pub fn enter(tracee: &mut Tracee, loader: &dyn LoaderFile) -> Result<()> {
     enter::translate(tracee, loader)
 }
 

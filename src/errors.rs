@@ -1,7 +1,7 @@
-use std::{string, error, result, fmt};
-use std::io::{Error as IOError, ErrorKind as IOErrorKind, CharsError};
 use nix::errno;
 use nix::Error as NixError;
+use std::io::{Error as IOError, ErrorKind as IOErrorKind};
+use std::{error, fmt, result, string};
 
 pub type Result<T> = result::Result<T, Error>;
 
@@ -94,15 +94,6 @@ impl From<NixError> for Error {
             NixError::InvalidPath => Error::InvalidPath("from Nix error"),
             NixError::InvalidUtf8 => Error::InvalidUtf8,
             NixError::UnsupportedOperation => Error::UnsupportedOperation("from Nix error"),
-        }
-    }
-}
-
-impl From<CharsError> for Error {
-    fn from(chars_error: CharsError) -> Error {
-        match chars_error {
-            CharsError::NotUtf8 => Error::InvalidUtf8,
-            CharsError::Other(error) => error.into(),
         }
     }
 }

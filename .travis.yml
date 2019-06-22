@@ -4,6 +4,7 @@ rust:
 before_script:
 - rustup component add clippy rustfmt
 script:
-- cargo fmt --all -- --check
+# only check files that have changed
+- git status --porcelain | sed 's/^...//' | grep '\.rs$' | xargs rustfmt --check
 - cargo clippy -- -D warnings
 - cargo test

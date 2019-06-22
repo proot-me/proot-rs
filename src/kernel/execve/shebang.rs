@@ -1,3 +1,4 @@
+use bstr::BString;
 use errors::{Error, Result};
 use filesystem::{FileSystem, Translator};
 use std::fs::File;
@@ -134,18 +135,32 @@ pub fn translate_and_check_exec(fs: &FileSystem, guest_path: &Path) -> Result<Pa
 ///     string can include white space.
 //const char *host_path, char user_path[PATH_MAX], char argument[BINPRM_BUF_SIZE]
 fn extract(host_path: &Path) -> Result<Option<PathBuf>> {
-    let file = File::open(host_path)?;
-    let mut first_line = String::new();
-    BufReader::new(file).read_line(&mut first_line)?;
-    if !first_line.starts_with("#!") {
-        return Ok(None);
+    let mut bytes = BufReader::new(File::open(host_path)?).bytes();
+    match (bytes.next(), bytes.next()) {
+        (Some(Err(err)), _) | (_, Some(Err(err))) => return Err(Error::from(err)),
+        (Some(Ok(b'#')), Some(Ok(b'!'))) => {}
+        _ => return Ok(None),
     }
-
-    let mut arguments = first_line[2..].split(' ').map(|s| s.trim());
-    match arguments.next() {
-        None => Err(Error::InvalidPath("Cannot have empty shebang")),
-        Some(path) => Ok(Some(Path::new(path).to_path_buf())),
+    let first_line = bytes
+        .take_while(|c| match c {
+            Ok(b'\n') => true,
+            _ => false,
+        })
+        .collect::<std::result::Result<Vec<u8>, _>>()?;
+    let path: Vec<u8> = first_line
+        .clone()
+        .into_iter()
+        .take_while(|c| !c.is_ascii_whitespace())
+        .collect();
+    if path.is_empty() {
+        return Err(Error::InvalidPath("Cannot have empty shebang"));
     }
+    // NOTE: this unwrap may fail on non-UNIX systems (a.k.a Windows)
+    // where paths may not be arbitrary bytes
+    let arg = first_line[path.len()..].to_vec();
+    let mut argv = PathBuf::from(BString::from(path).to_path().unwrap());
+    argv.push(BString::from_vec(arg).to_path().unwrap());
+    Ok(Some(argv))
     //
     //	/* Skip leading spaces. */
     //	do {

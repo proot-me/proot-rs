@@ -1,4 +1,4 @@
-# proot-rs
+# proot-rs [![Build Status](https://travis-ci.org/proot-me/proot-rs.svg?branch=master)](https://travis-ci.org/proot-me/proot-rs)
 Rust implementation of PRoot, a ptrace-based sandbox.
 _(Work in progress)_
 

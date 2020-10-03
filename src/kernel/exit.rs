@@ -2,7 +2,7 @@ use errors::Error;
 use kernel::execve;
 use kernel::groups::{syscall_group_from_sysnum, SyscallGroup};
 use kernel::heap::*;
-use kernel::ptrace::*;
+use kernel::ptracer::*;
 use kernel::socket::*;
 use kernel::standard::*;
 use process::tracee::Tracee;

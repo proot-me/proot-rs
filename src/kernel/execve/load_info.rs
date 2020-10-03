@@ -54,7 +54,7 @@ impl LoadInfo {
             raw_path: None,
             user_path: None,
             host_path: None,
-            elf_header: elf_header,
+            elf_header,
             mappings: Vec::new(),
             interp: None,
         }
@@ -122,7 +122,7 @@ impl LoadInfo {
             addr: start_address,
             length: end_address - start_address,
             flags: MAP_PRIVATE | MAP_FIXED,
-            prot: prot,
+            prot,
             clear_length: 0,
         };
 
@@ -148,7 +148,7 @@ impl LoadInfo {
                     length: end_address - start_address,
                     clear_length: 0,
                     flags: MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED,
-                    prot: prot,
+                    prot,
                 };
 
                 self.mappings.push(new_mapping);
@@ -306,7 +306,7 @@ mod tests {
 
         let load_info = result.unwrap();
 
-        assert!(load_info.mappings.len() > 0);
+        assert!(!load_info.mappings.is_empty());
     }
 
     #[test]

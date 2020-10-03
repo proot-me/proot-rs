@@ -5,11 +5,14 @@ use std::io::{Read, Seek, SeekFrom};
 use std::mem;
 
 const EI_NIDENT: usize = 16;
+#[allow(dead_code)]
 const ET_REL: u16 = 1;
 const ET_EXEC: u16 = 2;
 const ET_DYN: u16 = 3;
+#[allow(dead_code)]
 const ET_CORE: u16 = 4;
 pub const PT_LOAD: u32 = 1;
+#[allow(dead_code)]
 pub const PT_DYNAMIC: u32 = 2;
 pub const PT_INTERP: u32 = 3;
 pub const PF_X: u32 = 1;
@@ -18,11 +21,13 @@ pub const PF_R: u32 = 4;
 
 /// Use TSigned = i32 and TUnsigned = u32 for 32bits,
 /// and TSigned = u64 and TUnsigned = u64 for 64bits
+#[allow(dead_code)]
 pub struct DynamicEntry<TSigned, TUnsigned> {
     d_tag: TSigned,
     d_val: TUnsigned,
 }
 
+#[allow(dead_code)]
 pub enum DynamicType {
     DtStrtab = 5,
     DtRpath = 15,
@@ -67,8 +72,8 @@ impl ProgramHeader {
         func64: F64,
     ) -> Result<V> {
         match self {
-            &ProgramHeader::ProgramHeader32(ref program_header) => func32(program_header),
-            &ProgramHeader::ProgramHeader64(ref program_header) => func64(program_header),
+            ProgramHeader::ProgramHeader32(ref program_header) => func32(program_header),
+            ProgramHeader::ProgramHeader64(ref program_header) => func64(program_header),
         }
     }
 }
@@ -179,8 +184,8 @@ impl ElfHeader {
     #[inline]
     pub fn get_class(&self) -> ExecutableClass {
         match self {
-            &ElfHeader::ElfHeader32(_) => ExecutableClass::Class32,
-            &ElfHeader::ElfHeader64(_) => ExecutableClass::Class64,
+            ElfHeader::ElfHeader32(_) => ExecutableClass::Class32,
+            ElfHeader::ElfHeader64(_) => ExecutableClass::Class64,
         }
     }
 
@@ -195,8 +200,8 @@ impl ElfHeader {
         func64: F64,
     ) -> Result<V> {
         match self {
-            &ElfHeader::ElfHeader32(ref elf_header) => func32(elf_header),
-            &ElfHeader::ElfHeader64(ref elf_header) => func64(elf_header),
+            ElfHeader::ElfHeader32(ref elf_header) => func32(elf_header),
+            ElfHeader::ElfHeader64(ref elf_header) => func64(elf_header),
         }
     }
     #[inline]
@@ -210,8 +215,8 @@ impl ElfHeader {
         func64: F64,
     ) -> Result<V> {
         match self {
-            &mut ElfHeader::ElfHeader32(ref mut elf_header) => func32(elf_header),
-            &mut ElfHeader::ElfHeader64(ref mut elf_header) => func64(elf_header),
+            ElfHeader::ElfHeader32(ref mut elf_header) => func32(elf_header),
+            ElfHeader::ElfHeader64(ref mut elf_header) => func64(elf_header),
         }
     }
 }

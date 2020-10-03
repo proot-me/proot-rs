@@ -5,7 +5,7 @@ use std::io::Write;
 use std::os::unix::fs::PermissionsExt;
 use std::path::Path;
 
-const LOADER_EXE: &'static [u8] = include_bytes!("loader/binary_loader_exe");
+const LOADER_EXE: &[u8] = include_bytes!("loader/binary_loader_exe");
 
 pub trait LoaderFile {
     fn prepare_loader(&self) -> Result<()>;

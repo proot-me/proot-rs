@@ -4,8 +4,8 @@ use filesystem::validation::{binding_validator, path_validator};
 use filesystem::FileSystem;
 use std::path::PathBuf;
 
-pub const DEFAULT_ROOTFS: &'static str = "/";
-pub const DEFAULT_CWD: &'static str = ".";
+pub const DEFAULT_ROOTFS: &str = "/";
+pub const DEFAULT_CWD: &str = ".";
 
 pub fn parse_config(fs: &mut FileSystem) {
     let matches = App::new("proot-rsc")

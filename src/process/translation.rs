@@ -60,17 +60,20 @@ impl SyscallTranslator for Tracee {
         // In case of error reported by the translation/extension,
         // remember the tracee status for the "exit" stage and avoid
         // the actual syscall.
-        if status.is_err() {
-            self.regs
-                .cancel_syscall("following error during enter stage, avoid syscall");
-            self.regs.set(
-                SysResult,
-                status.unwrap_err().get_errno() as Word,
-                "following error during enter stage, remember errno for exit stage",
-            );
-            self.status = TraceeStatus::Error(status.unwrap_err());
-        } else {
-            self.status = TraceeStatus::SysExit;
+        match status {
+            Ok(_) => {
+                self.status = TraceeStatus::SysExit;
+            }
+            Err(x) => {
+                self.regs
+                    .cancel_syscall("following error during enter stage, avoid syscall");
+                self.regs.set(
+                    SysResult,
+                    x.get_errno() as Word,
+                    "following error during enter stage, remember errno for exit stage",
+                );
+                self.status = TraceeStatus::Error(x);
+            }
         }
 
         // Restore tracee's stack pointer now if it won't hit

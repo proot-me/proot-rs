@@ -149,6 +149,7 @@ impl FileSystem {
     }
 
     #[inline]
+    #[allow(dead_code)]
     pub fn set_glue_type(&mut self, mode: Mode) {
         self.glue_type = mode;
     }

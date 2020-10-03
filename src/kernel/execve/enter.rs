@@ -38,7 +38,7 @@ pub fn translate(tracee: &mut Tracee, loader: &dyn LoaderFile) -> Result<()> {
     //	a canonicalized guest path, hence detranslate_path()
     //	instead of using user_path directly.  */
     if let Ok(maybe_path) = tracee.fs.detranslate_path(&host_path, None) {
-        tracee.new_exe = Some(maybe_path.unwrap_or(host_path.clone()));
+        tracee.new_exe = Some(maybe_path.unwrap_or_else(|| host_path.clone()));
     } else {
         tracee.new_exe = None;
     }
@@ -54,8 +54,8 @@ pub fn translate(tracee: &mut Tracee, loader: &dyn LoaderFile) -> Result<()> {
 
     load_info.raw_path = Some(raw_path.clone());
     //TODO: use user_path when implemented
-    load_info.user_path = Some(raw_path.clone());
-    load_info.host_path = Some(host_path.clone());
+    load_info.user_path = Some(raw_path);
+    load_info.host_path = Some(host_path);
 
     if load_info.interp.is_none() {
         return Err(Error::invalid_argument(
@@ -112,7 +112,7 @@ mod tests {
             // expecting a normal execution
             0,
             // parent
-            |mut tracee, info_bag| {
+            |tracee, info_bag| {
                 if tracee.regs.get_sys_num(Current) == EXECVE {
                     let dir_path = tracee.regs.get_sysarg_path(SysArg1).unwrap();
                     let file_exists = dir_path.exists();
@@ -122,15 +122,15 @@ mod tests {
                         assert_eq!(Ok(()), translate(tracee, &info_bag.loader));
                         at_least_one_translation_occured = true;
                     }
-                    return false;
+                    false
                 } else if tracee.regs.get_sys_num(Current) == NANOSLEEP {
                     // we expect at least one successful translation to have occurred
                     assert!(at_least_one_translation_occured);
 
                     // we stop when the NANOSLEEP syscall is detected
-                    return true;
+                    true
                 } else {
-                    return false;
+                    false
                 }
             },
             // child

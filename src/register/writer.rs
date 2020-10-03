@@ -79,7 +79,7 @@ impl PtraceWriter for Registers {
         //TODO implement HAVE_PROCESS_VM
 
         // The byteorder crate is used to read the [u8] slice as a [Word] slice.
-        let null_char_slice: &[u8] = &['\0' as u8];
+        let null_char_slice: &[u8] = &[b'\0'];
         let mut buf = Cursor::new(data).chain(Cursor::new(null_char_slice));
 
         let size = data.len() + 1; // the +1 is for the `\0` byte that we will have manually
@@ -111,8 +111,8 @@ impl PtraceWriter for Registers {
         // bytes = [0, 0, 0, 0, 0, 0, 119, 0] // the already existing bytes at the dest addr
         // trailing bytes = [164, 247, 274] // our trailing bytes
         // fusion = [164, 247, 274, 0, 0, 0, 119, 0] // the fusion of the two
-        for j in 0..nb_trailing_bytes as usize {
-            bytes[j] = buf.read_u8().unwrap();
+        for j in 0..nb_trailing_bytes {
+            bytes[j as usize] = buf.read_u8().unwrap();
         }
 
         let last_word = convert_bytes_to_word(bytes);
@@ -148,7 +148,7 @@ mod tests {
             // expecting an error (because the first path doesn't exit)
             1,
             // parent
-            |mut tracee, _| {
+            |tracee, _| {
                 if tracee.regs.get_sys_num(Current) == MKDIR {
                     tracee.regs.set_restore_original_regs(false);
                     tracee.regs.save_current_regs(Original);
@@ -176,9 +176,9 @@ mod tests {
                     assert_eq!(dir_path_2, PathBuf::from(test_path_2));
 
                     // we don't push the regs, we stop here
-                    return true;
+                    true
                 } else {
-                    return false;
+                    false
                 }
             },
             // child

@@ -69,8 +69,7 @@ mod tests {
                 assert!(temp_file_path.exists());
                 assert!(file.metadata().unwrap().len() == 0);
 
-                file.write(&"test".as_bytes())
-                    .expect("writing in temp file");
+                file.write_all(b"test").expect("writing in temp file");
 
                 assert!(file.metadata().unwrap().len() > 0);
             }

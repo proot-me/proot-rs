@@ -1,5 +1,3 @@
-#![feature(slice_patterns)]
-
 extern crate clap;
 extern crate libc;
 extern crate nix;

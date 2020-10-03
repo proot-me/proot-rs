@@ -3,6 +3,6 @@ mod execve;
 pub mod exit;
 mod groups;
 mod heap;
-mod ptrace;
+mod ptracer;
 mod socket;
 mod standard;

@@ -150,7 +150,7 @@ impl PRoot {
 
     fn handle_standard_event(&mut self, tracee_pid: Pid, signal: Option<Signal>) {
         let (wrapped_tracee, info_bag) = self.get_mut_tracee_and_all(tracee_pid);
-        let mut tracee = wrapped_tracee.expect("get stopped tracee");
+        let tracee = wrapped_tracee.expect("get stopped tracee");
 
         tracee.handle_event(info_bag, signal);
         tracee.restart();

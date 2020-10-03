@@ -151,10 +151,7 @@ mod tests {
             + 'o' as u64 * 256 * 256 * 256 * 256;
         let bytes = convert_word_to_bytes(number);
 
-        assert_eq!(
-            bytes,
-            ['h' as u8, 'e' as u8, 'l' as u8, 'l' as u8, 'o' as u8, 0, 0, 0,]
-        );
+        assert_eq!(bytes, [b'h', b'e', b'l', b'l', b'o', 0, 0, 0,]);
     }
 
     #[test]
@@ -201,9 +198,9 @@ mod tests {
                     assert_eq!(dir_path, PathBuf::from(test_path));
 
                     // we can stop here
-                    return true;
+                    true
                 } else {
-                    return false;
+                    false
                 }
             },
             // child

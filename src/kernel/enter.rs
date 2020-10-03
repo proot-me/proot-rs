@@ -3,7 +3,7 @@ use kernel::execve;
 use kernel::groups::syscall_group_from_sysnum;
 use kernel::groups::SyscallGroup::*;
 use kernel::heap::*;
-use kernel::ptrace::*;
+use kernel::ptracer::*;
 use kernel::socket::*;
 use kernel::standard::*;
 use process::proot::InfoBag;

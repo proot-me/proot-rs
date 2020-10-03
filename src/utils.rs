@@ -63,8 +63,8 @@ pub mod tests {
                                     break;
                                 }
                             }
-                            Exited(_, _) => assert!(false),
-                            Signaled(_, _, _) => assert!(false),
+                            Exited(_, _) => unreachable!(),
+                            Signaled(_, _, _) => unreachable!(),
                             _ => {}
                         }
                         restart(child);

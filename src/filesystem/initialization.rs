@@ -1,8 +1,7 @@
-use std::path::PathBuf;
-use nix::unistd::getcwd;
 use errors::Result;
-use filesystem::{FileSystem, Canonicalizer};
-
+use filesystem::{Canonicalizer, FileSystem};
+use nix::unistd::getcwd;
+use std::path::PathBuf;
 
 pub trait Initialiser {
     fn initialize(&mut self) -> Result<()>;
@@ -51,8 +50,8 @@ impl Initialiser for FileSystem {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::path::PathBuf;
     use filesystem::FileSystem;
+    use std::path::PathBuf;
 
     #[test]
     fn test_initialisation_cwd_invalid_should_default_to_root() {

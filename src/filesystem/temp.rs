@@ -1,8 +1,8 @@
-use std::env;
-use std::path::PathBuf;
-use std::fs;
-use nix::unistd::getpid;
 use errors::Result;
+use nix::unistd::getpid;
+use std::env;
+use std::fs;
+use std::path::PathBuf;
 
 #[derive(Debug)]
 pub struct TempFile {
@@ -21,7 +21,9 @@ impl TempFile {
     }
 
     pub fn new(prefix: &str) -> Self {
-        Self { path: TempFile::create_temp_path(prefix) }
+        Self {
+            path: TempFile::create_temp_path(prefix),
+        }
     }
 
     pub fn create_file(&self) -> Result<fs::File> {
@@ -67,9 +69,8 @@ mod tests {
                 assert!(temp_file_path.exists());
                 assert!(file.metadata().unwrap().len() == 0);
 
-                file.write(&"test".as_bytes()).expect(
-                    "writing in temp file",
-                );
+                file.write(&"test".as_bytes())
+                    .expect("writing in temp file");
 
                 assert!(file.metadata().unwrap().len() > 0);
             }

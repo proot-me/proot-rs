@@ -1,7 +1,7 @@
 use errors::Result;
 use kernel::exit::SyscallExitResult;
-use register::{SysResult, Current};
 use process::tracee::Tracee;
+use register::{Current, SysResult};
 
 pub fn translate(tracee: &mut Tracee) -> SyscallExitResult {
     let syscall_result = tracee.regs.get(Current, SysResult) as isize;

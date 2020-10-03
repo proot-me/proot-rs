@@ -1,7 +1,7 @@
-use std::{slice, mem};
 use std::fs::File;
-use std::io::{Result, Read, Seek, SeekFrom};
+use std::io::{Read, Result, Seek, SeekFrom};
 use std::path::PathBuf;
+use std::{mem, slice};
 
 pub trait ExtraReader {
     fn read_struct<T>(&mut self) -> Result<T>;
@@ -43,8 +43,8 @@ impl ExtraReader for File {
         // restore the initial position
         self.seek(SeekFrom::Start(initial_pos))?;
 
-        Ok(PathBuf::from(
-            unsafe { String::from_utf8_unchecked(buffer) },
-        ))
+        Ok(PathBuf::from(unsafe {
+            String::from_utf8_unchecked(buffer)
+        }))
     }
 }

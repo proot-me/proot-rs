@@ -1,12 +1,12 @@
 use nix::sys::signal::Signal;
-use process::tracee::{Tracee, TraceeStatus, TraceeRestartMethod};
-use process::translation::SyscallTranslator;
 use process::proot::InfoBag;
+use process::tracee::{Tracee, TraceeRestartMethod, TraceeStatus};
+use process::translation::SyscallTranslator;
 
 //TODO: remove this when a nix PR will have added them
 mod ptrace_events {
+    use libc::{c_int, SIGSTOP, SIGTRAP};
     use nix::sys::ptrace::ptrace::*;
-    use libc::{c_int, SIGTRAP, SIGSTOP};
 
     pub type PtraceSignalEvent = c_int;
 
@@ -62,13 +62,12 @@ impl EventHandler for Tracee {
         }
 
         match signal {
-            PTRACE_S_RAW_SIGTRAP |
-            PTRACE_S_NORMAL_SIGTRAP => self.handle_sigtrap_event(info_bag, signal),
-            PTRACE_S_SECCOMP |
-            PTRACE_S_SECCOMP2 => self.handle_seccomp_event(info_bag, signal),
+            PTRACE_S_RAW_SIGTRAP | PTRACE_S_NORMAL_SIGTRAP => {
+                self.handle_sigtrap_event(info_bag, signal)
+            }
+            PTRACE_S_SECCOMP | PTRACE_S_SECCOMP2 => self.handle_seccomp_event(info_bag, signal),
             PTRACE_S_VFORK | PTRACE_S_FORK | PTRACE_S_CLONE => self.handle_new_child_event(signal),
-            PTRACE_S_EXEC |
-            PTRACE_S_VFORK_DONE => self.handle_exec_vfork_event(),
+            PTRACE_S_EXEC | PTRACE_S_VFORK_DONE => self.handle_exec_vfork_event(),
             PTRACE_S_SIGSTOP => self.handle_sigstop_event(),
             _ => {}
         }
@@ -84,8 +83,8 @@ impl EventHandler for Tracee {
         }
 
         /* This tracee got signaled then freed during the
-           sysenter stage but the kernel reports the sysexit
-           stage; just discard this spurious tracee/event. */
+        sysenter stage but the kernel reports the sysexit
+        stage; just discard this spurious tracee/event. */
         // if (tracee->exe == NULL) {
         //    self.restart_how = Some(TraceeRestartMethod::WithoutExitStage);
         //    return TraceeRestartSignal::Signal(0);
@@ -98,8 +97,7 @@ impl EventHandler for Tracee {
                     self.restart_how = TraceeRestartMethod::WithExitStage;
                     self.sysexit_pending = true;
                 }
-                TraceeStatus::SysExit |
-                TraceeStatus::Error(_) => {
+                TraceeStatus::SysExit | TraceeStatus::Error(_) => {
                     // sysexit: the next sysenter will be notified by seccomp.
                     self.restart_how = TraceeRestartMethod::WithoutExitStage;
                     self.sysexit_pending = false;

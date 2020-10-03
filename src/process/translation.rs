@@ -1,7 +1,7 @@
-use register::{Word, SysResult, Original, Modified, StackPointer};
 use kernel::{enter, exit};
 use process::proot::InfoBag;
-use process::tracee::{TraceeStatus, TraceeRestartMethod, Tracee};
+use process::tracee::{Tracee, TraceeRestartMethod, TraceeStatus};
+use register::{Modified, Original, StackPointer, SysResult, Word};
 
 pub trait SyscallTranslator {
     fn translate_syscall(&mut self, info_bag: &InfoBag);
@@ -21,8 +21,7 @@ impl SyscallTranslator for Tracee {
 
         match self.status {
             TraceeStatus::SysEnter => self.translate_syscall_enter(info_bag),
-            TraceeStatus::SysExit |
-            TraceeStatus::Error(_) => self.translate_syscall_exit()
+            TraceeStatus::SysExit | TraceeStatus::Error(_) => self.translate_syscall_exit(),
         };
 
         if let Err(error) = self.regs.push_regs() {
@@ -62,10 +61,12 @@ impl SyscallTranslator for Tracee {
         // remember the tracee status for the "exit" stage and avoid
         // the actual syscall.
         if status.is_err() {
-            self.regs.cancel_syscall("following error during enter stage, avoid syscall");
-            self.regs.set(SysResult,
-                          status.unwrap_err().get_errno() as Word,
-                          "following error during enter stage, remember errno for exit stage",
+            self.regs
+                .cancel_syscall("following error during enter stage, avoid syscall");
+            self.regs.set(
+                SysResult,
+                status.unwrap_err().get_errno() as Word,
+                "following error during enter stage, remember errno for exit stage",
             );
             self.status = TraceeStatus::Error(status.unwrap_err());
         } else {
@@ -79,7 +80,7 @@ impl SyscallTranslator for Tracee {
             self.status = TraceeStatus::SysEnter;
             self.regs.restore_original(
                 StackPointer,
-                "following enter stage, restoring stack pointer early because no exit stage"
+                "following enter stage, restoring stack pointer early because no exit stage",
             );
         }
     }

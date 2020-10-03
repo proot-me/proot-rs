@@ -1,11 +1,11 @@
-use std::path::{Path, PathBuf};
-use libc::PATH_MAX;
 use errors::{Error, Result};
+use libc::PATH_MAX;
 use nix::NixPath;
+use std::path::{Path, PathBuf};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Side {
-    Host, // in the real filesystem
+    Host,  // in the real filesystem
     Guest, // in the sandbox
 }
 
@@ -50,7 +50,6 @@ impl Binding {
         self.need_substitution
     }
 
-
     #[inline]
     pub fn substitute_path_prefix(
         &self,
@@ -82,11 +81,10 @@ impl Binding {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
+    use super::Side::{Guest, Host};
     use super::*;
-    use super::Side::{Host, Guest};
     use std::path::PathBuf;
 
     #[test]
@@ -127,7 +125,8 @@ mod tests {
         let binding = Binding::new("/etc", "/media", true);
 
         assert_eq!(
-            binding.substitute_path_prefix(&PathBuf::from("/etc/bin/sleep"), Direction(Guest, Host)),
+            binding
+                .substitute_path_prefix(&PathBuf::from("/etc/bin/sleep"), Direction(Guest, Host)),
             Ok(None)
         ); // no "/etc" prefix on the guest side
         assert_eq!(
@@ -138,7 +137,8 @@ mod tests {
             Ok(Some(PathBuf::from("/etc/bin/sleep")))
         ); // "/media" => "/etc"
         assert_eq!(
-            binding.substitute_path_prefix(&PathBuf::from("/etc/bin/sleep"), Direction(Host, Guest)),
+            binding
+                .substitute_path_prefix(&PathBuf::from("/etc/bin/sleep"), Direction(Host, Guest)),
             Ok(Some(PathBuf::from("/media/bin/sleep")))
         ); // "/etc" => "/media"
         assert_eq!(

@@ -1,8 +1,8 @@
 use clap::{App, Arg};
-use std::path::PathBuf;
-use filesystem::FileSystem;
 use filesystem::binding::Binding;
 use filesystem::validation::{binding_validator, path_validator};
+use filesystem::FileSystem;
+use std::path::PathBuf;
 
 pub const DEFAULT_ROOTFS: &'static str = "/";
 pub const DEFAULT_CWD: &'static str = ".";

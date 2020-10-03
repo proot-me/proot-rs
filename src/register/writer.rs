@@ -1,16 +1,16 @@
-use std::path::Path;
-use std::os::unix::ffi::OsStrExt;
-use std::mem;
-use std::ptr::null_mut;
-use std::io::Read;
-use libc::c_void;
-use nix::sys::ptrace::ptrace;
-use nix::sys::ptrace::ptrace::{PTRACE_POKEDATA, PTRACE_PEEKDATA};
-use std::io::Cursor;
 use byteorder::{LittleEndian, ReadBytesExt};
 use errors::Result;
-use register::{Word, SysArgIndex, PtraceMemoryAllocator, Registers, SysArg};
+use libc::c_void;
+use nix::sys::ptrace::ptrace;
+use nix::sys::ptrace::ptrace::{PTRACE_PEEKDATA, PTRACE_POKEDATA};
 use register::reader::convert_word_to_bytes;
+use register::{PtraceMemoryAllocator, Registers, SysArg, SysArgIndex, Word};
+use std::io::Cursor;
+use std::io::Read;
+use std::mem;
+use std::os::unix::ffi::OsStrExt;
+use std::path::Path;
+use std::ptr::null_mut;
 
 #[cfg(target_pointer_width = "32")]
 #[inline]
@@ -48,11 +48,7 @@ impl PtraceWriter for Registers {
         path: &Path,
         justification: &'static str,
     ) -> Result<()> {
-        self.set_sysarg_data(
-            sys_arg,
-            path.as_os_str().as_bytes(),
-            justification,
-        )
+        self.set_sysarg_data(sys_arg, path.as_os_str().as_bytes(), justification)
     }
 
     /// Copies all bytes of `data` to the tracee's memory block
@@ -132,16 +128,15 @@ impl PtraceWriter for Registers {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
+    use nix::unistd::execvp;
+    use register::{Current, Original, PtraceReader, SysArg1};
+    use sc::nr::MKDIR;
     use std::ffi::CString;
     use std::path::PathBuf;
-    use nix::unistd::execvp;
     use utils::tests::fork_test;
-    use sc::nr::MKDIR;
-    use register::{PtraceReader, SysArg1, Current, Original};
 
     #[test]
     fn test_write_set_sysarg_path_write_same_path() {
@@ -165,13 +160,14 @@ mod tests {
                     assert_eq!(dir_path, PathBuf::from(test_path));
 
                     // we write the new path
-                    assert!(
-                        tracee.regs.set_sysarg_path(
+                    assert!(tracee
+                        .regs
+                        .set_sysarg_path(
                             SysArg1,
                             &PathBuf::from(test_path_2),
                             "setting impossible path for push_regs test",
-                        ).is_ok()
-                    );
+                        )
+                        .is_ok());
 
                     // we read the new path from the tracee's memory
                     let dir_path_2 = tracee.regs.get_sysarg_path(SysArg1).unwrap();
@@ -191,7 +187,8 @@ mod tests {
                 execvp(
                     &CString::new("mkdir").unwrap(),
                     &[CString::new(".").unwrap(), CString::new(test_path).unwrap()],
-                ).expect("failed execvp mkdir");
+                )
+                .expect("failed execvp mkdir");
             },
         );
     }

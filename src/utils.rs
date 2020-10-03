@@ -1,18 +1,17 @@
-
 #[cfg(test)]
 pub mod tests {
-    use std::ptr::null_mut;
-    use nix::unistd::{getpid, fork, ForkResult, Pid};
+    use filesystem::FileSystem;
+    use nix::sys::ptrace::ptrace;
+    use nix::sys::ptrace::ptrace::PTRACE_SYSCALL;
+    use nix::sys::ptrace::ptrace::PTRACE_TRACEME;
     use nix::sys::signal::kill;
     use nix::sys::signal::Signal::SIGSTOP;
-    use nix::sys::ptrace::ptrace;
-    use nix::sys::ptrace::ptrace::PTRACE_TRACEME;
-    use nix::sys::wait::{waitpid, __WALL};
     use nix::sys::wait::WaitStatus::*;
-    use nix::sys::ptrace::ptrace::PTRACE_SYSCALL;
+    use nix::sys::wait::{waitpid, __WALL};
+    use nix::unistd::{fork, getpid, ForkResult, Pid};
     use process::proot::InfoBag;
     use process::tracee::Tracee;
-    use filesystem::FileSystem;
+    use std::ptr::null_mut;
 
     /// Allow tests to fork and deal with child processes without mixing them.
     fn test_in_subprocess<F: FnMut()>(mut func: F) {
@@ -32,10 +31,7 @@ pub mod tests {
     /// The child process will be traced on, and will execute its respective function (2nd arg).
     /// The parent process will wait and loop for events from the tracee (child process).
     /// It only stops when the parent function (1st arg) returns true.
-    pub fn fork_test<
-        FuncParent: FnMut(&mut Tracee, &mut InfoBag) -> bool,
-        FuncChild: FnMut(),
-    >(
+    pub fn fork_test<FuncParent: FnMut(&mut Tracee, &mut InfoBag) -> bool, FuncChild: FnMut()>(
         fs_root: &str,
         expected_exit_signal: i8,
         mut func_parent: FuncParent,

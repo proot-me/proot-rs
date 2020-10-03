@@ -1,6 +1,6 @@
+use errors::{Error, Result};
+use register::{Current, Original, Registers, StackPointer, Word};
 use std::usize::MAX as USIZE_MAX;
-use errors::{Result, Error};
-use register::{Word, Registers, StackPointer, Current, Original};
 
 #[cfg(all(target_os = "linux", target_arch = "x86_64"))]
 const RED_ZONE_SIZE: isize = 128;
@@ -40,8 +40,8 @@ impl PtraceMemoryAllocator for Registers {
             true => size + RED_ZONE_SIZE,
         };
         let overflow = corrected_size > 0 && stack_pointer <= corrected_size as Word;
-        let underflow = corrected_size < 0 &&
-            stack_pointer >= (USIZE_MAX as Word) - (-corrected_size as Word);
+        let underflow =
+            corrected_size < 0 && stack_pointer >= (USIZE_MAX as Word) - (-corrected_size as Word);
 
         if overflow || underflow {
             //TODO: log warning
@@ -64,15 +64,14 @@ impl PtraceMemoryAllocator for Registers {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::mem;
-    use std::usize::MAX;
     use libc::user_regs_struct;
     use nix::unistd::getpid;
     use register::Registers;
+    use std::mem;
+    use std::usize::MAX;
 
     #[test]
     fn test_mem_alloc_normal() {

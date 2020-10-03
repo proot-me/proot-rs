@@ -1,8 +1,8 @@
 // signals
-use libc::{siginfo_t, c_int, c_void, pid_t};
-use nix::sys::signal::{sigaction, Signal, SigAction, SigSet, SigHandler};
-use nix::sys::signal::{SaFlags, SA_SIGINFO, SA_RESTART};
+use libc::{c_int, c_void, pid_t, siginfo_t};
 use nix::sys::signal::Signal::*;
+use nix::sys::signal::{sigaction, SigAction, SigHandler, SigSet, Signal};
+use nix::sys::signal::{SaFlags, SA_RESTART, SA_SIGINFO};
 
 /// Configures the actions associated with specific critical signals.
 /// All signals are blocked when the signal handler is called.
@@ -43,13 +43,11 @@ pub fn prepare_sigactions(
         if let Err(err) = sigaction_result {
             println!(
                 "Warning: sigaction failed for signal {:?} : {:?}.",
-                signal,
-                err
+                signal, err
             );
         }
     }
 }
-
 
 #[cfg(test)]
 mod tests {

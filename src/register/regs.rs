@@ -1,12 +1,10 @@
 use errors::Result;
-use libc::{c_void, user_regs_struct};
-use nix::sys::ptrace::ptrace;
-use nix::sys::ptrace::ptrace::{PTRACE_GETREGS, PTRACE_SETREGS};
+use libc::user_regs_struct;
+use nix::sys::ptrace;
 use nix::unistd::Pid;
 use register::Word;
 use std::fmt;
 use std::mem;
-use std::ptr::null_mut;
 
 const VOID: Word = 0;
 
@@ -133,12 +131,11 @@ impl Registers {
     /// Retrieves all tracee's general purpose registers, and stores them
     /// in the `Current` registers.
     pub fn fetch_regs(&mut self) -> Result<()> {
-        let mut regs: user_regs_struct = unsafe { mem::zeroed() };
-        let p_regs: *mut c_void = &mut regs as *mut _ as *mut c_void;
+        let regs: user_regs_struct = unsafe { mem::zeroed() };
 
         // Notice the ? at the end, which is the equivalent of `try!`.
         // It will return the error if there is one.
-        ptrace(PTRACE_GETREGS, self.pid, null_mut(), p_regs)?;
+        let _p_regs = ptrace::getregs(self.pid)?;
 
         self.registers[Current as usize] = Some(regs);
         Ok(())
@@ -159,10 +156,9 @@ impl Registers {
         }
 
         let pid = self.pid;
-        let current_regs = self.get_mut_regs(Current);
-        let p_regs: *mut c_void = current_regs as *mut _ as *mut c_void;
+        let current_regs = *self.get_mut_regs(Current);
 
-        ptrace(PTRACE_SETREGS, pid, null_mut(), p_regs)?;
+        ptrace::setregs(pid, current_regs)?;
         Ok(())
     }
 
@@ -364,7 +360,7 @@ mod tests {
                 // calling the sleep function, which should call the NANOSLEEP syscall
                 execvp(
                     &CString::new("sleep").unwrap(),
-                    &[CString::new(".").unwrap(), CString::new("0").unwrap()],
+                    &[&CString::new(".").unwrap(), &CString::new("0").unwrap()],
                 )
                 .expect("failed execvp sleep");
             },
@@ -389,7 +385,7 @@ mod tests {
                 // calling the sleep function, which should call the NANOSLEEP syscall
                 execvp(
                     &CString::new("sleep").unwrap(),
-                    &[CString::new(".").unwrap(), CString::new("0").unwrap()],
+                    &[&CString::new(".").unwrap(), &CString::new("0").unwrap()],
                 )
                 .expect("failed execvp sleep");
             },
@@ -437,7 +433,7 @@ mod tests {
                 // calling the sleep function, which should call the NANOSLEEP syscall
                 execvp(
                     &CString::new("sleep").unwrap(),
-                    &[CString::new(".").unwrap(), CString::new("9999").unwrap()],
+                    &[&CString::new(".").unwrap(), &CString::new("9999").unwrap()],
                 )
                 .expect("failed execvp sleep");
             },

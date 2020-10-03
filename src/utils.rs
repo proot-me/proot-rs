@@ -1,17 +1,15 @@
 #[cfg(test)]
 pub mod tests {
     use filesystem::FileSystem;
-    use nix::sys::ptrace::ptrace;
-    use nix::sys::ptrace::ptrace::PTRACE_SYSCALL;
-    use nix::sys::ptrace::ptrace::PTRACE_TRACEME;
+    use nix::sys::ptrace;
+
     use nix::sys::signal::kill;
     use nix::sys::signal::Signal::SIGSTOP;
     use nix::sys::wait::WaitStatus::*;
-    use nix::sys::wait::{waitpid, __WALL};
+    use nix::sys::wait::{waitpid, WaitPidFlag};
     use nix::unistd::{fork, getpid, ForkResult, Pid};
     use process::proot::InfoBag;
     use process::tracee::Tracee;
-    use std::ptr::null_mut;
 
     /// Allow tests to fork and deal with child processes without mixing them.
     fn test_in_subprocess<F: FnMut()>(mut func: F) {
@@ -45,7 +43,7 @@ pub mod tests {
 
                     // the parent will wait for the child's signal before calling set_ptrace_options
                     assert_eq!(
-                        waitpid(child, Some(__WALL)).expect("event loop waitpid"),
+                        waitpid(child, Some(WaitPidFlag::__WALL)).expect("event loop waitpid"),
                         Stopped(child, SIGSTOP)
                     );
                     tracee.set_ptrace_options(&mut info_bag);
@@ -54,7 +52,8 @@ pub mod tests {
 
                     // we loop until the parent function decides to stop
                     loop {
-                        match waitpid(child, Some(__WALL)).expect("event loop waitpid") {
+                        match waitpid(child, Some(WaitPidFlag::__WALL)).expect("event loop waitpid")
+                        {
                             PtraceSyscall(pid) => {
                                 assert_eq!(pid, child);
                                 tracee.regs.fetch_regs().expect("fetch regs");
@@ -74,8 +73,7 @@ pub mod tests {
                     end(child, expected_exit_signal);
                 }
                 ForkResult::Child => {
-                    ptrace(PTRACE_TRACEME, Pid::from_raw(0), null_mut(), null_mut())
-                        .expect("test ptrace traceme");
+                    ptrace::traceme().expect("test ptrace traceme");
                     // we use a SIGSTOP to synchronise both processes
                     kill(getpid(), SIGSTOP).expect("test child sigstop");
 
@@ -87,18 +85,18 @@ pub mod tests {
 
     /// Restarts a child process just once.
     fn restart(child: Pid) {
-        ptrace(PTRACE_SYSCALL, child, null_mut(), null_mut()).expect("exit tracee with exit stage");
+        ptrace::syscall(child, None).expect("exit tracee with exit stage");
     }
 
     /// Waits/restarts a child process until it stops.
     fn end(child: Pid, expected_status: i8) {
         loop {
-            match waitpid(child, Some(__WALL)).expect("waitpid") {
+            match waitpid(child, Some(WaitPidFlag::__WALL)).expect("waitpid") {
                 Exited(pid, exit_status) => {
                     assert_eq!(pid, child);
 
                     // the tracee should have exited with the expected status
-                    assert_eq!(exit_status, expected_status);
+                    assert_eq!(exit_status, expected_status as i32);
                     break;
                 }
                 _ => {

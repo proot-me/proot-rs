@@ -3,8 +3,8 @@ use filesystem::FileSystem;
 use process::event::EventHandler;
 use process::tracee::Tracee;
 use std::collections::HashMap;
+use std::convert::TryFrom;
 use std::ffi::CString;
-use std::ptr::null_mut;
 
 // libc
 use libc::{c_int, c_void, pid_t, siginfo_t};
@@ -12,13 +12,12 @@ use libc::{c_int, c_void, pid_t, siginfo_t};
 use nix::sys::signal::{kill, Signal, SIGSTOP};
 use nix::unistd::Pid;
 // ptrace
-use nix::sys::ptrace::ptrace;
-use nix::sys::ptrace::ptrace::PTRACE_TRACEME;
+use nix::sys::ptrace;
 // fork
 use nix::unistd::{execvp, fork, getpid, ForkResult};
 // event loop
 use nix::sys::wait::WaitStatus::*;
-use nix::sys::wait::{waitpid, __WALL};
+use nix::sys::wait::{waitpid, WaitPidFlag};
 
 /// Used to store global info common to all tracees. Rename into `Configuration`?
 #[derive(Debug)]
@@ -75,8 +74,7 @@ impl PRoot {
             }
             ForkResult::Child => {
                 // Declare the tracee as ptraceable
-                ptrace(PTRACE_TRACEME, Pid::from_raw(0), null_mut(), null_mut())
-                    .expect("ptrace traceme");
+                ptrace::traceme().expect("ptrace traceme");
 
                 // Synchronise with the parent's event loop by waiting until it's ready
                 // (otherwise the execvp is executed too quickly)
@@ -88,7 +86,7 @@ impl PRoot {
 
                 execvp(
                     &CString::new("sleep").unwrap(),
-                    &[CString::new(".").unwrap(), CString::new("0").unwrap()],
+                    &[&CString::new(".").unwrap(), &CString::new("0").unwrap()],
                 )
                 .expect("failed execvp sleep");
                 //execvp(&CString::new("echo").unwrap(), &[CString::new(".").unwrap(),
@@ -108,7 +106,8 @@ impl PRoot {
     /// the parameters of the system call, before restarting the tracee.
     pub fn event_loop(&mut self) {
         while !self.alive_tracees.is_empty() {
-            match waitpid(Pid::from_raw(-1), Some(__WALL)).expect("event loop waitpid") {
+            match waitpid(Pid::from_raw(-1), Some(WaitPidFlag::__WALL)).expect("event loop waitpid")
+            {
                 Exited(pid, exit_status) => {
                     println!("-- {}, Exited with status: {}", pid, exit_status);
                     self.register_tracee_finished(pid);
@@ -181,7 +180,7 @@ impl PRoot {
 /// Proot has received a fatal error from one of the tracee,
 /// and must therefore stop the program's execution.
 pub extern "C" fn stop_program(sig_num: c_int, _: *mut siginfo_t, _: *mut c_void) {
-    let signal = Signal::from_c_int(sig_num).unwrap();
+    let signal = Signal::try_from(sig_num).unwrap();
     panic!("abnormal signal received: {:?}", signal);
 }
 

@@ -27,40 +27,40 @@ impl Error {
     }
 
     pub fn invalid_argument(message: &'static str) -> Error {
-        Error::Sys(errno::EINVAL, message)
+        Error::Sys(errno::Errno::EINVAL, message)
     }
 
     pub fn name_too_long(message: &'static str) -> Error {
-        Error::Sys(errno::ENAMETOOLONG, message)
+        Error::Sys(errno::Errno::ENAMETOOLONG, message)
     }
 
     pub fn no_such_file_or_dir(message: &'static str) -> Error {
-        Error::Sys(errno::ENOENT, message)
+        Error::Sys(errno::Errno::ENOENT, message)
     }
 
     #[cfg(test)]
     pub fn is_a_directory(message: &'static str) -> Error {
-        Error::Sys(errno::EISDIR, message)
+        Error::Sys(errno::Errno::EISDIR, message)
     }
 
     pub fn not_a_directory(message: &'static str) -> Error {
-        Error::Sys(errno::ENOTDIR, message)
+        Error::Sys(errno::Errno::ENOTDIR, message)
     }
 
     pub fn too_many_symlinks(message: &'static str) -> Error {
-        Error::Sys(errno::ELOOP, message)
+        Error::Sys(errno::Errno::ELOOP, message)
     }
 
     pub fn cant_exec(message: &'static str) -> Error {
-        Error::Sys(errno::ENOEXEC, message)
+        Error::Sys(errno::Errno::ENOEXEC, message)
     }
 
     pub fn not_supported(message: &'static str) -> Error {
-        Error::Sys(errno::EOPNOTSUPP, message)
+        Error::Sys(errno::Errno::EOPNOTSUPP, message)
     }
 
     pub fn bad_address(message: &'static str) -> Error {
-        Error::Sys(errno::EFAULT, message)
+        Error::Sys(errno::Errno::EFAULT, message)
     }
 }
 

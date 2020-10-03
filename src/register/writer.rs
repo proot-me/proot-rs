@@ -1,8 +1,7 @@
 use byteorder::{LittleEndian, ReadBytesExt};
 use errors::Result;
 use libc::c_void;
-use nix::sys::ptrace::ptrace;
-use nix::sys::ptrace::ptrace::{PTRACE_PEEKDATA, PTRACE_POKEDATA};
+use nix::sys::ptrace;
 use register::reader::convert_word_to_bytes;
 use register::{PtraceMemoryAllocator, Registers, SysArg, SysArgIndex, Word};
 use std::io::Cursor;
@@ -10,7 +9,6 @@ use std::io::Read;
 use std::mem;
 use std::os::unix::ffi::OsStrExt;
 use std::path::Path;
-use std::ptr::null_mut;
 
 #[cfg(target_pointer_width = "32")]
 #[inline]
@@ -92,19 +90,15 @@ impl PtraceWriter for Registers {
             let word = buf.read_uint::<LittleEndian>(word_size).unwrap() as Word;
             let dest_addr = unsafe { dest_tracee.offset(i) as *mut c_void };
 
-            ptrace(
-                PTRACE_POKEDATA,
-                self.get_pid(),
-                dest_addr,
-                word as *mut c_void,
-            )?;
+            unsafe {
+                ptrace::write(self.get_pid(), dest_addr, word as *mut c_void)?;
+            }
         }
 
         // Copy the bytes in the last word carefully since we have to
         // overwrite only the relevant ones.
         let last_dest_addr = unsafe { dest_tracee.offset(nb_full_words) as *mut c_void };
-        let existing_word =
-            ptrace(PTRACE_PEEKDATA, self.get_pid(), last_dest_addr, null_mut())? as Word;
+        let existing_word = ptrace::read(self.get_pid(), last_dest_addr).unwrap() as u64;
         let mut bytes = convert_word_to_bytes(existing_word);
 
         // The trailing bytes are merged with the existing bytes. For example:
@@ -117,12 +111,9 @@ impl PtraceWriter for Registers {
 
         let last_word = convert_bytes_to_word(bytes);
         // We can now safely write the final word.
-        ptrace(
-            PTRACE_POKEDATA,
-            self.get_pid(),
-            last_dest_addr,
-            last_word as *mut c_void,
-        )?;
+        unsafe {
+            ptrace::write(self.get_pid(), last_dest_addr, last_word as *mut c_void)?;
+        }
 
         Ok(())
     }
@@ -186,7 +177,10 @@ mod tests {
                 // calling the mkdir function, which should call the MKDIR syscall
                 execvp(
                     &CString::new("mkdir").unwrap(),
-                    &[CString::new(".").unwrap(), CString::new(test_path).unwrap()],
+                    &[
+                        &CString::new(".").unwrap(),
+                        &CString::new(test_path).unwrap(),
+                    ],
                 )
                 .expect("failed execvp mkdir");
             },

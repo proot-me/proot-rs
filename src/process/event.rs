@@ -6,20 +6,27 @@ use process::translation::SyscallTranslator;
 //TODO: remove this when a nix PR will have added them
 mod ptrace_events {
     use libc::{c_int, SIGSTOP, SIGTRAP};
-    use nix::sys::ptrace::ptrace::*;
+    use nix::sys::ptrace::Event;
 
     pub type PtraceSignalEvent = c_int;
 
     pub const PTRACE_S_SIGSTOP: PtraceSignalEvent = SIGSTOP;
     pub const PTRACE_S_RAW_SIGTRAP: PtraceSignalEvent = SIGTRAP;
     pub const PTRACE_S_NORMAL_SIGTRAP: PtraceSignalEvent = SIGTRAP | 0x80;
-    pub const PTRACE_S_VFORK: PtraceSignalEvent = SIGTRAP | PTRACE_EVENT_VFORK << 8;
-    pub const PTRACE_S_VFORK_DONE: PtraceSignalEvent = SIGTRAP | PTRACE_EVENT_VFORK_DONE << 8;
-    pub const PTRACE_S_FORK: PtraceSignalEvent = SIGTRAP | PTRACE_EVENT_FORK << 8;
-    pub const PTRACE_S_CLONE: PtraceSignalEvent = SIGTRAP | PTRACE_EVENT_CLONE << 8;
-    pub const PTRACE_S_EXEC: PtraceSignalEvent = SIGTRAP | PTRACE_EVENT_EXEC << 8;
-    pub const PTRACE_S_SECCOMP: PtraceSignalEvent = SIGTRAP | PTRACE_EVENT_SECCOMP << 8;
-    pub const PTRACE_S_SECCOMP2: PtraceSignalEvent = SIGTRAP | (PTRACE_EVENT_SECCOMP + 1) << 8;
+    pub const PTRACE_S_VFORK: PtraceSignalEvent =
+        SIGTRAP | (Event::PTRACE_EVENT_VFORK as i32).rotate_left(8);
+    pub const PTRACE_S_VFORK_DONE: PtraceSignalEvent =
+        SIGTRAP | (Event::PTRACE_EVENT_VFORK_DONE as i32).rotate_left(8);
+    pub const PTRACE_S_FORK: PtraceSignalEvent =
+        SIGTRAP | (Event::PTRACE_EVENT_FORK as i32).rotate_left(8);
+    pub const PTRACE_S_CLONE: PtraceSignalEvent =
+        SIGTRAP | (Event::PTRACE_EVENT_CLONE as i32).rotate_left(8);
+    pub const PTRACE_S_EXEC: PtraceSignalEvent =
+        SIGTRAP | (Event::PTRACE_EVENT_EXEC as i32).rotate_left(8);
+    pub const PTRACE_S_SECCOMP: PtraceSignalEvent =
+        SIGTRAP | (Event::PTRACE_EVENT_SECCOMP as i32).rotate_left(8);
+    pub const PTRACE_S_SECCOMP2: PtraceSignalEvent =
+        SIGTRAP | (Event::PTRACE_EVENT_SECCOMP as i32 + 1).rotate_left(8);
     // unreachable pattern?
     // pub const EXIT_SIGNAL:               PTraceSignalEvent = SIGTRAP | PTRACE_EVENT_EXIT << 8;
 }

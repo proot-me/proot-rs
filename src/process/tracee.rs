@@ -1,13 +1,10 @@
 use errors::Error;
 use filesystem::FileSystem;
-use nix::sys::ptrace::ptrace;
-use nix::sys::ptrace::ptrace::*;
-use nix::sys::ptrace::ptrace_setoptions;
+use nix::sys::ptrace;
 use nix::unistd::Pid;
 use process::proot::InfoBag;
 use register::Registers;
 use std::path::PathBuf;
-use std::ptr::null_mut;
 
 #[derive(Debug, PartialEq)]
 pub enum TraceeStatus {
@@ -87,12 +84,10 @@ impl Tracee {
     pub fn restart(&mut self) {
         match self.restart_how {
             TraceeRestartMethod::WithoutExitStage => {
-                ptrace(PTRACE_CONT, self.pid, null_mut(), null_mut())
-                    .expect("exit tracee without exit stage");
+                ptrace::cont(self.pid, None).expect("exit tracee without exit stage");
             }
             TraceeRestartMethod::WithExitStage => {
-                ptrace(PTRACE_SYSCALL, self.pid, null_mut(), null_mut())
-                    .expect("exit tracee with exit stage");
+                ptrace::syscall(self.pid, None).expect("exit tracee with exit stage");
             }
             TraceeRestartMethod::None => {}
         };
@@ -116,16 +111,16 @@ impl Tracee {
             info_bag.deliver_sigtrap = true;
         }
 
-        let default_options = PTRACE_O_TRACESYSGOOD
-            | PTRACE_O_TRACEFORK
-            | PTRACE_O_TRACEVFORK
-            | PTRACE_O_TRACEVFORKDONE
-            | PTRACE_O_TRACEEXEC
-            | PTRACE_O_TRACECLONE
-            | PTRACE_O_TRACEEXIT;
+        let default_options = ptrace::Options::PTRACE_O_TRACESYSGOOD
+            | ptrace::Options::PTRACE_O_TRACEFORK
+            | ptrace::Options::PTRACE_O_TRACEVFORK
+            | ptrace::Options::PTRACE_O_TRACEVFORKDONE
+            | ptrace::Options::PTRACE_O_TRACEEXEC
+            | ptrace::Options::PTRACE_O_TRACECLONE
+            | ptrace::Options::PTRACE_O_TRACEEXIT;
 
         //TODO: seccomp
-        ptrace_setoptions(self.pid, default_options).expect("set ptrace options");
+        ptrace::setoptions(self.pid, default_options).expect("set ptrace options");
     }
 }
 

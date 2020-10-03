@@ -1,13 +1,11 @@
 use errors::Error;
 use errors::Result;
 use libc::{c_void, PATH_MAX};
-use nix::sys::ptrace::ptrace;
-use nix::sys::ptrace::ptrace::PTRACE_PEEKDATA;
+use nix::sys::ptrace;
 use nix::unistd::Pid;
 use register::{Current, Registers, SysArg, SysArgIndex, Word};
 use std::mem::{size_of, transmute};
 use std::path::PathBuf;
-use std::ptr::null_mut;
 
 #[cfg(target_pointer_width = "32")]
 #[inline]
@@ -90,7 +88,7 @@ fn read_string(pid: Pid, src_string: *mut Word, max_size: usize) -> Result<Vec<u
         let src_addr = unsafe { src_string.offset(i) as *mut c_void };
 
         // ptrace returns a c_long/Word that we will interpret as an 8-letters word
-        let word = ptrace(PTRACE_PEEKDATA, pid, src_addr, null_mut())? as Word;
+        let word = ptrace::read(pid, src_addr)? as Word;
         let letters = convert_word_to_bytes(word);
 
         for &letter in &letters {
@@ -208,7 +206,10 @@ mod tests {
                 // calling the mkdir function, which should call the MKDIR syscall
                 execvp(
                     &CString::new("mkdir").unwrap(),
-                    &[CString::new(".").unwrap(), CString::new(test_path).unwrap()],
+                    &[
+                        &CString::new(".").unwrap(),
+                        &CString::new(test_path).unwrap(),
+                    ],
                 )
                 .expect("failed execvp mkdir");
             },

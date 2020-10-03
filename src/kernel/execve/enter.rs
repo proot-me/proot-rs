@@ -138,7 +138,7 @@ mod tests {
                 // calling the sleep function, which should call the NANOSLEEP syscall
                 execvp(
                     &CString::new("sleep").unwrap(),
-                    &[CString::new(".").unwrap(), CString::new("0").unwrap()],
+                    &[&CString::new(".").unwrap(), &CString::new("0").unwrap()],
                 )
                 .expect("failed execvp sleep");
             },

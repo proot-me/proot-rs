@@ -99,7 +99,7 @@ mod tests {
     use super::*;
     use std::ffi::CString;
     use nix::unistd::execvp;
-    use syscall::nr::{EXECVE, NANOSLEEP};
+    use sc::nr::{EXECVE, NANOSLEEP};
     use utils::tests::fork_test;
     use register::{PtraceReader, Current};
 

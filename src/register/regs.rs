@@ -329,7 +329,7 @@ mod tests {
     use super::*;
     use std::ffi::CString;
     use nix::unistd::{Pid, execvp};
-    use syscall::nr::NANOSLEEP;
+    use sc::nr::NANOSLEEP;
     use utils::tests::fork_test;
 
     #[test]

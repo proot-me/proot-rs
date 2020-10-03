@@ -8,9 +8,9 @@ build = "src/build_loader.rs"
 libc = "0.2.25"
 nix = "0.9.0"
 clap = "2.25.1"
-syscall = "0.2.1"
 lazy_static = "0.2.8"
 byteorder = "1.1.0"
+sc = "0.2.3"
 
 [build-dependencies]
 gcc = { git = "https://github.com/vincenthage/gcc-rs", branch = "master" }

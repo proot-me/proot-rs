@@ -288,7 +288,7 @@ mod tests {
     #[test]
     fn test_load_info_from_path_not_executable() {
         let fs = FileSystem::with_root("/");
-        let result = LoadInfo::from(&fs, &PathBuf::from("/etc/init/acpid.conf"));
+        let result = LoadInfo::from(&fs, &PathBuf::from("/etc/systemd/system.conf"));
 
         assert!(result.is_err());
         assert_eq!(

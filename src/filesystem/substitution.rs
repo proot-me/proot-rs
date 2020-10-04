@@ -153,18 +153,17 @@ mod tests {
 
     #[test]
     fn test_substitute_intermediary_and_glue() {
-        let mut fs = FileSystem::with_root("/etc/acpi");
+        let mut fs = FileSystem::with_root("/etc/systemd");
 
         // testing a folder
         let (path, file_type) = fs
-            .substitute_intermediary_and_glue(&Path::new("/events"))
+            .substitute_intermediary_and_glue(&Path::new("/system"))
             .expect("no error");
 
-        assert_eq!(path, PathBuf::from("/etc/acpi/events")); // "/" => "/etc/acpi/"
+        assert_eq!(path, PathBuf::from("/etc/systemd/system")); // "/" => "/etc/systemd/"
         assert!(file_type.unwrap().is_dir());
 
         fs.add_binding(Binding::new("/bin", "/bin", true));
-
         // testing a symlink
         let (path_2, file_type_2) = fs
             .substitute_intermediary_and_glue(&Path::new("/bin/sh"))

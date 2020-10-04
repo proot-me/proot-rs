@@ -168,9 +168,15 @@ mod tests {
 
         assert_eq!(fs.belongs_to_guestfs(Path::new("/etc")), true);
         assert_eq!(fs.belongs_to_guestfs(Path::new("/etc/.")), true);
-        assert_eq!(fs.belongs_to_guestfs(Path::new("/etc/acpi/events")), true);
-        assert_eq!(fs.belongs_to_guestfs(Path::new("/acpi/events")), false);
-        assert_eq!(fs.belongs_to_guestfs(Path::new("/acpi")), false);
+        assert_eq!(
+            fs.belongs_to_guestfs(Path::new("/etc/systemd/system.conf")),
+            true
+        );
+        assert_eq!(
+            fs.belongs_to_guestfs(Path::new("/systemd/system.conf")),
+            false
+        );
+        assert_eq!(fs.belongs_to_guestfs(Path::new("/systemd")), false);
     }
 
     #[test]

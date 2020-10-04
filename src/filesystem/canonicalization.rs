@@ -52,7 +52,6 @@ impl Canonicalizer for FileSystem {
                     // Resolve bindings and add glue if necessary
                     let (_, maybe_file_type) =
                         self.substitute_intermediary_and_glue(&guest_path)?;
-
                     //TODO: remove when glue is implemented
                     if maybe_file_type.is_none() {
                         continue;
@@ -110,26 +109,27 @@ mod tests {
         // "/etc" on the host, "/" on the guest
         let mut fs = FileSystem::with_root("/etc");
 
+        // /etc/acpi/events has been deprecated for a while
         assert_eq!(
-            fs.canonicalize(&PathBuf::from("/acpi/./../acpi//events"), false)
+            fs.canonicalize(&PathBuf::from("/systemd/./../systemd//system.conf"), false)
                 .unwrap(),
-            PathBuf::from("/acpi/events")
+            PathBuf::from("/systemd/system.conf")
         );
 
         assert_eq!(
-            fs.canonicalize(&PathBuf::from("/./../../.././../."), false)
+            fs.canonicalize(&PathBuf::from("/./../../.././..//."), false)
                 .unwrap(),
             PathBuf::from("/")
         );
 
-        fs.set_root("/etc/acpi");
+        fs.set_root("/etc/");
         fs.add_binding(Binding::new("/usr/bin", "/bin", true));
 
-        // necessary, because nor "/bin" nor "/home" exist in "/etc/acpi"
+        // necessary, because nor "/bin" nor "/home" exist in "/etc/systemd"
         fs.set_glue_type(Mode::S_IRWXU | Mode::S_IRWXG | Mode::S_IRWXO);
 
         assert_eq!(
-            fs.canonicalize(&PathBuf::from("/bin/../home"), false)
+            fs.canonicalize(&PathBuf::from("/bin/..//.//home"), false)
                 .unwrap(),
             PathBuf::from("/home")
         );

@@ -56,3 +56,19 @@ Simply run:
 ```
 cargo test
 ```
+
+## Contributing
+
+We use git hooks to check files staged for commit to ensure the consistency of Rust code style.
+
+Before you start, please run the following command to setup git hooks:
+
+```shell
+git config core.hooksPath .githooks
+```
+
+To format code manually:
+
+```shell
+cargo fmt
+```

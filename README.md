@@ -32,7 +32,7 @@ Not usable for now _(work in progress)_.
 ## Requirements
 Use the nightly Rust channel for rustc:
 ```
-cargo default nightly
+rustup default nightly
 ```
 Some dependencies (like `syscall`) depend on features (`asm` in this case) that are not 
 on the stable channel yet.

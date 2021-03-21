@@ -107,20 +107,20 @@ dependencies = [
  "lazy_static",
  "libc",
  "nix",
- "syscall",
+ "sc",
 ]
+
+[[package]]
+name = "sc"
+version = "0.2.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "176365c8253e381ad147774b6d9730a1b3fe2d7db498af521ed7d968674a55b3"
 
 [[package]]
 name = "strsim"
 version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8ea5119cdb4c55b55d432abb513a0429384878c15dde60cc77b1c99de1a95a6a"
-
-[[package]]
-name = "syscall"
-version = "0.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dae2c4de039bf338dd96f46621f20222c4101045dac5403b46f472608cb5b556"
 
 [[package]]
 name = "textwrap"

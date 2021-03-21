@@ -140,7 +140,7 @@ mod tests {
     use std::path::PathBuf;
     use nix::unistd::execvp;
     use utils::tests::fork_test;
-    use syscall::nr::MKDIR;
+    use sc::nr::MKDIR;
     use register::{PtraceReader, SysArg1, Current, Original};
 
     #[test]

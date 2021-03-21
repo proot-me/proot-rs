@@ -139,7 +139,7 @@ mod tests {
     use libc::user_regs_struct;
     use nix::unistd::{execvp, getpid};
     use utils::tests::fork_test;
-    use syscall::nr::MKDIR;
+    use sc::nr::MKDIR;
     use register::*;
 
     #[test]

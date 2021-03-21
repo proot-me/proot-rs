@@ -1,4 +1,4 @@
-use syscall::nr::*;
+use sc::nr::*;
 
 /// Used to organise system call numbers into an easily-matchable enumeration.
 /// It's easier and cleaner to use cfg conditions here rather than in the huge match

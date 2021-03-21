@@ -3,7 +3,7 @@
 extern crate libc;
 extern crate nix;
 extern crate clap;
-extern crate syscall;
+extern crate sc;
 #[macro_use]
 extern crate lazy_static;
 extern crate byteorder;

@@ -1,4 +1,5 @@
-#![feature(slice_patterns)]
+#![allow(clippy::redundant_static_lifetimes)]
+#![allow(clippy::redundant_field_names)]
 
 extern crate clap;
 extern crate libc;

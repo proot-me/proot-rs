@@ -21,10 +21,7 @@ pub enum TraceeStatus {
 
 impl TraceeStatus {
     pub fn is_err(&self) -> bool {
-        match *self {
-            TraceeStatus::Error(_) => true,
-            _ => false,
-        }
+        matches!(*self, TraceeStatus::Error(_))
     }
 
     pub fn is_ok(&self) -> bool {
@@ -32,7 +29,7 @@ impl TraceeStatus {
     }
 
     pub fn get_errno(&self) -> i32 {
-        match *self {
+        match self {
             TraceeStatus::Error(err) => err.get_errno(),
             _ => 0,
         }
@@ -128,7 +125,7 @@ impl Tracee {
             | PTRACE_O_TRACEEXIT;
 
         //TODO: seccomp
-        ptrace_setoptions(self.pid.into(), default_options).expect("set ptrace options");
+        ptrace_setoptions(self.pid, default_options).expect("set ptrace options");
     }
 }
 
@@ -159,7 +156,7 @@ mod tests {
                 // we stop on the first syscall;
                 // the fact that no panic was sparked until now
                 // means that the set_trace_options call was OK
-                return true;
+                true
             },
             // child
             || {},

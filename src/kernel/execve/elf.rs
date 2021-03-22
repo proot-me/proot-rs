@@ -67,8 +67,8 @@ impl ProgramHeader {
         func64: F64,
     ) -> Result<V> {
         match self {
-            &ProgramHeader::ProgramHeader32(ref program_header) => func32(program_header),
-            &ProgramHeader::ProgramHeader64(ref program_header) => func64(program_header),
+            ProgramHeader::ProgramHeader32(ref program_header) => func32(program_header),
+            ProgramHeader::ProgramHeader64(ref program_header) => func64(program_header),
         }
     }
 }
@@ -138,7 +138,7 @@ impl ElfHeader {
     /// `None` if it's not an ELF-executable,
     /// and an `ElfHeader` if it was successful.
     #[inline]
-    pub fn extract_from<'a>(file: &'a mut File) -> Result<(Self, &'a mut File)> {
+    pub fn extract_from(file: &mut File) -> Result<(Self, &mut File)> {
         let (executable_class, file) = ElfHeader::extract_class(file)?;
 
         // we reset the file's iterator
@@ -156,7 +156,7 @@ impl ElfHeader {
     /// to determine whether or not it's an ELF executable,
     /// and whether the executable is 32 or 64 bits.
     #[inline]
-    fn extract_class<'a>(file: &'a mut File) -> Result<(ExecutableClass, &'a mut File)> {
+    fn extract_class(file: &mut File) -> Result<(ExecutableClass, &mut File)> {
         let mut buffer = [0; 5];
 
         file.read_exact(&mut buffer)?;
@@ -179,8 +179,8 @@ impl ElfHeader {
     #[inline]
     pub fn get_class(&self) -> ExecutableClass {
         match self {
-            &ElfHeader::ElfHeader32(_) => ExecutableClass::Class32,
-            &ElfHeader::ElfHeader64(_) => ExecutableClass::Class64,
+            ElfHeader::ElfHeader32(_) => ExecutableClass::Class32,
+            ElfHeader::ElfHeader64(_) => ExecutableClass::Class64,
         }
     }
 
@@ -195,8 +195,8 @@ impl ElfHeader {
         func64: F64,
     ) -> Result<V> {
         match self {
-            &ElfHeader::ElfHeader32(ref elf_header) => func32(elf_header),
-            &ElfHeader::ElfHeader64(ref elf_header) => func64(elf_header),
+            ElfHeader::ElfHeader32(ref elf_header) => func32(elf_header),
+            ElfHeader::ElfHeader64(ref elf_header) => func64(elf_header),
         }
     }
     #[inline]
@@ -210,8 +210,8 @@ impl ElfHeader {
         func64: F64,
     ) -> Result<V> {
         match self {
-            &mut ElfHeader::ElfHeader32(ref mut elf_header) => func32(elf_header),
-            &mut ElfHeader::ElfHeader64(ref mut elf_header) => func64(elf_header),
+            ElfHeader::ElfHeader32(ref mut elf_header) => func32(elf_header),
+            ElfHeader::ElfHeader64(ref mut elf_header) => func64(elf_header),
         }
     }
 }

@@ -38,7 +38,7 @@ jobs:
             exit 1
         fi
         # Run clippy check
-        cargo clippy -- -D warnings
+        cargo clippy
     - name: Build
       run: cargo build --verbose
     - name: Run tests

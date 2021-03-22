@@ -124,7 +124,7 @@ impl Registers {
     #[inline]
     pub fn save_current_regs(&mut self, version: RegVersion) {
         if version != Current {
-            let current_regs = self.get_regs(Current).clone();
+            let current_regs = *self.get_regs(Current);
 
             self.registers[version as usize] = Some(current_regs);
         }
@@ -159,7 +159,7 @@ impl Registers {
         }
 
         let pid = self.pid;
-        let mut current_regs = self.get_mut_regs(Current);
+        let current_regs = self.get_mut_regs(Current);
         let p_regs: *mut c_void = current_regs as *mut _ as *mut c_void;
 
         ptrace(PTRACE_SETREGS, pid, null_mut(), p_regs)?;
@@ -234,7 +234,7 @@ impl Registers {
 
     #[inline]
     pub fn get_pid(&self) -> Pid {
-        self.pid.clone()
+        self.pid
     }
 
     #[inline]
@@ -357,7 +357,7 @@ mod tests {
             |_, _| {
                 // we stop on the first syscall;
                 // the fact that no panic was sparked until now means that the regs were OK
-                return true;
+                true
             },
             // child
             || {
@@ -382,7 +382,7 @@ mod tests {
             // parent
             |tracee, _| {
                 // we only stop when the NANOSLEEP syscall is detected
-                return tracee.regs.get_sys_num(Current) == NANOSLEEP;
+                tracee.regs.get_sys_num(Current) == NANOSLEEP
             },
             // child
             || {
@@ -408,7 +408,7 @@ mod tests {
             // expecting a normal execution
             0,
             // parent
-            |mut tracee, _| {
+            |tracee, _| {
                 if tracee.regs.get_sys_num(Current) == NANOSLEEP {
                     // NANOSLEEP enter stage
                     tracee.regs.set_restore_original_regs(false);
@@ -430,7 +430,7 @@ mod tests {
                     return true;
                 }
 
-                return false;
+                false
             },
             // child
             || {

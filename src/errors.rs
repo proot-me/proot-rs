@@ -101,11 +101,11 @@ impl From<NixError> for Error {
 impl error::Error for Error {
     fn description(&self) -> &str {
         match self {
-            &Error::InvalidPath(_) => "Invalid path",
-            &Error::InvalidUtf8 => "Invalid UTF-8 string",
-            &Error::Sys(ref errno, _) => errno.desc(),
-            &Error::IOError(_) => "IO Error",
-            &Error::UnsupportedOperation(_) => "Unsupported Operation",
+            Error::InvalidPath(_) => "Invalid path",
+            Error::InvalidUtf8 => "Invalid UTF-8 string",
+            Error::Sys(ref errno, _) => errno.desc(),
+            Error::IOError(_) => "IO Error",
+            Error::UnsupportedOperation(_) => "Unsupported Operation",
         }
     }
 }
@@ -113,11 +113,11 @@ impl error::Error for Error {
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            &Error::InvalidPath(message) => write!(f, "Invalid path ({})", message),
-            &Error::InvalidUtf8 => write!(f, "Invalid UTF-8 string"),
-            &Error::Sys(errno, message) => write!(f, "{:?}: {} ({})", errno, errno.desc(), message),
-            &Error::IOError(io_error_kind) => write!(f, "IO Error: {:?}", io_error_kind),
-            &Error::UnsupportedOperation(message) => {
+            Error::InvalidPath(message) => write!(f, "Invalid path ({})", message),
+            Error::InvalidUtf8 => write!(f, "Invalid UTF-8 string"),
+            Error::Sys(errno, message) => write!(f, "{:?}: {} ({})", errno, errno.desc(), message),
+            Error::IOError(io_error_kind) => write!(f, "IO Error: {:?}", io_error_kind),
+            Error::UnsupportedOperation(message) => {
                 write!(f, "Unsupported Operation ({})", message)
             }
         }

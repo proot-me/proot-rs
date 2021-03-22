@@ -49,7 +49,7 @@ impl Substitutor for FileSystem {
         guest_path: &Path,
     ) -> Result<(PathBuf, Option<FileType>)> {
         let substituted_path = self.substitute_binding(guest_path, Direction(Guest, Host))?;
-        let host_path = substituted_path.unwrap_or(guest_path.to_path_buf());
+        let host_path = substituted_path.unwrap_or_else(|| guest_path.to_path_buf());
 
         match self.get_direct_metadata(&host_path) {
             Ok(metadata) => Ok((host_path, Some(metadata.file_type()))),

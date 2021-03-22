@@ -27,6 +27,6 @@ pub fn translate(tracee: &mut Tracee) -> SyscallExitResult {
     }
 }
 
-pub fn transfert_load_script(tracee: &mut Tracee) -> Result<()> {
+pub fn transfert_load_script(_tracee: &mut Tracee) -> Result<()> {
     Ok(())
 }

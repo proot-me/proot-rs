@@ -39,7 +39,7 @@ pub fn expand(fs: &FileSystem, user_path: &Path) -> Result<PathBuf> {
     let max_sym_links = 50; //TODO: found this constant in libc
 
     while loop_iterations < max_sym_links {
-        loop_iterations = loop_iterations + 1;
+        loop_iterations += 1;
 
         // Translate this path (user -> host), then check it is executable.
         let host_path = translate_and_check_exec(fs, user_path)?;
@@ -141,7 +141,7 @@ fn extract(host_path: &Path) -> Result<Option<PathBuf>> {
         return Ok(None);
     }
 
-    let mut arguments = first_line[2..].split(" ").map(|s| s.trim());
+    let mut arguments = first_line[2..].split(' ').map(|s| s.trim());
     match arguments.next() {
         None => Err(Error::InvalidPath("Cannot have empty shebang")),
         Some(path) => Ok(Some(Path::new(path).to_path_buf())),

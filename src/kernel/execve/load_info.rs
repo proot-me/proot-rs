@@ -306,7 +306,7 @@ mod tests {
 
         let load_info = result.unwrap();
 
-        assert!(load_info.mappings.len() > 0);
+        assert!(!load_info.mappings.is_empty());
     }
 
     #[test]

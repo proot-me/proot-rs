@@ -13,10 +13,10 @@ impl ExtraReader for File {
     fn read_struct<T>(&mut self) -> Result<T> {
         let num_bytes = mem::size_of::<T>();
         unsafe {
-            let mut s = mem::uninitialized();
-            let mut buffer = slice::from_raw_parts_mut(&mut s as *mut T as *mut u8, num_bytes);
+            let mut s = mem::MaybeUninit::uninit();
+            let buffer = slice::from_raw_parts_mut(s.as_mut_ptr() as *mut u8, num_bytes);
             match self.read_exact(buffer) {
-                Ok(()) => Ok(s),
+                Ok(()) => Ok(s.assume_init()),
                 Err(e) => {
                     ::std::mem::forget(s);
                     Err(e)

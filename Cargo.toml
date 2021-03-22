@@ -9,7 +9,7 @@ libc = "0.2.25"
 nix = "0.9.0"
 clap = "2.25.1"
 sc = "0.2.3"
-lazy_static = "0.2.8"
+lazy_static = "1.4.0"
 byteorder = "1.1.0"
 
 [build-dependencies]

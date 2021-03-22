@@ -1,4 +1,4 @@
-# proot-rs [![Build Status](https://github.com/proot-me/proot-rs/workflows/Rust/badge.svg)](https://github.com/proot-me/proot-rs/actions)
+# proot-rs [![](https://github.com/proot-me/proot-rs/workflows/Rust/badge.svg)](https://github.com/proot-me/proot-rs/actions)
 
 
 Rust implementation of PRoot, a ptrace-based sandbox.

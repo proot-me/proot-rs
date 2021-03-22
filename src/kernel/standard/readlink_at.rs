@@ -1,6 +1,6 @@
-use kernel::standard::unlink_mkdir_at;
-use kernel::exit::SyscallExitResult;
 use errors::Result;
+use kernel::exit::SyscallExitResult;
+use kernel::standard::unlink_mkdir_at;
 
 pub fn enter() -> Result<()> {
     unlink_mkdir_at::enter()

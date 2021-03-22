@@ -1,11 +1,11 @@
-use nix::errno::Errno;
-use errors::{Result, Error};
+use errors::{Error, Result};
 use filesystem::Translator;
-use process::tracee::Tracee;
-use register::{PtraceReader, SysArg1};
-use kernel::execve::shebang;
 use kernel::execve::load_info::LoadInfo;
 use kernel::execve::loader::LoaderFile;
+use kernel::execve::shebang;
+use nix::errno::Errno;
+use process::tracee::Tracee;
+use register::{PtraceReader, SysArg1};
 
 pub fn translate(tracee: &mut Tracee, loader: &dyn LoaderFile) -> Result<()> {
     //TODO: implement this part for ptrace translation
@@ -97,11 +97,11 @@ pub fn translate(tracee: &mut Tracee, loader: &dyn LoaderFile) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::ffi::CString;
     use nix::unistd::execvp;
+    use register::{Current, PtraceReader};
+    use std::ffi::CString;
     use syscall::nr::{EXECVE, NANOSLEEP};
     use utils::tests::fork_test;
-    use register::{PtraceReader, Current};
 
     #[test]
     fn test_execve_translate_enter() {
@@ -139,7 +139,8 @@ mod tests {
                 execvp(
                     &CString::new("sleep").unwrap(),
                     &[CString::new(".").unwrap(), CString::new("0").unwrap()],
-                ).expect("failed execvp sleep");
+                )
+                .expect("failed execvp sleep");
             },
         );
     }

@@ -1,9 +1,9 @@
-use std::path::{Path, PathBuf};
-use std::fs::Metadata;
-use nix::sys::stat::Mode;
 use errors::Result;
-use filesystem::binding::{Binding, Side};
 use filesystem::binding::Side::Host;
+use filesystem::binding::{Binding, Side};
+use nix::sys::stat::Mode;
+use std::fs::Metadata;
+use std::path::{Path, PathBuf};
 
 /// Information related to a file-system name-space.
 #[derive(Debug)]
@@ -157,9 +157,9 @@ impl FileSystem {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::path::{Path, PathBuf};
     use filesystem::binding::Binding;
-    use filesystem::binding::Side::{Host, Guest};
+    use filesystem::binding::Side::{Guest, Host};
+    use std::path::{Path, PathBuf};
 
     #[test]
     fn test_fs_belongs_to_guestfs() {
@@ -176,10 +176,9 @@ mod tests {
     fn test_fs_get_binding() {
         let mut fs = FileSystem::new();
 
-        assert!(
-            fs.get_binding(&PathBuf::from("/home/user"), Guest)
-                .is_none()
-        ); // no bindings
+        assert!(fs
+            .get_binding(&PathBuf::from("/home/user"), Guest)
+            .is_none()); // no bindings
         assert!(fs.get_binding(&PathBuf::from("/home/user"), Host).is_none()); // no bindings
 
         // testing root binding

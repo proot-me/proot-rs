@@ -1,24 +1,24 @@
-use std::collections::HashMap;
-use std::ptr::null_mut;
-use std::ffi::CString;
-use process::tracee::Tracee;
-use process::event::EventHandler;
-use filesystem::FileSystem;
 use filesystem::temp::TempFile;
+use filesystem::FileSystem;
+use process::event::EventHandler;
+use process::tracee::Tracee;
+use std::collections::HashMap;
+use std::ffi::CString;
+use std::ptr::null_mut;
 
 // libc
-use libc::{siginfo_t, c_int, c_void, pid_t};
+use libc::{c_int, c_void, pid_t, siginfo_t};
 // signals
+use nix::sys::signal::{kill, Signal, SIGSTOP};
 use nix::unistd::Pid;
-use nix::sys::signal::{kill, SIGSTOP, Signal};
 // ptrace
 use nix::sys::ptrace::ptrace;
 use nix::sys::ptrace::ptrace::PTRACE_TRACEME;
 // fork
-use nix::unistd::{getpid, fork, execvp, ForkResult};
+use nix::unistd::{execvp, fork, getpid, ForkResult};
 // event loop
-use nix::sys::wait::{waitpid, __WALL};
 use nix::sys::wait::WaitStatus::*;
+use nix::sys::wait::{waitpid, __WALL};
 
 /// Used to store global info common to all tracees. Rename into `Configuration`?
 #[derive(Debug)]
@@ -89,7 +89,8 @@ impl PRoot {
                 execvp(
                     &CString::new("sleep").unwrap(),
                     &[CString::new(".").unwrap(), CString::new("0").unwrap()],
-                ).expect("failed execvp sleep");
+                )
+                .expect("failed execvp sleep");
                 //execvp(&CString::new("echo").unwrap(), &[CString::new(".").unwrap(),
                 // CString::new("TRACEE ECHO").unwrap()])
                 //    .expect("failed execvp echo");
@@ -97,8 +98,6 @@ impl PRoot {
                 //   .expect("failed execvp ls");
                 //TODO: cli must handle command, or use 'sh' as default (like proot)
                 //execvp(tracee->exe, argv[0] != NULL ? argv : default_argv);
-
-
             }
         }
     }
@@ -117,27 +116,21 @@ impl PRoot {
                 Signaled(pid, term_signal, dumped_core) => {
                     println!(
                         "-- {}, Signaled with status: {:?}, and dump core: {}",
-                        pid,
-                        term_signal,
-                        dumped_core
+                        pid, term_signal, dumped_core
                     );
                     self.register_tracee_finished(pid);
                 }
                 Stopped(pid, stop_signal) => {
                     println!(
                         "-- {}, Stopped, {:?}, {}",
-                        pid,
-                        stop_signal,
-                        stop_signal as c_int
+                        pid, stop_signal, stop_signal as c_int
                     );
                     self.handle_standard_event(pid, Some(stop_signal));
                 }
                 PtraceEvent(pid, signal, additional_signal) => {
                     println!(
                         "-- {}, Ptrace event, {:?}, {:?}",
-                        pid,
-                        signal,
-                        additional_signal
+                        pid, signal, additional_signal
                     );
                     self.handle_standard_event(pid, Some(signal));
                 }

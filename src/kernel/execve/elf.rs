@@ -1,8 +1,8 @@
-use std::fs::File;
-use std::io::{SeekFrom, Seek, Read};
-use std::mem;
 use errors::{Error, Result};
 use filesystem::readers::ExtraReader;
+use std::fs::File;
+use std::io::{Read, Seek, SeekFrom};
+use std::mem;
 
 const EI_NIDENT: usize = 16;
 const ET_REL: u16 = 1;
@@ -87,7 +87,7 @@ pub struct ParameterizedElfHeader<T> {
     pub e_flags: u32,
     pub e_ehsize: u16,
     pub e_phentsize: u16, // program header entire size
-    pub e_phnum: u16, // program headers count
+    pub e_phnum: u16,     // program headers count
     pub e_shentsize: u16,
     pub e_shnum: u16,
     pub e_shstrndx: u16,
@@ -163,15 +163,13 @@ impl ElfHeader {
 
         match buffer {
             // 0x7f, E, L, F, executable_class
-            [0x7f, 69, 76, 70, exe_class] => {
-                match exe_class as i32 {
-                    1 => Ok((ExecutableClass::Class32, file)),
-                    2 => Ok((ExecutableClass::Class64, file)),
-                    _ => Err(Error::cant_exec(
-                        "when extracting elf from unknown executable class",
-                    )),
-                }
-            }
+            [0x7f, 69, 76, 70, exe_class] => match exe_class as i32 {
+                1 => Ok((ExecutableClass::Class32, file)),
+                2 => Ok((ExecutableClass::Class64, file)),
+                _ => Err(Error::cant_exec(
+                    "when extracting elf from unknown executable class",
+                )),
+            },
             _ => Err(Error::cant_exec(
                 "when extracting elf header from non executable file",
             )),
@@ -221,8 +219,8 @@ impl ElfHeader {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::path::PathBuf;
     use errors::Error;
+    use std::path::PathBuf;
 
     #[test]
     fn test_get_elf_header_class_not_executable() {

@@ -1,5 +1,5 @@
-use kernel::exit::SyscallExitResult;
 use errors::Result;
+use kernel::exit::SyscallExitResult;
 
 /// Translates link and rename kernel
 pub fn enter() -> Result<()> {

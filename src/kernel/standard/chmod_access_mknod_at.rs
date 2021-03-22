@@ -1,4 +1,3 @@
-
 use errors::Result;
 
 pub fn enter() -> Result<()> {

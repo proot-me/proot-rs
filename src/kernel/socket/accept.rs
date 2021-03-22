@@ -1,6 +1,6 @@
-use kernel::socket::get_sockorpeer_name;
-use kernel::exit::SyscallExitResult;
 use errors::Result;
+use kernel::exit::SyscallExitResult;
+use kernel::socket::get_sockorpeer_name;
 
 pub fn enter() -> Result<()> {
     get_sockorpeer_name::enter()
@@ -11,7 +11,6 @@ pub fn enter() -> Result<()> {
     //     break;
     // }
     // special = true;
-
 }
 
 pub fn exit() -> SyscallExitResult {

@@ -11,7 +11,7 @@ clap = "2.25.1"
 sc = "0.2.3"
 lazy_static = "1.4.0"
 byteorder = "1.1.0"
-bstr = "0.1"
+bstr = "0.2.15"
 
 [build-dependencies]
 gcc = { git = "https://github.com/vincenthage/gcc-rs", branch = "master" }

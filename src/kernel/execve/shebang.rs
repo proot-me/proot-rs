@@ -1,9 +1,13 @@
-use bstr::BString;
+extern crate bstr;
+
+use self::bstr::BStr;
+use self::bstr::BString;
+use self::bstr::ByteSlice;
 use errors::{Error, Result};
 use filesystem::{FileSystem, Translator};
-use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
+use std::{fs::File, io::Read};
 
 /// Expand in argv[] the shebang of `user_path`, if any.  This function
 /// returns -errno if an error occurred, 1 if a shebang was found and
@@ -147,19 +151,22 @@ fn extract(host_path: &Path) -> Result<Option<PathBuf>> {
             _ => false,
         })
         .collect::<std::result::Result<Vec<u8>, _>>()?;
-    let path: Vec<u8> = first_line
-        .clone()
-        .into_iter()
-        .take_while(|c| !c.is_ascii_whitespace())
-        .collect();
+    let first_line = first_line.trim();
+
+    let path = &first_line[..first_line
+        .iter()
+        .position(|c| c.is_ascii_whitespace())
+        .unwrap_or(first_line.len())];
+
     if path.is_empty() {
         return Err(Error::InvalidPath("Cannot have empty shebang"));
     }
     // NOTE: this unwrap may fail on non-UNIX systems (a.k.a Windows)
     // where paths may not be arbitrary bytes
-    let arg = first_line[path.len()..].to_vec();
-    let mut argv = PathBuf::from(BString::from(path).to_path().unwrap());
-    argv.push(BString::from_vec(arg).to_path().unwrap());
+    let arg = first_line[path.len()..].trim();
+
+    let mut argv = PathBuf::from(path.as_bstr().to_path().unwrap());
+    argv.push(arg.as_bstr().to_path().unwrap()); // FIXME: why append arg here?
     Ok(Some(argv))
     //
     //	/* Skip leading spaces. */

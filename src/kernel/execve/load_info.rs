@@ -288,12 +288,13 @@ mod tests {
     #[test]
     fn test_load_info_from_path_not_executable() {
         let fs = FileSystem::with_root("/");
-        let result = LoadInfo::from(&fs, &PathBuf::from("/etc/init/acpid.conf"));
+        let result = LoadInfo::from(&fs, &PathBuf::from("/etc/hostname"));
 
-        assert!(result.is_err());
         assert_eq!(
-            Error::cant_exec("when extracting elf header from non executable file"),
-            result.unwrap_err()
+            Err(Error::cant_exec(
+                "when extracting elf header from non executable file"
+            )),
+            result
         );
     }
 

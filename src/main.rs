@@ -1,25 +1,26 @@
-#![feature(slice_patterns)]
+#![allow(clippy::redundant_static_lifetimes)]
+#![allow(clippy::redundant_field_names)]
 
+extern crate clap;
 extern crate libc;
 extern crate nix;
-extern crate clap;
-extern crate syscall;
+extern crate sc;
 #[macro_use]
 extern crate lazy_static;
 extern crate byteorder;
 
-mod errors;
-mod utils;
-mod register;
-mod kernel;
-mod filesystem;
 mod cli;
+mod errors;
+mod filesystem;
+mod kernel;
 mod process;
+mod register;
+mod utils;
 
-use std::process::exit;
-use process::sigactions;
-use process::proot::{PRoot, stop_program, show_info};
 use filesystem::{FileSystem, Initialiser};
+use process::proot::{show_info, stop_program, PRoot};
+use process::sigactions;
+use std::process::exit;
 
 fn main() {
     // step 1: CLI parsing

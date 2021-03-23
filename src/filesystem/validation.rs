@@ -59,7 +59,7 @@ mod tests {
         for path in &incorrect_paths {
             assert_eq!(
                 path_validator(path.to_string()),
-                Err((path.to_string() + " is not a valid path."))
+                Err(path.to_string() + " is not a valid path.")
             );
         }
     }
@@ -80,12 +80,12 @@ mod tests {
         for path in &incorrect_paths {
             assert_eq!(
                 binding_validator(path.to_string()),
-                Err(("should be: path_host:path_guest".to_string()))
+                Err("should be: path_host:path_guest".to_string())
             );
         }
         assert_eq!(
             binding_validator("impossible path:.".to_string()),
-            Err(("impossible path is not a valid path.".to_string()))
+            Err("impossible path is not a valid path.".to_string())
         );
     }
 }

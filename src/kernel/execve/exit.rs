@@ -1,7 +1,7 @@
 use errors::Result;
 use kernel::exit::SyscallExitResult;
-use register::{SysResult, Current};
 use process::tracee::Tracee;
+use register::{Current, SysResult};
 
 pub fn translate(tracee: &mut Tracee) -> SyscallExitResult {
     let syscall_result = tracee.regs.get(Current, SysResult) as isize;
@@ -27,6 +27,6 @@ pub fn translate(tracee: &mut Tracee) -> SyscallExitResult {
     }
 }
 
-pub fn transfert_load_script(tracee: &mut Tracee) -> Result<()> {
+pub fn transfert_load_script(_tracee: &mut Tracee) -> Result<()> {
     Ok(())
 }

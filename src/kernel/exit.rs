@@ -1,12 +1,12 @@
-use kernel::groups::{SyscallGroup, syscall_group_from_sysnum};
+use errors::Error;
 use kernel::execve;
+use kernel::groups::{syscall_group_from_sysnum, SyscallGroup};
 use kernel::heap::*;
 use kernel::ptrace::*;
 use kernel::socket::*;
 use kernel::standard::*;
-use errors::Error;
-use register::{Word, Current, SysResult};
 use process::tracee::Tracee;
+use register::{Current, SysResult, Word};
 
 #[allow(dead_code)]
 pub enum SyscallExitResult {
@@ -48,13 +48,11 @@ pub fn translate(tracee: &mut Tracee) {
 
     match result {
         SyscallExitResult::None => (),
-        SyscallExitResult::Value(value) => {
-            tracee.regs.set(
-                SysResult,
-                value as Word,
-                "following exit translation, setting new syscall result",
-            )
-        }
+        SyscallExitResult::Value(value) => tracee.regs.set(
+            SysResult,
+            value as Word,
+            "following exit translation, setting new syscall result",
+        ),
         SyscallExitResult::Error(error) => {
             tracee.regs.set(
                 SysResult,

@@ -1,13 +1,13 @@
-use std::ptr::null_mut;
-use std::path::PathBuf;
-use nix::unistd::Pid;
-use nix::sys::ptrace::ptrace_setoptions;
-use nix::sys::ptrace::ptrace::*;
-use nix::sys::ptrace::ptrace;
 use errors::Error;
-use register::Registers;
-use process::proot::InfoBag;
 use filesystem::FileSystem;
+use nix::sys::ptrace::ptrace;
+use nix::sys::ptrace::ptrace::*;
+use nix::sys::ptrace::ptrace_setoptions;
+use nix::unistd::Pid;
+use process::proot::InfoBag;
+use register::Registers;
+use std::path::PathBuf;
+use std::ptr::null_mut;
 
 #[derive(Debug, PartialEq)]
 pub enum TraceeStatus {
@@ -21,10 +21,7 @@ pub enum TraceeStatus {
 
 impl TraceeStatus {
     pub fn is_err(&self) -> bool {
-        match *self {
-            TraceeStatus::Error(_) => true,
-            _ => false,
-        }
+        matches!(*self, TraceeStatus::Error(_))
     }
 
     pub fn is_ok(&self) -> bool {
@@ -32,7 +29,7 @@ impl TraceeStatus {
     }
 
     pub fn get_errno(&self) -> i32 {
-        match *self {
+        match self {
             TraceeStatus::Error(err) => err.get_errno(),
             _ => 0,
         }
@@ -82,7 +79,7 @@ impl Tracee {
             seccomp: false,
             sysexit_pending: false,
             new_exe: None,
-            exe: None
+            exe: None,
         }
     }
 
@@ -104,7 +101,6 @@ impl Tracee {
         self.restart_how = TraceeRestartMethod::None;
     }
 
-
     /// Distinguish some events from others and
     /// automatically trace each new process with
     /// the same options.
@@ -120,23 +116,25 @@ impl Tracee {
             info_bag.deliver_sigtrap = true;
         }
 
-        let default_options = PTRACE_O_TRACESYSGOOD | PTRACE_O_TRACEFORK | PTRACE_O_TRACEVFORK |
-            PTRACE_O_TRACEVFORKDONE |
-            PTRACE_O_TRACEEXEC | PTRACE_O_TRACECLONE |
-            PTRACE_O_TRACEEXIT;
+        let default_options = PTRACE_O_TRACESYSGOOD
+            | PTRACE_O_TRACEFORK
+            | PTRACE_O_TRACEVFORK
+            | PTRACE_O_TRACEVFORKDONE
+            | PTRACE_O_TRACEEXEC
+            | PTRACE_O_TRACECLONE
+            | PTRACE_O_TRACEEXIT;
 
         //TODO: seccomp
-        ptrace_setoptions(self.pid.into(), default_options).expect("set ptrace options");
+        ptrace_setoptions(self.pid, default_options).expect("set ptrace options");
     }
 }
-
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use utils::tests::fork_test;
-    use nix::unistd::Pid;
     use filesystem::FileSystem;
+    use nix::unistd::Pid;
+    use utils::tests::fork_test;
 
     #[test]
     fn create_tracee() {
@@ -158,7 +156,7 @@ mod tests {
                 // we stop on the first syscall;
                 // the fact that no panic was sparked until now
                 // means that the set_trace_options call was OK
-                return true;
+                true
             },
             // child
             || {},

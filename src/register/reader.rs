@@ -1,13 +1,13 @@
-use std::mem::{size_of, transmute};
-use std::ptr::null_mut;
-use std::path::PathBuf;
-use libc::{c_void, PATH_MAX};
-use errors::Result;
 use errors::Error;
-use nix::unistd::Pid;
+use errors::Result;
+use libc::{c_void, PATH_MAX};
 use nix::sys::ptrace::ptrace;
 use nix::sys::ptrace::ptrace::PTRACE_PEEKDATA;
-use register::{Word, SysArg, Registers, SysArgIndex, Current};
+use nix::unistd::Pid;
+use register::{Current, Registers, SysArg, SysArgIndex, Word};
+use std::mem::{size_of, transmute};
+use std::path::PathBuf;
+use std::ptr::null_mut;
 
 #[cfg(target_pointer_width = "32")]
 #[inline]
@@ -61,7 +61,6 @@ fn read_path(pid: Pid, src_path: *mut Word) -> Result<PathBuf> {
     Ok(PathBuf::from(unsafe { String::from_utf8_unchecked(bytes) }))
 }
 
-
 /// Reads a string from the memory space of a tracee.
 ///
 /// It uses `ptrace(PEEK_DATA)` to read it word by word
@@ -111,65 +110,55 @@ fn read_string(pid: Pid, src_string: *mut Word, max_size: usize) -> Result<Vec<u
 
     /*
 
-	/* Copy the bytes from the last word carefully since we have
-	 * to not overwrite the bytes lying beyond @dest_tracer. */
+    /* Copy the bytes from the last word carefully since we have
+     * to not overwrite the bytes lying beyond @dest_tracer. */
 
-	word = ptrace(PTRACE_PEEKDATA, tracee->pid, src + i, NULL);
-	if (errno != 0)
-		return -EFAULT;
+    word = ptrace(PTRACE_PEEKDATA, tracee->pid, src + i, NULL);
+    if (errno != 0)
+        return -EFAULT;
 
-	dest_word = (uint8_t *)&dest[i];
-	src_word  = (uint8_t *)&word;
+    dest_word = (uint8_t *)&dest[i];
+    src_word  = (uint8_t *)&word;
 
-	for (j = 0; j < nb_trailing_bytes; j++) {
-		dest_word[j] = src_word[j];
-		if (src_word[j] == '\0')
-			break;
-	}
+    for (j = 0; j < nb_trailing_bytes; j++) {
+        dest_word[j] = src_word[j];
+        if (src_word[j] == '\0')
+            break;
+    }
 
-	return i * sizeof(word_t) + j + 1;
+    return i * sizeof(word_t) + j + 1;
     */
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::ffi::CString;
-    use std::mem;
     use libc::user_regs_struct;
     use nix::unistd::{execvp, getpid};
-    use utils::tests::fork_test;
-    use syscall::nr::MKDIR;
     use register::*;
+    use sc::nr::MKDIR;
+    use std::ffi::CString;
+    use std::mem;
+    use utils::tests::fork_test;
 
     #[test]
     #[cfg(target_pointer_width = "64")]
     fn test_reader_convert_word_to_bytes() {
-        let number: Word = 'h' as u64 + 'e' as u64 * 256 + 'l' as u64 * 256 * 256 +
-            'l' as u64 * 256 * 256 * 256 +
-            'o' as u64 * 256 * 256 * 256 * 256;
+        let number: Word = 'h' as u64
+            + 'e' as u64 * 256
+            + 'l' as u64 * 256 * 256
+            + 'l' as u64 * 256 * 256 * 256
+            + 'o' as u64 * 256 * 256 * 256 * 256;
         let bytes = convert_word_to_bytes(number);
 
-        assert_eq!(
-            bytes,
-            [
-                'h' as u8,
-                'e' as u8,
-                'l' as u8,
-                'l' as u8,
-                'o' as u8,
-                0,
-                0,
-                0,
-            ]
-        );
+        assert_eq!(bytes, [b'h', b'e', b'l', b'l', b'o', 0, 0, 0,]);
     }
 
     #[test]
     #[cfg(target_pointer_width = "32")]
     fn test_reader_convert_word_to_bytes() {
-        let number: Word = 'h' as u64 + 'e' as u64 * 256 + 'l' as u64 * 256 * 256 +
-            'o' as u64 * 256 * 256 * 256;
+        let number: Word =
+            'h' as u64 + 'e' as u64 * 256 + 'l' as u64 * 256 * 256 + 'o' as u64 * 256 * 256 * 256;
         let bytes = convert_word_to_bytes(number);
 
         assert_eq!(bytes, ['h' as u8, 'e' as u8, 'l' as u8, 'o' as u8]);
@@ -209,9 +198,9 @@ mod tests {
                     assert_eq!(dir_path, PathBuf::from(test_path));
 
                     // we can stop here
-                    return true;
+                    true
                 } else {
-                    return false;
+                    false
                 }
             },
             // child
@@ -220,7 +209,8 @@ mod tests {
                 execvp(
                     &CString::new("mkdir").unwrap(),
                     &[CString::new(".").unwrap(), CString::new(test_path).unwrap()],
-                ).expect("failed execvp mkdir");
+                )
+                .expect("failed execvp mkdir");
             },
         );
     }

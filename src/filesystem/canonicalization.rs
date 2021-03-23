@@ -1,7 +1,7 @@
-use std::path::{Path, PathBuf, Component};
 use errors::{Error, Result};
-use filesystem::FileSystem;
 use filesystem::substitution::Substitutor;
+use filesystem::FileSystem;
+use std::path::{Component, Path, PathBuf};
 
 pub trait Canonicalizer {
     fn canonicalize(&self, path: &Path, deref_final: bool) -> Result<PathBuf>;
@@ -38,8 +38,7 @@ impl Canonicalizer for FileSystem {
                     guest_path.push("/");
                     continue;
                 }
-                Component::CurDir |
-                Component::Prefix(_) => {
+                Component::CurDir | Component::Prefix(_) => {
                     // Component::Prefix does not occur on Unix
                     continue;
                 }
@@ -51,7 +50,8 @@ impl Canonicalizer for FileSystem {
                     guest_path.push(path_part);
 
                     // Resolve bindings and add glue if necessary
-                    let (_, maybe_file_type) = self.substitute_intermediary_and_glue(&guest_path)?;
+                    let (_, maybe_file_type) =
+                        self.substitute_intermediary_and_glue(&guest_path)?;
 
                     //TODO: remove when glue is implemented
                     if maybe_file_type.is_none() {
@@ -86,10 +86,10 @@ impl Canonicalizer for FileSystem {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::path::PathBuf;
-    use nix::sys::stat::{S_IRWXU, S_IRWXG, S_IRWXO};
-    use filesystem::FileSystem;
     use filesystem::binding::Binding;
+    use filesystem::FileSystem;
+    use nix::sys::stat::{S_IRWXG, S_IRWXO, S_IRWXU};
+    use std::path::PathBuf;
 
     #[test]
     fn test_canonicalize_invalid_path() {

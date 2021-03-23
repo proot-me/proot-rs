@@ -1,4 +1,6 @@
-# proot-rs [![Build Status](https://travis-ci.org/proot-me/proot-rs.svg?branch=master)](https://travis-ci.org/proot-me/proot-rs)
+# proot-rs [![](https://github.com/proot-me/proot-rs/workflows/Rust/badge.svg)](https://github.com/proot-me/proot-rs/actions)
+
+
 Rust implementation of PRoot, a ptrace-based sandbox.
 _(Work in progress)_
 
@@ -30,7 +32,7 @@ Not usable for now _(work in progress)_.
 ## Requirements
 Use the nightly Rust channel for rustc:
 ```
-cargo default nightly
+rustup default nightly
 ```
 Some dependencies (like `syscall`) depend on features (`asm` in this case) that are not 
 on the stable channel yet.
@@ -53,4 +55,20 @@ cargo build --release
 Simply run:
 ```
 cargo test
+```
+
+## Contributing
+
+We use git hooks to check files staged for commit to ensure the consistency of Rust code style.
+
+Before you start, please run the following command to setup git hooks:
+
+```shell
+git config core.hooksPath .githooks
+```
+
+To format code manually:
+
+```shell
+cargo fmt
 ```

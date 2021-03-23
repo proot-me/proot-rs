@@ -1,16 +1,16 @@
-use std::path::Path;
-use std::os::unix::ffi::OsStrExt;
-use std::mem;
-use std::ptr::null_mut;
-use std::io::Read;
-use libc::c_void;
-use nix::sys::ptrace::ptrace;
-use nix::sys::ptrace::ptrace::{PTRACE_POKEDATA, PTRACE_PEEKDATA};
-use std::io::Cursor;
 use byteorder::{LittleEndian, ReadBytesExt};
 use errors::Result;
-use register::{Word, SysArgIndex, PtraceMemoryAllocator, Registers, SysArg};
+use libc::c_void;
+use nix::sys::ptrace::ptrace;
+use nix::sys::ptrace::ptrace::{PTRACE_PEEKDATA, PTRACE_POKEDATA};
 use register::reader::convert_word_to_bytes;
+use register::{PtraceMemoryAllocator, Registers, SysArg, SysArgIndex, Word};
+use std::io::Cursor;
+use std::io::Read;
+use std::mem;
+use std::os::unix::ffi::OsStrExt;
+use std::path::Path;
+use std::ptr::null_mut;
 
 #[cfg(target_pointer_width = "32")]
 #[inline]
@@ -48,11 +48,7 @@ impl PtraceWriter for Registers {
         path: &Path,
         justification: &'static str,
     ) -> Result<()> {
-        self.set_sysarg_data(
-            sys_arg,
-            path.as_os_str().as_bytes(),
-            justification,
-        )
+        self.set_sysarg_data(sys_arg, path.as_os_str().as_bytes(), justification)
     }
 
     /// Copies all bytes of `data` to the tracee's memory block
@@ -83,7 +79,7 @@ impl PtraceWriter for Registers {
         //TODO implement HAVE_PROCESS_VM
 
         // The byteorder crate is used to read the [u8] slice as a [Word] slice.
-        let null_char_slice: &[u8] = &['\0' as u8];
+        let null_char_slice: &[u8] = &[b'\0'];
         let mut buf = Cursor::new(data).chain(Cursor::new(null_char_slice));
 
         let size = data.len() + 1; // the +1 is for the `\0` byte that we will have manually
@@ -115,8 +111,8 @@ impl PtraceWriter for Registers {
         // bytes = [0, 0, 0, 0, 0, 0, 119, 0] // the already existing bytes at the dest addr
         // trailing bytes = [164, 247, 274] // our trailing bytes
         // fusion = [164, 247, 274, 0, 0, 0, 119, 0] // the fusion of the two
-        for j in 0..nb_trailing_bytes as usize {
-            bytes[j] = buf.read_u8().unwrap();
+        for byte in bytes.iter_mut().take(nb_trailing_bytes as usize) {
+            *byte = buf.read_u8().unwrap();
         }
 
         let last_word = convert_bytes_to_word(bytes);
@@ -132,16 +128,15 @@ impl PtraceWriter for Registers {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
+    use nix::unistd::execvp;
+    use register::{Current, Original, PtraceReader, SysArg1};
+    use sc::nr::MKDIR;
     use std::ffi::CString;
     use std::path::PathBuf;
-    use nix::unistd::execvp;
     use utils::tests::fork_test;
-    use syscall::nr::MKDIR;
-    use register::{PtraceReader, SysArg1, Current, Original};
 
     #[test]
     fn test_write_set_sysarg_path_write_same_path() {
@@ -153,7 +148,7 @@ mod tests {
             // expecting an error (because the first path doesn't exit)
             1,
             // parent
-            |mut tracee, _| {
+            |tracee, _| {
                 if tracee.regs.get_sys_num(Current) == MKDIR {
                     tracee.regs.set_restore_original_regs(false);
                     tracee.regs.save_current_regs(Original);
@@ -165,13 +160,14 @@ mod tests {
                     assert_eq!(dir_path, PathBuf::from(test_path));
 
                     // we write the new path
-                    assert!(
-                        tracee.regs.set_sysarg_path(
+                    assert!(tracee
+                        .regs
+                        .set_sysarg_path(
                             SysArg1,
                             &PathBuf::from(test_path_2),
                             "setting impossible path for push_regs test",
-                        ).is_ok()
-                    );
+                        )
+                        .is_ok());
 
                     // we read the new path from the tracee's memory
                     let dir_path_2 = tracee.regs.get_sysarg_path(SysArg1).unwrap();
@@ -180,9 +176,9 @@ mod tests {
                     assert_eq!(dir_path_2, PathBuf::from(test_path_2));
 
                     // we don't push the regs, we stop here
-                    return true;
+                    true
                 } else {
-                    return false;
+                    false
                 }
             },
             // child
@@ -191,7 +187,8 @@ mod tests {
                 execvp(
                     &CString::new("mkdir").unwrap(),
                     &[CString::new(".").unwrap(), CString::new(test_path).unwrap()],
-                ).expect("failed execvp mkdir");
+                )
+                .expect("failed execvp mkdir");
             },
         );
     }

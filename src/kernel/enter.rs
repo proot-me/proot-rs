@@ -1,19 +1,23 @@
 use errors::Result;
 use kernel::execve;
+use kernel::groups::syscall_group_from_sysnum;
+use kernel::groups::SyscallGroup::*;
 use kernel::heap::*;
 use kernel::ptrace::*;
 use kernel::socket::*;
 use kernel::standard::*;
-use kernel::groups::syscall_group_from_sysnum;
-use kernel::groups::SyscallGroup::*;
-use register::Current;
-use process::tracee::Tracee;
 use process::proot::InfoBag;
+use process::tracee::Tracee;
+use register::Current;
 
 pub fn translate(info_bag: &InfoBag, tracee: &mut Tracee) -> Result<()> {
     let sys_type = syscall_group_from_sysnum(tracee.regs.get_sys_num(Current));
 
-    println!("enter  \t({:?}, \t{:?}) ", tracee.regs.get_sys_num(Current), sys_type);
+    println!(
+        "enter  \t({:?}, \t{:?}) ",
+        tracee.regs.get_sys_num(Current),
+        sys_type
+    );
 
     match sys_type {
         Accept => accept::enter(),

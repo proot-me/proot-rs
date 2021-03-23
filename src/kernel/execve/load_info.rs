@@ -1,16 +1,16 @@
-use std::path::{Path, PathBuf};
+use errors::{Error, Result};
+use filesystem::readers::ExtraReader;
+use filesystem::FileSystem;
+use kernel::execve::elf::{ElfHeader, ExecutableClass, ProgramHeader};
+use kernel::execve::elf::{PF_R, PF_W, PF_X, PT_INTERP, PT_LOAD};
+use kernel::execve::shebang::translate_and_check_exec;
+use nix::sys::mman::{MapFlags, MAP_ANONYMOUS, MAP_FIXED, MAP_PRIVATE};
+use nix::sys::mman::{ProtFlags, PROT_EXEC, PROT_NONE, PROT_READ, PROT_WRITE};
+use nix::unistd::{sysconf, SysconfVar};
+use register::Word;
 use std::fs::File;
 use std::io::{Seek, SeekFrom};
-use nix::unistd::{sysconf, SysconfVar};
-use nix::sys::mman::{MapFlags, MAP_PRIVATE, MAP_FIXED, MAP_ANONYMOUS};
-use nix::sys::mman::{ProtFlags, PROT_NONE, PROT_READ, PROT_WRITE, PROT_EXEC};
-use errors::{Error, Result};
-use register::Word;
-use filesystem::FileSystem;
-use filesystem::readers::ExtraReader;
-use kernel::execve::elf::{PT_LOAD, PT_INTERP, PF_R, PF_W, PF_X};
-use kernel::execve::elf::{ElfHeader, ProgramHeader, ExecutableClass};
-use kernel::execve::shebang::translate_and_check_exec;
+use std::path::{Path, PathBuf};
 
 #[derive(Debug, PartialEq)]
 pub struct Mapping {
@@ -35,9 +35,9 @@ pub struct LoadInfo {
 
 lazy_static! {
     static ref PAGE_SIZE: Word = match sysconf(SysconfVar::PAGE_SIZE) {
-            Ok(Some(value)) => value as Word,
-            _ => 0x1000
-        };
+        Ok(Some(value)) => value as Word,
+        _ => 0x1000,
+    };
     static ref PAGE_MASK: Word = !(*PAGE_SIZE - 1);
 }
 
@@ -47,7 +47,6 @@ const EXEC_PIC_ADDRESS: Word = 0x500000000000;
 const INTERP_PIC_ADDRESS: Word = 0x6f0000000000;
 const EXEC_PIC_ADDRESS_32: Word = 0x0f000000;
 const INTERP_PIC_ADDRESS_32: Word = 0xaf000000;
-
 
 impl LoadInfo {
     fn new(elf_header: ElfHeader) -> Self {
@@ -161,7 +160,6 @@ impl LoadInfo {
         Ok(())
     }
 
-
     fn add_interp(
         &mut self,
         fs: &FileSystem,
@@ -270,14 +268,13 @@ fn process_prot_flags(flags: u32) -> ProtFlags {
     read_flag | write_flag | execute_flag
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::path::PathBuf;
     use errors::Error;
     use filesystem::FileSystem;
     use register::Word;
+    use std::path::PathBuf;
 
     #[test]
     fn test_load_info_from_invalid_path() {
@@ -309,7 +306,7 @@ mod tests {
 
         let load_info = result.unwrap();
 
-        assert!(load_info.mappings.len() > 0);
+        assert!(!load_info.mappings.is_empty());
     }
 
     #[test]

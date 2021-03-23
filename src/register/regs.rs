@@ -1,12 +1,12 @@
-use std::ptr::null_mut;
-use std::mem;
-use std::fmt;
-use libc::{c_void, user_regs_struct};
 use errors::Result;
-use nix::unistd::Pid;
+use libc::{c_void, user_regs_struct};
 use nix::sys::ptrace::ptrace;
 use nix::sys::ptrace::ptrace::{PTRACE_GETREGS, PTRACE_SETREGS};
+use nix::unistd::Pid;
 use register::Word;
+use std::fmt;
+use std::mem;
+use std::ptr::null_mut;
 
 const VOID: Word = 0;
 
@@ -55,7 +55,7 @@ impl Registers {
             pid: pid,
             registers: [None, None, None],
             regs_were_changed: false,
-            restore_original_regs: false
+            restore_original_regs: false,
         }
     }
 
@@ -66,7 +66,7 @@ impl Registers {
             pid: pid,
             registers: [Some(raw_regs), None, None],
             regs_were_changed: false,
-            restore_original_regs: false
+            restore_original_regs: false,
         }
     }
 
@@ -105,11 +105,7 @@ impl Registers {
         //TODO: log DEBUG
         println!(
             "{}\t\t~ modifying current reg: {:?}, current_value: {}, new_value: {}, {}",
-            self.pid,
-            register,
-            current_value,
-            new_value,
-            justification
+            self.pid, register, current_value, new_value, justification
         );
 
         if current_value == new_value {
@@ -128,7 +124,7 @@ impl Registers {
     #[inline]
     pub fn save_current_regs(&mut self, version: RegVersion) {
         if version != Current {
-            let current_regs = self.get_regs(Current).clone();
+            let current_regs = *self.get_regs(Current);
 
             self.registers[version as usize] = Some(current_regs);
         }
@@ -155,7 +151,7 @@ impl Registers {
     /// `restore_original_regs` is enabled.
     pub fn push_regs(&mut self) -> Result<()> {
         if !self.regs_were_changed {
-            return Ok(())
+            return Ok(());
         }
 
         if self.restore_original_regs {
@@ -163,7 +159,7 @@ impl Registers {
         }
 
         let pid = self.pid;
-        let mut current_regs = self.get_mut_regs(Current);
+        let current_regs = self.get_mut_regs(Current);
         let p_regs: *mut c_void = current_regs as *mut _ as *mut c_void;
 
         ptrace(PTRACE_SETREGS, pid, null_mut(), p_regs)?;
@@ -238,14 +234,14 @@ impl Registers {
 
     #[inline]
     pub fn get_pid(&self) -> Pid {
-        self.pid.clone()
+        self.pid
     }
 
     #[inline]
     fn get_regs(&self, version: RegVersion) -> &user_regs_struct {
         match self.registers[version as usize] {
             Some(ref regs) => regs,
-            None => unreachable!()
+            None => unreachable!(),
         }
     }
 
@@ -253,7 +249,7 @@ impl Registers {
     fn get_mut_regs(&mut self, version: RegVersion) -> &mut user_regs_struct {
         match self.registers[version as usize] {
             Some(ref mut regs) => regs,
-            None => unreachable!()
+            None => unreachable!(),
         }
     }
 
@@ -327,9 +323,9 @@ impl fmt::Display for Registers {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use nix::unistd::{execvp, Pid};
+    use sc::nr::NANOSLEEP;
     use std::ffi::CString;
-    use nix::unistd::{Pid, execvp};
-    use syscall::nr::NANOSLEEP;
     use utils::tests::fork_test;
 
     #[test]
@@ -343,7 +339,6 @@ mod tests {
         assert_eq!(true, regs.regs_were_changed);
         assert_eq!(123456, regs.get(Current, SysNum));
     }
-
 
     #[test]
     fn test_fetch_regs_should_fail_test() {
@@ -362,7 +357,7 @@ mod tests {
             |_, _| {
                 // we stop on the first syscall;
                 // the fact that no panic was sparked until now means that the regs were OK
-                return true;
+                true
             },
             // child
             || {
@@ -370,7 +365,8 @@ mod tests {
                 execvp(
                     &CString::new("sleep").unwrap(),
                     &[CString::new(".").unwrap(), CString::new("0").unwrap()],
-                ).expect("failed execvp sleep");
+                )
+                .expect("failed execvp sleep");
             },
         );
     }
@@ -386,7 +382,7 @@ mod tests {
             // parent
             |tracee, _| {
                 // we only stop when the NANOSLEEP syscall is detected
-                return tracee.regs.get_sys_num(Current) == NANOSLEEP;
+                tracee.regs.get_sys_num(Current) == NANOSLEEP
             },
             // child
             || {
@@ -394,7 +390,8 @@ mod tests {
                 execvp(
                     &CString::new("sleep").unwrap(),
                     &[CString::new(".").unwrap(), CString::new("0").unwrap()],
-                ).expect("failed execvp sleep");
+                )
+                .expect("failed execvp sleep");
             },
         );
     }
@@ -411,14 +408,16 @@ mod tests {
             // expecting a normal execution
             0,
             // parent
-            |mut tracee, _| {
+            |tracee, _| {
                 if tracee.regs.get_sys_num(Current) == NANOSLEEP {
                     // NANOSLEEP enter stage
                     tracee.regs.set_restore_original_regs(false);
                     tracee.regs.save_current_regs(Original);
 
                     // we cancel the sleep call by voiding it
-                    tracee.regs.cancel_syscall("cancel sleep for push regs test");
+                    tracee
+                        .regs
+                        .cancel_syscall("cancel sleep for push regs test");
                     tracee.regs.push_regs().expect("pushing regs");
 
                     // the new syscall will be nanosleep's exit (with a sys num equal to 0)
@@ -431,7 +430,7 @@ mod tests {
                     return true;
                 }
 
-                return false;
+                false
             },
             // child
             || {
@@ -439,7 +438,8 @@ mod tests {
                 execvp(
                     &CString::new("sleep").unwrap(),
                     &[CString::new(".").unwrap(), CString::new("9999").unwrap()],
-                ).expect("failed execvp sleep");
+                )
+                .expect("failed execvp sleep");
             },
         );
     }

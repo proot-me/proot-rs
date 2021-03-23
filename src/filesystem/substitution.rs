@@ -1,10 +1,10 @@
-use std::path::{Path, PathBuf};
-use std::fs::FileType;
-use nix::sys::stat::Mode;
 use errors::{Error, Result};
 use filesystem::binding::Direction;
 use filesystem::binding::Side::{Guest, Host};
 use filesystem::FileSystem;
+use nix::sys::stat::Mode;
+use std::fs::FileType;
+use std::path::{Path, PathBuf};
 
 pub trait Substitutor {
     fn substitute_binding(&self, path: &Path, direction: Direction) -> Result<Option<PathBuf>>;
@@ -49,7 +49,7 @@ impl Substitutor for FileSystem {
         guest_path: &Path,
     ) -> Result<(PathBuf, Option<FileType>)> {
         let substituted_path = self.substitute_binding(guest_path, Direction(Guest, Host))?;
-        let host_path = substituted_path.unwrap_or(guest_path.to_path_buf());
+        let host_path = substituted_path.unwrap_or_else(|| guest_path.to_path_buf());
 
         match self.get_direct_metadata(&host_path) {
             Ok(metadata) => Ok((host_path, Some(metadata.file_type()))),
@@ -79,11 +79,11 @@ impl Substitutor for FileSystem {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::path::{Path, PathBuf};
     use errors::Error;
     use filesystem::binding::Binding;
-    use filesystem::binding::Side::{Host, Guest};
+    use filesystem::binding::Side::{Guest, Host};
     use filesystem::FileSystem;
+    use std::path::{Path, PathBuf};
 
     #[test]
     fn test_substitute_binding_root_and_asymmetric() {
@@ -156,7 +156,8 @@ mod tests {
         let mut fs = FileSystem::with_root("/etc/acpi");
 
         // testing a folder
-        let (path, file_type) = fs.substitute_intermediary_and_glue(&Path::new("/events"))
+        let (path, file_type) = fs
+            .substitute_intermediary_and_glue(&Path::new("/events"))
             .expect("no error");
 
         assert_eq!(path, PathBuf::from("/etc/acpi/events")); // "/" => "/etc/acpi/"
@@ -165,18 +166,19 @@ mod tests {
         fs.add_binding(Binding::new("/bin", "/bin", true));
 
         // testing a symlink
-        let (path_2, file_type_2) = fs.substitute_intermediary_and_glue(&Path::new("/bin/sh"))
+        let (path_2, file_type_2) = fs
+            .substitute_intermediary_and_glue(&Path::new("/bin/sh"))
             .expect("no error");
 
         assert_eq!(path_2, PathBuf::from("/bin/sh")); // no change in path, because symmetric binding
         assert!(file_type_2.unwrap().is_symlink());
 
         // testing a file
-        let (path_3, file_type_3) = fs.substitute_intermediary_and_glue(&Path::new("/bin/true"))
+        let (path_3, file_type_3) = fs
+            .substitute_intermediary_and_glue(&Path::new("/bin/true"))
             .expect("no error");
 
         assert_eq!(path_3, PathBuf::from("/bin/true")); // same here
         assert!(file_type_3.unwrap().is_file());
     }
-
 }

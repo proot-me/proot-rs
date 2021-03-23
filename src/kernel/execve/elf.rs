@@ -1,8 +1,8 @@
-use std::fs::File;
-use std::io::{SeekFrom, Seek, Read};
-use std::mem;
 use errors::{Error, Result};
 use filesystem::readers::ExtraReader;
+use std::fs::File;
+use std::io::{Read, Seek, SeekFrom};
+use std::mem;
 
 const EI_NIDENT: usize = 16;
 const ET_REL: u16 = 1;
@@ -67,8 +67,8 @@ impl ProgramHeader {
         func64: F64,
     ) -> Result<V> {
         match self {
-            &ProgramHeader::ProgramHeader32(ref program_header) => func32(program_header),
-            &ProgramHeader::ProgramHeader64(ref program_header) => func64(program_header),
+            ProgramHeader::ProgramHeader32(ref program_header) => func32(program_header),
+            ProgramHeader::ProgramHeader64(ref program_header) => func64(program_header),
         }
     }
 }
@@ -87,7 +87,7 @@ pub struct ParameterizedElfHeader<T> {
     pub e_flags: u32,
     pub e_ehsize: u16,
     pub e_phentsize: u16, // program header entire size
-    pub e_phnum: u16, // program headers count
+    pub e_phnum: u16,     // program headers count
     pub e_shentsize: u16,
     pub e_shnum: u16,
     pub e_shstrndx: u16,
@@ -138,7 +138,7 @@ impl ElfHeader {
     /// `None` if it's not an ELF-executable,
     /// and an `ElfHeader` if it was successful.
     #[inline]
-    pub fn extract_from<'a>(file: &'a mut File) -> Result<(Self, &'a mut File)> {
+    pub fn extract_from(file: &mut File) -> Result<(Self, &mut File)> {
         let (executable_class, file) = ElfHeader::extract_class(file)?;
 
         // we reset the file's iterator
@@ -156,22 +156,20 @@ impl ElfHeader {
     /// to determine whether or not it's an ELF executable,
     /// and whether the executable is 32 or 64 bits.
     #[inline]
-    fn extract_class<'a>(file: &'a mut File) -> Result<(ExecutableClass, &'a mut File)> {
+    fn extract_class(file: &mut File) -> Result<(ExecutableClass, &mut File)> {
         let mut buffer = [0; 5];
 
         file.read_exact(&mut buffer)?;
 
         match buffer {
             // 0x7f, E, L, F, executable_class
-            [0x7f, 69, 76, 70, exe_class] => {
-                match exe_class as i32 {
-                    1 => Ok((ExecutableClass::Class32, file)),
-                    2 => Ok((ExecutableClass::Class64, file)),
-                    _ => Err(Error::cant_exec(
-                        "when extracting elf from unknown executable class",
-                    )),
-                }
-            }
+            [0x7f, 69, 76, 70, exe_class] => match exe_class as i32 {
+                1 => Ok((ExecutableClass::Class32, file)),
+                2 => Ok((ExecutableClass::Class64, file)),
+                _ => Err(Error::cant_exec(
+                    "when extracting elf from unknown executable class",
+                )),
+            },
             _ => Err(Error::cant_exec(
                 "when extracting elf header from non executable file",
             )),
@@ -181,8 +179,8 @@ impl ElfHeader {
     #[inline]
     pub fn get_class(&self) -> ExecutableClass {
         match self {
-            &ElfHeader::ElfHeader32(_) => ExecutableClass::Class32,
-            &ElfHeader::ElfHeader64(_) => ExecutableClass::Class64,
+            ElfHeader::ElfHeader32(_) => ExecutableClass::Class32,
+            ElfHeader::ElfHeader64(_) => ExecutableClass::Class64,
         }
     }
 
@@ -197,8 +195,8 @@ impl ElfHeader {
         func64: F64,
     ) -> Result<V> {
         match self {
-            &ElfHeader::ElfHeader32(ref elf_header) => func32(elf_header),
-            &ElfHeader::ElfHeader64(ref elf_header) => func64(elf_header),
+            ElfHeader::ElfHeader32(ref elf_header) => func32(elf_header),
+            ElfHeader::ElfHeader64(ref elf_header) => func64(elf_header),
         }
     }
     #[inline]
@@ -212,8 +210,8 @@ impl ElfHeader {
         func64: F64,
     ) -> Result<V> {
         match self {
-            &mut ElfHeader::ElfHeader32(ref mut elf_header) => func32(elf_header),
-            &mut ElfHeader::ElfHeader64(ref mut elf_header) => func64(elf_header),
+            ElfHeader::ElfHeader32(ref mut elf_header) => func32(elf_header),
+            ElfHeader::ElfHeader64(ref mut elf_header) => func64(elf_header),
         }
     }
 }
@@ -221,8 +219,8 @@ impl ElfHeader {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::path::PathBuf;
     use errors::Error;
+    use std::path::PathBuf;
 
     #[test]
     fn test_get_elf_header_class_not_executable() {

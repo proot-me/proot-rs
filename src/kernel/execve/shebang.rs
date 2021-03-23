@@ -1,8 +1,8 @@
-use std::path::{Path, PathBuf};
-use std::fs::File;
-use std::io::{BufRead, BufReader};
 use errors::{Error, Result};
 use filesystem::{FileSystem, Translator};
+use std::fs::File;
+use std::io::{BufRead, BufReader};
+use std::path::{Path, PathBuf};
 
 /// Expand in argv[] the shebang of `user_path`, if any.  This function
 /// returns -errno if an error occurred, 1 if a shebang was found and
@@ -39,7 +39,7 @@ pub fn expand(fs: &FileSystem, user_path: &Path) -> Result<PathBuf> {
     let max_sym_links = 50; //TODO: found this constant in libc
 
     while loop_iterations < max_sym_links {
-        loop_iterations = loop_iterations + 1;
+        loop_iterations += 1;
 
         // Translate this path (user -> host), then check it is executable.
         let host_path = translate_and_check_exec(fs, user_path)?;
@@ -141,12 +141,10 @@ fn extract(host_path: &Path) -> Result<Option<PathBuf>> {
         return Ok(None);
     }
 
-    let mut arguments = first_line[2..]
-        .split(" ")
-        .map(|s| s.trim());
+    let mut arguments = first_line[2..].split(' ').map(|s| s.trim());
     match arguments.next() {
         None => Err(Error::InvalidPath("Cannot have empty shebang")),
-        Some(path) => Ok(Some(Path::new(path).to_path_buf()))
+        Some(path) => Ok(Some(Path::new(path).to_path_buf())),
     }
     //
     //	/* Skip leading spaces. */
@@ -258,13 +256,11 @@ fn extract(host_path: &Path) -> Result<Option<PathBuf>> {
     //	return 1;
 }
 
-
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::path::PathBuf;
     use filesystem::FileSystem;
+    use std::path::PathBuf;
 
     #[test]
     fn test_extract_shebang_not_script() {
@@ -282,5 +278,4 @@ mod tests {
             expand(&fs, &PathBuf::from("/bin/sleep"))
         );
     }
-
 }

@@ -1,10 +1,10 @@
-use std::path::{Path, PathBuf};
 use errors::Result;
 use filesystem::binding::Direction;
-use filesystem::binding::Side::{Host, Guest};
-use filesystem::FileSystem;
-use filesystem::substitution::Substitutor;
+use filesystem::binding::Side::{Guest, Host};
 use filesystem::canonicalization::Canonicalizer;
+use filesystem::substitution::Substitutor;
+use filesystem::FileSystem;
+use std::path::{Path, PathBuf};
 
 pub trait Translator {
     fn translate_path(&self, path: &Path, deref_final: bool) -> Result<PathBuf>;
@@ -104,8 +104,8 @@ impl Translator for FileSystem {
                 // guest rootfs namespace for consistency
                 // reasons.
                 if let Some(binding_referree) = maybe_binding_referree {
-                    follow_binding = binding_referree.get_path(Host) ==
-                        binding_referrer.get_path(Host);
+                    follow_binding =
+                        binding_referree.get_path(Host) == binding_referrer.get_path(Host);
                 }
             }
         }
@@ -129,10 +129,10 @@ impl Translator for FileSystem {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::path::{Path, PathBuf};
-    use nix::sys::stat::{S_IRWXU, S_IRWXG, S_IRWXO};
     use filesystem::binding::Binding;
     use filesystem::FileSystem;
+    use nix::sys::stat::{S_IRWXG, S_IRWXO, S_IRWXU};
+    use std::path::{Path, PathBuf};
 
     #[test]
     fn test_translate_path_without_root() {

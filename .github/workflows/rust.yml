@@ -1,0 +1,42 @@
+name: Rust
+
+on: [push, pull_request]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+    - name: Setup components
+      run: rustup component add clippy rustfmt
+    - name: Check
+      shell: bash
+      run: |
+        # Run code formatting check
+        has_issues=0
+        for file in $(git diff --name-only ${{ github.event.before }}..${{ github.event.after }} | grep '\.rs$'); do
+            if [ -f ${file} ] && ! rustfmt --edition 2018 --check --color auto ${file}; then
+                echo ""
+                has_issues=1
+            fi
+        done
+        if [ ${has_issues} -eq 0 ]; then
+            echo 'Code formatting check passed.'
+        else
+            echo 'Code formatting issues detected.'
+            exit 1
+        fi
+        # Run clippy check
+        cargo clippy
+    - name: Build
+      run: cargo build --verbose
+    - name: Run tests
+      run: cargo test --verbose

@@ -1,7 +1,7 @@
-use std::{slice, mem};
 use std::fs::File;
-use std::io::{Result, Read, Seek, SeekFrom};
+use std::io::{Read, Result, Seek, SeekFrom};
 use std::path::PathBuf;
+use std::{mem, slice};
 
 pub trait ExtraReader {
     fn read_struct<T>(&mut self) -> Result<T>;
@@ -13,10 +13,10 @@ impl ExtraReader for File {
     fn read_struct<T>(&mut self) -> Result<T> {
         let num_bytes = mem::size_of::<T>();
         unsafe {
-            let mut s = mem::uninitialized();
-            let mut buffer = slice::from_raw_parts_mut(&mut s as *mut T as *mut u8, num_bytes);
+            let mut s = mem::MaybeUninit::uninit();
+            let buffer = slice::from_raw_parts_mut(s.as_mut_ptr() as *mut u8, num_bytes);
             match self.read_exact(buffer) {
-                Ok(()) => Ok(s),
+                Ok(()) => Ok(s.assume_init()),
                 Err(e) => {
                     ::std::mem::forget(s);
                     Err(e)
@@ -43,8 +43,8 @@ impl ExtraReader for File {
         // restore the initial position
         self.seek(SeekFrom::Start(initial_pos))?;
 
-        Ok(PathBuf::from(
-            unsafe { String::from_utf8_unchecked(buffer) },
-        ))
+        Ok(PathBuf::from(unsafe {
+            String::from_utf8_unchecked(buffer)
+        }))
     }
 }

@@ -1,10 +1,6 @@
 name: Rust
 
-on:
-  push:
-    branches: [ imlk-dev ]
-  pull_request:
-    branches: [ imlk-dev ]
+on: [push, pull_request]
 
 env:
   CARGO_TERM_COLOR: always

@@ -8,7 +8,7 @@ use std::fmt;
 use std::mem;
 use std::ptr::null_mut;
 
-const VOID: Word = 0;
+const VOID: Word = Word::MAX;
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum RegVersion {
@@ -324,7 +324,7 @@ impl fmt::Display for Registers {
 mod tests {
     use super::*;
     use nix::unistd::{execvp, Pid};
-    use sc::nr::NANOSLEEP;
+    use sc::nr::{CLOCK_NANOSLEEP, NANOSLEEP};
     use std::ffi::CString;
     use utils::tests::fork_test;
 
@@ -409,7 +409,8 @@ mod tests {
             0,
             // parent
             |tracee, _| {
-                if tracee.regs.get_sys_num(Current) == NANOSLEEP {
+                let sys_num = tracee.regs.get_sys_num(Current);
+                if sys_num == NANOSLEEP || sys_num == CLOCK_NANOSLEEP {
                     // NANOSLEEP enter stage
                     tracee.regs.set_restore_original_regs(false);
                     tracee.regs.save_current_regs(Original);

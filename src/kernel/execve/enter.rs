@@ -1,11 +1,11 @@
-use errors::{Error, Result};
-use filesystem::Translator;
-use kernel::execve::load_info::LoadInfo;
-use kernel::execve::loader::LoaderFile;
-use kernel::execve::shebang;
+use crate::errors::{Error, Result};
+use crate::filesystem::Translator;
+use crate::kernel::execve::load_info::LoadInfo;
+use crate::kernel::execve::loader::LoaderFile;
+use crate::kernel::execve::shebang;
+use crate::process::tracee::Tracee;
+use crate::register::{PtraceReader, SysArg1};
 use nix::errno::Errno;
-use process::tracee::Tracee;
-use register::{PtraceReader, SysArg1};
 
 pub fn translate(tracee: &mut Tracee, loader: &dyn LoaderFile) -> Result<()> {
     //TODO: implement this part for ptrace translation
@@ -97,11 +97,11 @@ pub fn translate(tracee: &mut Tracee, loader: &dyn LoaderFile) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::register::{Current, PtraceReader};
+    use crate::utils::tests::fork_test;
     use nix::unistd::execvp;
-    use register::{Current, PtraceReader};
     use sc::nr::{EXECVE, NANOSLEEP};
     use std::ffi::CString;
-    use utils::tests::fork_test;
 
     #[test]
     fn test_execve_translate_enter() {

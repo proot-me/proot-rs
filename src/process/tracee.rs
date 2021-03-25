@@ -1,11 +1,11 @@
-use errors::Error;
-use filesystem::FileSystem;
+use crate::errors::Error;
+use crate::filesystem::FileSystem;
+use crate::process::proot::InfoBag;
+use crate::register::Registers;
 use nix::sys::ptrace::ptrace;
 use nix::sys::ptrace::ptrace::*;
 use nix::sys::ptrace::ptrace_setoptions;
 use nix::unistd::Pid;
-use process::proot::InfoBag;
-use register::Registers;
 use std::path::PathBuf;
 use std::ptr::null_mut;
 
@@ -132,9 +132,9 @@ impl Tracee {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use filesystem::FileSystem;
+    use crate::filesystem::FileSystem;
+    use crate::utils::tests::fork_test;
     use nix::unistd::Pid;
-    use utils::tests::fork_test;
 
     #[test]
     fn create_tracee() {

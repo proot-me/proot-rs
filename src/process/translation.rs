@@ -1,7 +1,7 @@
-use kernel::{enter, exit};
-use process::proot::InfoBag;
-use process::tracee::{Tracee, TraceeRestartMethod, TraceeStatus};
-use register::{Modified, Original, StackPointer, SysResult, Word};
+use crate::kernel::{enter, exit};
+use crate::process::proot::InfoBag;
+use crate::process::tracee::{Tracee, TraceeRestartMethod, TraceeStatus};
+use crate::register::{Modified, Original, StackPointer, SysResult, Word};
 
 pub trait SyscallTranslator {
     fn translate_syscall(&mut self, info_bag: &InfoBag);

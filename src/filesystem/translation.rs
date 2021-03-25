@@ -1,9 +1,9 @@
-use errors::Result;
-use filesystem::binding::Direction;
-use filesystem::binding::Side::{Guest, Host};
-use filesystem::canonicalization::Canonicalizer;
-use filesystem::substitution::Substitutor;
-use filesystem::FileSystem;
+use crate::errors::Result;
+use crate::filesystem::binding::Direction;
+use crate::filesystem::binding::Side::{Guest, Host};
+use crate::filesystem::canonicalization::Canonicalizer;
+use crate::filesystem::substitution::Substitutor;
+use crate::filesystem::FileSystem;
 use std::path::{Path, PathBuf};
 
 pub trait Translator {
@@ -129,8 +129,8 @@ impl Translator for FileSystem {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use filesystem::binding::Binding;
-    use filesystem::FileSystem;
+    use crate::filesystem::binding::Binding;
+    use crate::filesystem::FileSystem;
     use nix::sys::stat::{S_IRWXG, S_IRWXO, S_IRWXU};
     use std::path::{Path, PathBuf};
 

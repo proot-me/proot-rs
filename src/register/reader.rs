@@ -1,10 +1,10 @@
-use errors::Error;
-use errors::Result;
+use crate::errors::Error;
+use crate::errors::Result;
+use crate::register::{Current, Registers, SysArg, SysArgIndex, Word};
 use libc::{c_void, PATH_MAX};
 use nix::sys::ptrace::ptrace;
 use nix::sys::ptrace::ptrace::PTRACE_PEEKDATA;
 use nix::unistd::Pid;
-use register::{Current, Registers, SysArg, SysArgIndex, Word};
 use std::mem::{size_of, transmute};
 use std::path::PathBuf;
 use std::ptr::null_mut;
@@ -133,13 +133,13 @@ fn read_string(pid: Pid, src_string: *mut Word, max_size: usize) -> Result<Vec<u
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::register::*;
+    use crate::utils::tests::fork_test;
     use libc::user_regs_struct;
     use nix::unistd::{execvp, getpid};
-    use register::*;
     use sc::nr::MKDIR;
     use std::ffi::CString;
     use std::mem;
-    use utils::tests::fork_test;
 
     #[test]
     #[cfg(target_pointer_width = "64")]

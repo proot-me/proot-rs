@@ -1,4 +1,4 @@
-use errors::{Error, Result};
+use crate::errors::{Error, Result};
 use libc::PATH_MAX;
 use nix::NixPath;
 use std::path::{Path, PathBuf};

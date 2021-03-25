@@ -1,5 +1,5 @@
-use errors::Result;
-use filesystem::{Canonicalizer, FileSystem};
+use crate::errors::Result;
+use crate::filesystem::{Canonicalizer, FileSystem};
 use nix::unistd::getcwd;
 use std::path::PathBuf;
 
@@ -50,7 +50,7 @@ impl Initialiser for FileSystem {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use filesystem::FileSystem;
+    use crate::filesystem::FileSystem;
     use std::path::PathBuf;
 
     #[test]

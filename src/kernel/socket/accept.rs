@@ -1,6 +1,6 @@
-use errors::Result;
-use kernel::exit::SyscallExitResult;
-use kernel::socket::get_sockorpeer_name;
+use crate::errors::Result;
+use crate::kernel::exit::SyscallExitResult;
+use crate::kernel::socket::get_sockorpeer_name;
 
 pub fn enter() -> Result<()> {
     get_sockorpeer_name::enter()

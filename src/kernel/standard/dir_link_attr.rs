@@ -1,4 +1,4 @@
-use errors::Result;
+use crate::errors::Result;
 
 pub fn enter() -> Result<()> {
     Ok(())

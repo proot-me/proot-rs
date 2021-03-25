@@ -1,7 +1,7 @@
+use crate::filesystem::binding::Binding;
+use crate::filesystem::validation::{binding_validator, path_validator};
+use crate::filesystem::FileSystem;
 use clap::{App, Arg};
-use filesystem::binding::Binding;
-use filesystem::validation::{binding_validator, path_validator};
-use filesystem::FileSystem;
 use std::path::PathBuf;
 
 pub const DEFAULT_ROOTFS: &'static str = "/";

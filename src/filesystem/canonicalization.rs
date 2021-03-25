@@ -1,6 +1,6 @@
-use errors::{Error, Result};
-use filesystem::substitution::Substitutor;
-use filesystem::FileSystem;
+use crate::errors::{Error, Result};
+use crate::filesystem::substitution::Substitutor;
+use crate::filesystem::FileSystem;
 use std::path::{Component, Path, PathBuf};
 
 pub trait Canonicalizer {
@@ -86,8 +86,8 @@ impl Canonicalizer for FileSystem {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use filesystem::binding::Binding;
-    use filesystem::FileSystem;
+    use crate::filesystem::binding::Binding;
+    use crate::filesystem::FileSystem;
     use nix::sys::stat::{S_IRWXG, S_IRWXO, S_IRWXU};
     use std::path::PathBuf;
 

@@ -1,7 +1,7 @@
+use crate::process::proot::InfoBag;
+use crate::process::tracee::{Tracee, TraceeRestartMethod, TraceeStatus};
+use crate::process::translation::SyscallTranslator;
 use nix::sys::signal::Signal;
-use process::proot::InfoBag;
-use process::tracee::{Tracee, TraceeRestartMethod, TraceeStatus};
-use process::translation::SyscallTranslator;
 
 //TODO: remove this when a nix PR will have added them
 mod ptrace_events {

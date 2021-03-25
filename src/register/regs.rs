@@ -1,9 +1,9 @@
-use errors::Result;
+use crate::errors::Result;
+use crate::register::Word;
 use libc::{c_void, user_regs_struct};
 use nix::sys::ptrace::ptrace;
 use nix::sys::ptrace::ptrace::{PTRACE_GETREGS, PTRACE_SETREGS};
 use nix::unistd::Pid;
-use register::Word;
 use std::fmt;
 use std::mem;
 use std::ptr::null_mut;
@@ -323,10 +323,10 @@ impl fmt::Display for Registers {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::utils::tests::fork_test;
     use nix::unistd::{execvp, Pid};
     use sc::nr::{CLOCK_NANOSLEEP, NANOSLEEP};
     use std::ffi::CString;
-    use utils::tests::fork_test;
 
     #[test]
     fn test_regs_where_changed() {

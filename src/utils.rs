@@ -1,6 +1,8 @@
 #[cfg(test)]
 pub mod tests {
-    use filesystem::FileSystem;
+    use crate::filesystem::FileSystem;
+    use crate::process::proot::InfoBag;
+    use crate::process::tracee::Tracee;
     use nix::sys::ptrace::ptrace;
     use nix::sys::ptrace::ptrace::PTRACE_SYSCALL;
     use nix::sys::ptrace::ptrace::PTRACE_TRACEME;
@@ -9,8 +11,6 @@ pub mod tests {
     use nix::sys::wait::WaitStatus::*;
     use nix::sys::wait::{waitpid, __WALL};
     use nix::unistd::{fork, getpid, ForkResult, Pid};
-    use process::proot::InfoBag;
-    use process::tracee::Tracee;
     use std::ptr::null_mut;
 
     /// Allow tests to fork and deal with child processes without mixing them.

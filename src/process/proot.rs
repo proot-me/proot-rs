@@ -1,7 +1,7 @@
-use filesystem::temp::TempFile;
-use filesystem::FileSystem;
-use process::event::EventHandler;
-use process::tracee::Tracee;
+use crate::filesystem::temp::TempFile;
+use crate::filesystem::FileSystem;
+use crate::process::event::EventHandler;
+use crate::process::tracee::Tracee;
 use std::collections::HashMap;
 use std::ffi::CString;
 use std::ptr::null_mut;

@@ -1,6 +1,6 @@
-use errors::Result;
-use kernel::exit::SyscallExitResult;
-use kernel::standard::link_rename;
+use crate::errors::Result;
+use crate::kernel::exit::SyscallExitResult;
+use crate::kernel::standard::link_rename;
 
 pub fn enter() -> Result<()> {
     Ok(())

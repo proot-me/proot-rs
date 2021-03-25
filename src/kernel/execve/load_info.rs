@@ -1,13 +1,13 @@
-use errors::{Error, Result};
-use filesystem::readers::ExtraReader;
-use filesystem::FileSystem;
-use kernel::execve::elf::{ElfHeader, ExecutableClass, ProgramHeader};
-use kernel::execve::elf::{PF_R, PF_W, PF_X, PT_INTERP, PT_LOAD};
-use kernel::execve::shebang::translate_and_check_exec;
+use crate::errors::{Error, Result};
+use crate::filesystem::readers::ExtraReader;
+use crate::filesystem::FileSystem;
+use crate::kernel::execve::elf::{ElfHeader, ExecutableClass, ProgramHeader};
+use crate::kernel::execve::elf::{PF_R, PF_W, PF_X, PT_INTERP, PT_LOAD};
+use crate::kernel::execve::shebang::translate_and_check_exec;
+use crate::register::Word;
 use nix::sys::mman::{MapFlags, MAP_ANONYMOUS, MAP_FIXED, MAP_PRIVATE};
 use nix::sys::mman::{ProtFlags, PROT_EXEC, PROT_NONE, PROT_READ, PROT_WRITE};
 use nix::unistd::{sysconf, SysconfVar};
-use register::Word;
 use std::fs::File;
 use std::io::{Seek, SeekFrom};
 use std::path::{Path, PathBuf};
@@ -271,9 +271,9 @@ fn process_prot_flags(flags: u32) -> ProtFlags {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use errors::Error;
-    use filesystem::FileSystem;
-    use register::Word;
+    use crate::errors::Error;
+    use crate::filesystem::FileSystem;
+    use crate::register::Word;
     use std::path::PathBuf;
 
     #[test]

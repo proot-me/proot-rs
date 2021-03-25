@@ -1,10 +1,10 @@
+use crate::errors::Result;
+use crate::register::reader::convert_word_to_bytes;
+use crate::register::{PtraceMemoryAllocator, Registers, SysArg, SysArgIndex, Word};
 use byteorder::{LittleEndian, ReadBytesExt};
-use errors::Result;
 use libc::c_void;
 use nix::sys::ptrace::ptrace;
 use nix::sys::ptrace::ptrace::{PTRACE_PEEKDATA, PTRACE_POKEDATA};
-use register::reader::convert_word_to_bytes;
-use register::{PtraceMemoryAllocator, Registers, SysArg, SysArgIndex, Word};
 use std::io::Cursor;
 use std::io::Read;
 use std::mem;
@@ -131,12 +131,12 @@ impl PtraceWriter for Registers {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::register::{Current, Original, PtraceReader, SysArg1};
+    use crate::utils::tests::fork_test;
     use nix::unistd::execvp;
-    use register::{Current, Original, PtraceReader, SysArg1};
     use sc::nr::MKDIR;
     use std::ffi::CString;
     use std::path::PathBuf;
-    use utils::tests::fork_test;
 
     #[test]
     fn test_write_set_sysarg_path_write_same_path() {

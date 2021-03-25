@@ -144,26 +144,26 @@ mod tests {
         ); // simple canonicalization here
 
         // "/etc/host" in the host, "/etc/guest" in the guest
-        fs.add_binding(Binding::new("/etc/acpi", "/home/test", true));
+        fs.add_binding(Binding::new("/usr/bin", "/home/test", true));
 
         assert_eq!(
-            fs.translate_path(&Path::new("/home/test/events"), false),
-            Ok(PathBuf::from("/etc/acpi/events"))
-        ); // "/home/test" -> "/etc/acpi"
+            fs.translate_path(&Path::new("/home/test/sleep"), false),
+            Ok(PathBuf::from("/usr/bin/sleep"))
+        ); // "/home/test" -> "/usr/bin"
     }
 
     #[test]
     fn test_translate_path_with_root() {
-        let mut fs = FileSystem::with_root("/etc/acpi");
+        let mut fs = FileSystem::with_root("/usr/bin");
 
         assert_eq!(
-            fs.translate_path(&Path::new("/events"), false),
-            Ok(PathBuf::from("/etc/acpi/events"))
-        ); // "/home/test" -> "/etc/acpi"
+            fs.translate_path(&Path::new("/sleep"), false),
+            Ok(PathBuf::from("/usr/bin/sleep"))
+        ); // "/home/test" -> "/usr/bin"
 
         fs.add_binding(Binding::new("/usr/bin", "/bin", true));
 
-        // necessary, because "/bin/true" probably doesn't exist in "/etc/acpi"
+        // necessary, because "/bin/true" probably doesn't exist in "/usr/bin"
         fs.set_glue_type(S_IRWXU | S_IRWXG | S_IRWXO);
 
         assert_eq!(
@@ -173,7 +173,7 @@ mod tests {
 
         assert_eq!(
             fs.translate_path(&Path::new("/bin/../home"), false),
-            Ok(PathBuf::from("/etc/acpi/home"))
+            Ok(PathBuf::from("/usr/bin/home"))
         ); // checking that the substitution only happens at the end ("/" is translated, not "/bin")
     }
 

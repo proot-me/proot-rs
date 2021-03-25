@@ -108,12 +108,12 @@ mod tests {
     #[test]
     fn test_canonicalize_normal_path() {
         // "/etc" on the host, "/" on the guest
-        let mut fs = FileSystem::with_root("/etc");
+        let mut fs = FileSystem::with_root("/usr");
 
         assert_eq!(
-            fs.canonicalize(&PathBuf::from("/acpi/./../acpi//events"), false)
+            fs.canonicalize(&PathBuf::from("/bin/./../bin//sleep"), false)
                 .unwrap(),
-            PathBuf::from("/acpi/events")
+            PathBuf::from("/bin/sleep")
         );
 
         assert_eq!(
@@ -122,10 +122,10 @@ mod tests {
             PathBuf::from("/")
         );
 
-        fs.set_root("/etc/acpi");
+        fs.set_root("/etc");
         fs.add_binding(Binding::new("/usr/bin", "/bin", true));
 
-        // necessary, because nor "/bin" nor "/home" exist in "/etc/acpi"
+        // necessary, because nor "/bin" nor "/home" exist in "/etc"
         fs.set_glue_type(S_IRWXU | S_IRWXG | S_IRWXO);
 
         assert_eq!(

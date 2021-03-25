@@ -71,13 +71,13 @@ mod tests {
     fn test_initialisation_cwd_absolute() {
         let mut fs = FileSystem::with_root("/");
 
-        fs.set_cwd(PathBuf::from("/etc/acpi"));
+        fs.set_cwd(PathBuf::from("/usr/bin"));
 
         assert_eq!(Ok(()), fs.initialize_cwd());
 
         assert!(fs.get_cwd().is_absolute());
         assert!(fs.get_cwd().exists());
-        assert_eq!(&PathBuf::from("/etc/acpi"), fs.get_cwd());
+        assert_eq!(&PathBuf::from("/usr/bin"), fs.get_cwd());
     }
 
     #[test]

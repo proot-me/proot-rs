@@ -224,7 +224,7 @@ mod tests {
 
     #[test]
     fn test_get_elf_header_class_not_executable() {
-        let mut file = File::open(PathBuf::from("/etc/init/acpid.conf")).unwrap();
+        let mut file = File::open(PathBuf::from("/etc/hostname")).unwrap();
         assert_eq!(
             ElfHeader::extract_class(&mut file).unwrap_err(),
             Error::cant_exec("when extracting elf header from non executable file")

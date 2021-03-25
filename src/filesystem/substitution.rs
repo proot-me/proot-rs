@@ -153,15 +153,15 @@ mod tests {
 
     #[test]
     fn test_substitute_intermediary_and_glue() {
-        let mut fs = FileSystem::with_root("/etc/acpi");
+        let mut fs = FileSystem::with_root("/usr/bin");
 
         // testing a folder
         let (path, file_type) = fs
-            .substitute_intermediary_and_glue(&Path::new("/events"))
+            .substitute_intermediary_and_glue(&Path::new("/sleep"))
             .expect("no error");
 
-        assert_eq!(path, PathBuf::from("/etc/acpi/events")); // "/" => "/etc/acpi/"
-        assert!(file_type.unwrap().is_dir());
+        assert_eq!(path, PathBuf::from("/usr/bin/sleep")); // "/" => "/usr/bin/"
+        assert!(file_type.unwrap().is_file());
 
         fs.add_binding(Binding::new("/bin", "/bin", true));
 

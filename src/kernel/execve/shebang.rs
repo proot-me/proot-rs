@@ -1,8 +1,13 @@
+extern crate bstr;
+
+use self::bstr::BStr;
+use self::bstr::BString;
+use self::bstr::ByteSlice;
 use errors::{Error, Result};
 use filesystem::{FileSystem, Translator};
-use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
+use std::{fs::File, io::Read};
 
 /// Expand in argv[] the shebang of `user_path`, if any.  This function
 /// returns -errno if an error occurred, 1 if a shebang was found and
@@ -134,18 +139,35 @@ pub fn translate_and_check_exec(fs: &FileSystem, guest_path: &Path) -> Result<Pa
 ///     string can include white space.
 //const char *host_path, char user_path[PATH_MAX], char argument[BINPRM_BUF_SIZE]
 fn extract(host_path: &Path) -> Result<Option<PathBuf>> {
-    let file = File::open(host_path)?;
-    let mut first_line = String::new();
-    BufReader::new(file).read_line(&mut first_line)?;
-    if !first_line.starts_with("#!") {
-        return Ok(None);
+    let mut bytes = BufReader::new(File::open(host_path)?).bytes();
+    match (bytes.next(), bytes.next()) {
+        (Some(Err(err)), _) | (_, Some(Err(err))) => return Err(Error::from(err)),
+        (Some(Ok(b'#')), Some(Ok(b'!'))) => {}
+        _ => return Ok(None),
     }
+    let first_line = bytes
+        .take_while(|c| match c {
+            Ok(b'\n') => true,
+            _ => false,
+        })
+        .collect::<std::result::Result<Vec<u8>, _>>()?;
+    let first_line = first_line.trim();
 
-    let mut arguments = first_line[2..].split(' ').map(|s| s.trim());
-    match arguments.next() {
-        None => Err(Error::InvalidPath("Cannot have empty shebang")),
-        Some(path) => Ok(Some(Path::new(path).to_path_buf())),
+    let path = &first_line[..first_line
+        .iter()
+        .position(|c| c.is_ascii_whitespace())
+        .unwrap_or(first_line.len())];
+
+    if path.is_empty() {
+        return Err(Error::InvalidPath("Cannot have empty shebang"));
     }
+    // NOTE: this unwrap may fail on non-UNIX systems (a.k.a Windows)
+    // where paths may not be arbitrary bytes
+    let arg = first_line[path.len()..].trim();
+
+    let mut argv = PathBuf::from(path.as_bstr().to_path().unwrap());
+    argv.push(arg.as_bstr().to_path().unwrap()); // FIXME: why append arg here?
+    Ok(Some(argv))
     //
     //	/* Skip leading spaces. */
     //	do {

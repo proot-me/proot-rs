@@ -131,7 +131,7 @@ mod tests {
     use super::*;
     use crate::filesystem::binding::Binding;
     use crate::filesystem::FileSystem;
-    use nix::sys::stat::{S_IRWXG, S_IRWXO, S_IRWXU};
+    use nix::sys::stat::Mode;
     use std::path::{Path, PathBuf};
 
     #[test]
@@ -164,7 +164,7 @@ mod tests {
         fs.add_binding(Binding::new("/usr/bin", "/bin", true));
 
         // necessary, because "/bin/true" probably doesn't exist in "/usr/bin"
-        fs.set_glue_type(S_IRWXU | S_IRWXG | S_IRWXO);
+        fs.set_glue_type(Mode::S_IRWXU | Mode::S_IRWXG | Mode::S_IRWXO);
 
         assert_eq!(
             fs.translate_path(&Path::new("/bin/true"), false),

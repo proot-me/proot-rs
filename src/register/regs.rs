@@ -1,8 +1,7 @@
 use crate::errors::Result;
 use crate::register::Word;
 use libc::{c_void, user_regs_struct};
-use nix::sys::ptrace::ptrace;
-use nix::sys::ptrace::ptrace::{PTRACE_GETREGS, PTRACE_SETREGS};
+use nix::sys::ptrace;
 use nix::unistd::Pid;
 use std::fmt;
 use std::mem;
@@ -133,12 +132,9 @@ impl Registers {
     /// Retrieves all tracee's general purpose registers, and stores them
     /// in the `Current` registers.
     pub fn fetch_regs(&mut self) -> Result<()> {
-        let mut regs: user_regs_struct = unsafe { mem::zeroed() };
-        let p_regs: *mut c_void = &mut regs as *mut _ as *mut c_void;
-
         // Notice the ? at the end, which is the equivalent of `try!`.
         // It will return the error if there is one.
-        ptrace(PTRACE_GETREGS, self.pid, null_mut(), p_regs)?;
+        let mut regs: user_regs_struct = ptrace::getregs(self.pid)?;
 
         self.registers[Current as usize] = Some(regs);
         Ok(())
@@ -160,9 +156,8 @@ impl Registers {
 
         let pid = self.pid;
         let current_regs = self.get_mut_regs(Current);
-        let p_regs: *mut c_void = current_regs as *mut _ as *mut c_void;
 
-        ptrace(PTRACE_SETREGS, pid, null_mut(), p_regs)?;
+        ptrace::setregs(pid, *current_regs)?;
         Ok(())
     }
 

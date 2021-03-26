@@ -1,4 +1,4 @@
-use nix::errno;
+use nix::errno::Errno;
 use nix::Error as NixError;
 use std::io::{Error as IOError, ErrorKind as IOErrorKind};
 use std::{error, fmt, result, string};
@@ -7,7 +7,7 @@ pub type Result<T> = result::Result<T, Error>;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Error {
-    Sys(errno::Errno, &'static str),
+    Sys(Errno, &'static str),
     InvalidPath(&'static str),
     InvalidUtf8,
     IOError(IOErrorKind),
@@ -22,50 +22,50 @@ impl Error {
         }
     }
 
-    pub fn from_errno(errno: errno::Errno, message: &'static str) -> Error {
+    pub fn from_errno(errno: Errno, message: &'static str) -> Error {
         Error::Sys(errno, message)
     }
 
     pub fn invalid_argument(message: &'static str) -> Error {
-        Error::Sys(errno::EINVAL, message)
+        Error::Sys(Errno::EINVAL, message)
     }
 
     pub fn name_too_long(message: &'static str) -> Error {
-        Error::Sys(errno::ENAMETOOLONG, message)
+        Error::Sys(Errno::ENAMETOOLONG, message)
     }
 
     pub fn no_such_file_or_dir(message: &'static str) -> Error {
-        Error::Sys(errno::ENOENT, message)
+        Error::Sys(Errno::ENOENT, message)
     }
 
     #[cfg(test)]
     pub fn is_a_directory(message: &'static str) -> Error {
-        Error::Sys(errno::EISDIR, message)
+        Error::Sys(Errno::EISDIR, message)
     }
 
     pub fn not_a_directory(message: &'static str) -> Error {
-        Error::Sys(errno::ENOTDIR, message)
+        Error::Sys(Errno::ENOTDIR, message)
     }
 
     pub fn too_many_symlinks(message: &'static str) -> Error {
-        Error::Sys(errno::ELOOP, message)
+        Error::Sys(Errno::ELOOP, message)
     }
 
     pub fn cant_exec(message: &'static str) -> Error {
-        Error::Sys(errno::ENOEXEC, message)
+        Error::Sys(Errno::ENOEXEC, message)
     }
 
     pub fn not_supported(message: &'static str) -> Error {
-        Error::Sys(errno::EOPNOTSUPP, message)
+        Error::Sys(Errno::EOPNOTSUPP, message)
     }
 
     pub fn bad_address(message: &'static str) -> Error {
-        Error::Sys(errno::EFAULT, message)
+        Error::Sys(Errno::EFAULT, message)
     }
 }
 
-impl From<errno::Errno> for Error {
-    fn from(errno: errno::Errno) -> Error {
+impl From<Errno> for Error {
+    fn from(errno: Errno) -> Error {
         Error::from_errno(errno, "from sys errno")
     }
 }
@@ -80,7 +80,7 @@ impl From<IOError> for Error {
     fn from(io_error: IOError) -> Error {
         match io_error.raw_os_error() {
             // we try to convert it to an errno
-            Some(errno) => Error::Sys(errno::Errno::from_i32(errno), "from IO error"),
+            Some(errno) => Error::Sys(Errno::from_i32(errno), "from IO error"),
             // if not successful, we keep the IOError to retain the context of the error
             None => Error::IOError(io_error.kind()),
         }

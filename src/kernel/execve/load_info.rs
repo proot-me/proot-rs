@@ -5,8 +5,8 @@ use crate::kernel::execve::elf::{ElfHeader, ExecutableClass, ProgramHeader};
 use crate::kernel::execve::elf::{PF_R, PF_W, PF_X, PT_INTERP, PT_LOAD};
 use crate::kernel::execve::shebang::translate_and_check_exec;
 use crate::register::Word;
-use nix::sys::mman::{MapFlags, MAP_ANONYMOUS, MAP_FIXED, MAP_PRIVATE};
-use nix::sys::mman::{ProtFlags, PROT_EXEC, PROT_NONE, PROT_READ, PROT_WRITE};
+use nix::sys::mman::MapFlags;
+use nix::sys::mman::ProtFlags;
 use nix::unistd::{sysconf, SysconfVar};
 use std::fs::File;
 use std::io::{Seek, SeekFrom};
@@ -121,7 +121,7 @@ impl LoadInfo {
             offset: offset & *PAGE_MASK,
             addr: start_address,
             length: end_address - start_address,
-            flags: MAP_PRIVATE | MAP_FIXED,
+            flags: MapFlags::MAP_PRIVATE | MapFlags::MAP_FIXED,
             prot: prot,
             clear_length: 0,
         };
@@ -147,7 +147,7 @@ impl LoadInfo {
                     addr: start_address,
                     length: end_address - start_address,
                     clear_length: 0,
-                    flags: MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED,
+                    flags: MapFlags::MAP_PRIVATE | MapFlags::MAP_ANONYMOUS | MapFlags::MAP_FIXED,
                     prot: prot,
                 };
 
@@ -261,9 +261,9 @@ fn process_flag<T>(flags: u32, compare_flag: u32, success_flag: T, default_flag:
 
 #[inline]
 fn process_prot_flags(flags: u32) -> ProtFlags {
-    let read_flag = process_flag(flags, PF_R, PROT_READ, PROT_NONE);
-    let write_flag = process_flag(flags, PF_W, PROT_WRITE, PROT_NONE);
-    let execute_flag = process_flag(flags, PF_X, PROT_EXEC, PROT_NONE);
+    let read_flag = process_flag(flags, PF_R, ProtFlags::PROT_READ, ProtFlags::PROT_NONE);
+    let write_flag = process_flag(flags, PF_W, ProtFlags::PROT_WRITE, ProtFlags::PROT_NONE);
+    let execute_flag = process_flag(flags, PF_X, ProtFlags::PROT_EXEC, ProtFlags::PROT_NONE);
 
     read_flag | write_flag | execute_flag
 }

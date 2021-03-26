@@ -88,7 +88,7 @@ mod tests {
     use super::*;
     use crate::filesystem::binding::Binding;
     use crate::filesystem::FileSystem;
-    use nix::sys::stat::{S_IRWXG, S_IRWXO, S_IRWXU};
+    use nix::sys::stat::Mode;
     use std::path::PathBuf;
 
     #[test]
@@ -126,7 +126,7 @@ mod tests {
         fs.add_binding(Binding::new("/usr/bin", "/bin", true));
 
         // necessary, because nor "/bin" nor "/home" exist in "/etc"
-        fs.set_glue_type(S_IRWXU | S_IRWXG | S_IRWXO);
+        fs.set_glue_type(Mode::S_IRWXU | Mode::S_IRWXG | Mode::S_IRWXO);
 
         assert_eq!(
             fs.canonicalize(&PathBuf::from("/bin/../home"), false)
@@ -146,7 +146,7 @@ mod tests {
         );
 
         // necessary, because nor "/test" probably doesn't exist
-        fs.set_glue_type(S_IRWXU | S_IRWXG | S_IRWXO);
+        fs.set_glue_type(Mode::S_IRWXU | Mode::S_IRWXG | Mode::S_IRWXO);
 
         assert_eq!(
             fs.canonicalize(&PathBuf::from("/bin/../test"), false)

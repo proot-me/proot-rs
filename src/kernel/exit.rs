@@ -1,12 +1,12 @@
-use errors::Error;
-use kernel::execve;
-use kernel::groups::{syscall_group_from_sysnum, SyscallGroup};
-use kernel::heap::*;
-use kernel::ptrace::*;
-use kernel::socket::*;
-use kernel::standard::*;
-use process::tracee::Tracee;
-use register::{Current, SysResult, Word};
+use crate::errors::Error;
+use crate::kernel::execve;
+use crate::kernel::groups::{syscall_group_from_sysnum, SyscallGroup};
+use crate::kernel::heap::*;
+use crate::kernel::ptrace::*;
+use crate::kernel::socket::*;
+use crate::kernel::standard::*;
+use crate::process::tracee::Tracee;
+use crate::register::{Current, SysResult, Word};
 
 #[allow(dead_code)]
 pub enum SyscallExitResult {

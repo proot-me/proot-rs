@@ -3,8 +3,8 @@ extern crate bstr;
 use self::bstr::BStr;
 use self::bstr::BString;
 use self::bstr::ByteSlice;
-use errors::{Error, Result};
-use filesystem::{FileSystem, Translator};
+use crate::errors::{Error, Result};
+use crate::filesystem::{FileSystem, Translator};
 use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
 use std::{fs::File, io::Read};
@@ -281,7 +281,7 @@ fn extract(host_path: &Path) -> Result<Option<PathBuf>> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use filesystem::FileSystem;
+    use crate::filesystem::FileSystem;
     use std::path::PathBuf;
 
     #[test]

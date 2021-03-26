@@ -1,13 +1,10 @@
-use errors::Error;
-use filesystem::FileSystem;
-use nix::sys::ptrace::ptrace;
-use nix::sys::ptrace::ptrace::*;
-use nix::sys::ptrace::ptrace_setoptions;
+use crate::errors::Error;
+use crate::filesystem::FileSystem;
+use crate::process::proot::InfoBag;
+use crate::register::Registers;
+use nix::sys::ptrace::{self, Options};
 use nix::unistd::Pid;
-use process::proot::InfoBag;
-use register::Registers;
 use std::path::PathBuf;
-use std::ptr::null_mut;
 
 #[derive(Debug, PartialEq)]
 pub enum TraceeStatus {
@@ -84,15 +81,32 @@ impl Tracee {
     }
 
     #[inline]
+    pub fn reset_restart_how(&mut self) {
+        // the restart method might already have been set elsewhere
+        if self.restart_how == TraceeRestartMethod::None {
+            // When seccomp is enabled, all events are restarted in
+            // non-stop mode, but this default choice could be overwritten
+            // later if necessary.  The check against "sysexit_pending"
+            // ensures WithExitStage/PTRACE_SYSCALL (used to hit the exit stage under
+            // seccomp) is not cleared due to an event that would happen
+            // before the exit stage, eg. PTRACE_EVENT_EXEC for the exit
+            // stage of kernel.execve(2).
+            if self.seccomp && !self.sysexit_pending {
+                self.restart_how = TraceeRestartMethod::WithoutExitStage;
+            } else {
+                self.restart_how = TraceeRestartMethod::WithExitStage;
+            }
+        }
+    }
+
+    #[inline]
     pub fn restart(&mut self) {
         match self.restart_how {
             TraceeRestartMethod::WithoutExitStage => {
-                ptrace(PTRACE_CONT, self.pid, null_mut(), null_mut())
-                    .expect("exit tracee without exit stage");
+                ptrace::cont(self.pid, None).expect("exit tracee without exit stage");
             }
             TraceeRestartMethod::WithExitStage => {
-                ptrace(PTRACE_SYSCALL, self.pid, null_mut(), null_mut())
-                    .expect("exit tracee with exit stage");
+                ptrace::syscall(self.pid, None).expect("exit tracee with exit stage");
             }
             TraceeRestartMethod::None => {}
         };
@@ -116,25 +130,25 @@ impl Tracee {
             info_bag.deliver_sigtrap = true;
         }
 
-        let default_options = PTRACE_O_TRACESYSGOOD
-            | PTRACE_O_TRACEFORK
-            | PTRACE_O_TRACEVFORK
-            | PTRACE_O_TRACEVFORKDONE
-            | PTRACE_O_TRACEEXEC
-            | PTRACE_O_TRACECLONE
-            | PTRACE_O_TRACEEXIT;
+        let default_options = Options::PTRACE_O_TRACESYSGOOD
+            | Options::PTRACE_O_TRACEFORK
+            | Options::PTRACE_O_TRACEVFORK
+            | Options::PTRACE_O_TRACEVFORKDONE
+            | Options::PTRACE_O_TRACEEXEC
+            | Options::PTRACE_O_TRACECLONE
+            | Options::PTRACE_O_TRACEEXIT;
 
         //TODO: seccomp
-        ptrace_setoptions(self.pid, default_options).expect("set ptrace options");
+        ptrace::setoptions(self.pid, default_options).expect("set ptrace options");
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use filesystem::FileSystem;
+    use crate::filesystem::FileSystem;
+    use crate::utils::tests::fork_test;
     use nix::unistd::Pid;
-    use utils::tests::fork_test;
 
     #[test]
     fn create_tracee() {

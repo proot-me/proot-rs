@@ -1,8 +1,8 @@
 // signals
 use libc::{c_int, c_void, pid_t, siginfo_t};
+use nix::sys::signal::SaFlags;
 use nix::sys::signal::Signal::*;
 use nix::sys::signal::{sigaction, SigAction, SigHandler, SigSet, Signal};
-use nix::sys::signal::{SaFlags, SA_RESTART, SA_SIGINFO};
 
 /// Configures the actions associated with specific critical signals.
 /// All signals are blocked when the signal handler is called.
@@ -13,7 +13,7 @@ pub fn prepare_sigactions(
     let signal_set: SigSet = SigSet::all();
     // SIGINFO is used to know which process has signaled us and
     // RESTART is used to restart waitpid(2) seamlessly.
-    let sa_flags: SaFlags = SA_SIGINFO | SA_RESTART;
+    let sa_flags: SaFlags = SaFlags::SA_SIGINFO | SaFlags::SA_RESTART;
 
     for signal in Signal::iterator() {
         let mut signal_handler: SigHandler = SigHandler::SigIgn; // default action is ignoring

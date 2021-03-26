@@ -1,5 +1,5 @@
-use errors::{Error, Result};
-use filesystem::readers::ExtraReader;
+use crate::errors::{Error, Result};
+use crate::filesystem::readers::ExtraReader;
 use std::fs::File;
 use std::io::{Read, Seek, SeekFrom};
 use std::mem;
@@ -219,7 +219,7 @@ impl ElfHeader {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use errors::Error;
+    use crate::errors::Error;
     use std::path::PathBuf;
 
     #[test]

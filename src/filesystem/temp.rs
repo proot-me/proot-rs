@@ -1,4 +1,4 @@
-use errors::Result;
+use crate::errors::Result;
 use nix::unistd::getpid;
 use std::env;
 use std::fs;

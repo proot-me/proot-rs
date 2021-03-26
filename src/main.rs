@@ -17,9 +17,9 @@ mod process;
 mod register;
 mod utils;
 
-use filesystem::{FileSystem, Initialiser};
-use process::proot::{show_info, stop_program, PRoot};
-use process::sigactions;
+use crate::filesystem::{FileSystem, Initialiser};
+use crate::process::proot::{show_info, stop_program, PRoot};
+use crate::process::sigactions;
 use std::process::exit;
 
 fn main() {

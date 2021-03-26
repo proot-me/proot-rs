@@ -1,5 +1,5 @@
-use errors::Result;
-use kernel::exit::SyscallExitResult;
+use crate::errors::Result;
+use crate::kernel::exit::SyscallExitResult;
 
 /// Translates link and rename kernel
 pub fn enter() -> Result<()> {

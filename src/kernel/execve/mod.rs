@@ -7,10 +7,10 @@ mod load_info;
 mod loader;
 mod shebang;
 
-use errors::Result;
-use kernel::execve::loader::LoaderFile;
-use kernel::exit::SyscallExitResult;
-use process::tracee::Tracee;
+use crate::errors::Result;
+use crate::kernel::execve::loader::LoaderFile;
+use crate::kernel::exit::SyscallExitResult;
+use crate::process::tracee::Tracee;
 
 pub fn enter(tracee: &mut Tracee, loader: &dyn LoaderFile) -> Result<()> {
     enter::translate(tracee, loader)

@@ -1,6 +1,6 @@
-use errors::Result;
-use filesystem::binding::Side::Host;
-use filesystem::binding::{Binding, Side};
+use crate::errors::Result;
+use crate::filesystem::binding::Side::Host;
+use crate::filesystem::binding::{Binding, Side};
 use nix::sys::stat::Mode;
 use std::fs::Metadata;
 use std::path::{Path, PathBuf};
@@ -157,8 +157,8 @@ impl FileSystem {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use filesystem::binding::Binding;
-    use filesystem::binding::Side::{Guest, Host};
+    use crate::filesystem::binding::Binding;
+    use crate::filesystem::binding::Side::{Guest, Host};
     use std::path::{Path, PathBuf};
 
     #[test]

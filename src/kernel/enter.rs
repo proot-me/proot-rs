@@ -1,14 +1,14 @@
-use errors::Result;
-use kernel::execve;
-use kernel::groups::syscall_group_from_sysnum;
-use kernel::groups::SyscallGroup::*;
-use kernel::heap::*;
-use kernel::ptrace::*;
-use kernel::socket::*;
-use kernel::standard::*;
-use process::proot::InfoBag;
-use process::tracee::Tracee;
-use register::Current;
+use crate::errors::Result;
+use crate::kernel::execve;
+use crate::kernel::groups::syscall_group_from_sysnum;
+use crate::kernel::groups::SyscallGroup::*;
+use crate::kernel::heap::*;
+use crate::kernel::ptrace::*;
+use crate::kernel::socket::*;
+use crate::kernel::standard::*;
+use crate::process::proot::InfoBag;
+use crate::process::tracee::Tracee;
+use crate::register::Current;
 
 pub fn translate(info_bag: &InfoBag, tracee: &mut Tracee) -> Result<()> {
     let sys_type = syscall_group_from_sysnum(tracee.regs.get_sys_num(Current));

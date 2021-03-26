@@ -1,5 +1,5 @@
-use errors::Result;
-use filesystem::temp::TempFile;
+use crate::errors::Result;
+use crate::filesystem::temp::TempFile;
 use libc::{S_IRUSR, S_IXUSR};
 use std::io::Write;
 use std::os::unix::fs::PermissionsExt;

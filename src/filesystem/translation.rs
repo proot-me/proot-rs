@@ -1,9 +1,9 @@
-use errors::Result;
-use filesystem::binding::Direction;
-use filesystem::binding::Side::{Guest, Host};
-use filesystem::canonicalization::Canonicalizer;
-use filesystem::substitution::Substitutor;
-use filesystem::FileSystem;
+use crate::errors::Result;
+use crate::filesystem::binding::Direction;
+use crate::filesystem::binding::Side::{Guest, Host};
+use crate::filesystem::canonicalization::Canonicalizer;
+use crate::filesystem::substitution::Substitutor;
+use crate::filesystem::FileSystem;
 use std::path::{Path, PathBuf};
 
 pub trait Translator {
@@ -129,9 +129,9 @@ impl Translator for FileSystem {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use filesystem::binding::Binding;
-    use filesystem::FileSystem;
-    use nix::sys::stat::{S_IRWXG, S_IRWXO, S_IRWXU};
+    use crate::filesystem::binding::Binding;
+    use crate::filesystem::FileSystem;
+    use nix::sys::stat::Mode;
     use std::path::{Path, PathBuf};
 
     #[test]
@@ -164,7 +164,7 @@ mod tests {
         fs.add_binding(Binding::new("/usr/bin", "/bin", true));
 
         // necessary, because "/bin/true" probably doesn't exist in "/usr/bin"
-        fs.set_glue_type(S_IRWXU | S_IRWXG | S_IRWXO);
+        fs.set_glue_type(Mode::S_IRWXU | Mode::S_IRWXG | Mode::S_IRWXO);
 
         assert_eq!(
             fs.translate_path(&Path::new("/bin/true"), false),

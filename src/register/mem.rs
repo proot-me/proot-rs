@@ -1,5 +1,5 @@
-use errors::{Error, Result};
-use register::{Current, Original, Registers, StackPointer, Word};
+use crate::errors::{Error, Result};
+use crate::register::{Current, Original, Registers, StackPointer, Word};
 use std::usize::MAX as USIZE_MAX;
 
 #[cfg(all(target_os = "linux", target_arch = "x86_64"))]
@@ -67,9 +67,9 @@ impl PtraceMemoryAllocator for Registers {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::register::Registers;
     use libc::user_regs_struct;
     use nix::unistd::getpid;
-    use register::Registers;
     use std::mem;
     use std::usize::MAX;
 

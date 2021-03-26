@@ -1,7 +1,7 @@
-use errors::{Error, Result};
-use filesystem::binding::Direction;
-use filesystem::binding::Side::{Guest, Host};
-use filesystem::FileSystem;
+use crate::errors::{Error, Result};
+use crate::filesystem::binding::Direction;
+use crate::filesystem::binding::Side::{Guest, Host};
+use crate::filesystem::FileSystem;
 use nix::sys::stat::Mode;
 use std::fs::FileType;
 use std::path::{Path, PathBuf};
@@ -79,10 +79,10 @@ impl Substitutor for FileSystem {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use errors::Error;
-    use filesystem::binding::Binding;
-    use filesystem::binding::Side::{Guest, Host};
-    use filesystem::FileSystem;
+    use crate::errors::Error;
+    use crate::filesystem::binding::Binding;
+    use crate::filesystem::binding::Side::{Guest, Host};
+    use crate::filesystem::FileSystem;
     use std::path::{Path, PathBuf};
 
     #[test]

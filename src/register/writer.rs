@@ -1,10 +1,9 @@
+use crate::errors::Result;
+use crate::register::reader::convert_word_to_bytes;
+use crate::register::{PtraceMemoryAllocator, Registers, SysArg, SysArgIndex, Word};
 use byteorder::{LittleEndian, ReadBytesExt};
-use errors::Result;
 use libc::c_void;
-use nix::sys::ptrace::ptrace;
-use nix::sys::ptrace::ptrace::{PTRACE_PEEKDATA, PTRACE_POKEDATA};
-use register::reader::convert_word_to_bytes;
-use register::{PtraceMemoryAllocator, Registers, SysArg, SysArgIndex, Word};
+use nix::sys::ptrace;
 use std::io::Cursor;
 use std::io::Read;
 use std::mem;
@@ -92,19 +91,13 @@ impl PtraceWriter for Registers {
             let word = buf.read_uint::<LittleEndian>(word_size).unwrap() as Word;
             let dest_addr = unsafe { dest_tracee.offset(i) as *mut c_void };
 
-            ptrace(
-                PTRACE_POKEDATA,
-                self.get_pid(),
-                dest_addr,
-                word as *mut c_void,
-            )?;
+            unsafe { ptrace::write(self.get_pid(), dest_addr, word as *mut c_void)? };
         }
 
         // Copy the bytes in the last word carefully since we have to
         // overwrite only the relevant ones.
         let last_dest_addr = unsafe { dest_tracee.offset(nb_full_words) as *mut c_void };
-        let existing_word =
-            ptrace(PTRACE_PEEKDATA, self.get_pid(), last_dest_addr, null_mut())? as Word;
+        let existing_word = ptrace::read(self.get_pid(), last_dest_addr)? as Word;
         let mut bytes = convert_word_to_bytes(existing_word);
 
         // The trailing bytes are merged with the existing bytes. For example:
@@ -117,12 +110,7 @@ impl PtraceWriter for Registers {
 
         let last_word = convert_bytes_to_word(bytes);
         // We can now safely write the final word.
-        ptrace(
-            PTRACE_POKEDATA,
-            self.get_pid(),
-            last_dest_addr,
-            last_word as *mut c_void,
-        )?;
+        unsafe { ptrace::write(self.get_pid(), last_dest_addr, last_word as *mut c_void)? };
 
         Ok(())
     }
@@ -131,12 +119,12 @@ impl PtraceWriter for Registers {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::register::{Current, Original, PtraceReader, SysArg1};
+    use crate::utils::tests::fork_test;
     use nix::unistd::execvp;
-    use register::{Current, Original, PtraceReader, SysArg1};
     use sc::nr::MKDIR;
     use std::ffi::CString;
     use std::path::PathBuf;
-    use utils::tests::fork_test;
 
     #[test]
     fn test_write_set_sysarg_path_write_same_path() {

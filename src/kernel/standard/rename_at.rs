@@ -16,11 +16,12 @@ pub fn enter() -> Result<()> {
     //                if (status < 0)
     //                break;
     //
-    //                status = translate_path2(tracee, olddirfd, oldpath, SYSARG_2, SYMLINK);
-    //                if (status < 0)
+    //                status = translate_path2(tracee, olddirfd, oldpath,
+    // SYSARG_2, SYMLINK);                if (status < 0)
     //                break;
     //
-    //                status = translate_path2(tracee, newdirfd, newpath, SYSARG_4, SYMLINK);
+    //                status = translate_path2(tracee, newdirfd, newpath,
+    // SYSARG_4, SYMLINK);
 }
 
 pub fn exit() -> SyscallExitResult {

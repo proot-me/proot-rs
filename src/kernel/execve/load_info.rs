@@ -182,16 +182,16 @@ impl LoadInfo {
         //        /* When a QEMU command was specified:
         //         *
         //         * - if it's a foreign binary we are reading the ELF
-        //         *   interpreter of QEMU instead.
+        //         * interpreter of QEMU instead.
         //         *
         //         * - if it's a host binary, we are reading its ELF
-        //         *   interpreter.
+        //         * interpreter.
         //         *
         //         * In both case, it lies in "/host-rootfs" from a guest
         //         * point-of-view.  */
         //        if (tracee->qemu != NULL && user_path[0] == '/') {
-        //            user_path = talloc_asprintf(tracee->ctx, "%s%s", HOST_ROOTFS, user_path);
-        //            if (user_path == NULL)
+        //            user_path = talloc_asprintf(tracee->ctx, "%s%s", HOST_ROOTFS,
+        // user_path);            if (user_path == NULL)
         //                return -ENOMEM;
         //        }
 
@@ -225,7 +225,8 @@ impl LoadInfo {
         )
     }
 
-    /// Compute the final load address for each position independent objects of @tracee.
+    /// Compute the final load address for each position independent objects of
+    /// @tracee.
     pub fn compute_load_addresses(&mut self, is_interp: bool) -> Result<()> {
         let is_pos_indep = apply!(self.elf_header, |header| header.is_position_independent())?;
         let (load_base_32, load_base) = match is_interp {

@@ -1,8 +1,8 @@
 use sc::nr::*;
 
 /// Used to organise system call numbers into an easily-matchable enumeration.
-/// It's easier and cleaner to use cfg conditions here rather than in the huge match
-/// in `translate_syscall_enter` and `translate_syscall_exit`.
+/// It's easier and cleaner to use cfg conditions here rather than in the huge
+/// match in `translate_syscall_enter` and `translate_syscall_exit`.
 #[derive(Debug, PartialEq)]
 pub enum SyscallGroup {
     Ignored = 0,

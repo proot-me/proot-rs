@@ -4,7 +4,7 @@ use crate::filesystem::binding::Side::{Guest, Host};
 use crate::filesystem::canonicalization::Canonicalizer;
 use crate::filesystem::substitution::Substitutor;
 use crate::filesystem::FileSystem;
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 
 pub trait Translator {
     fn translate_path(&self, path: &Path, deref_final: bool) -> Result<PathBuf>;
@@ -14,39 +14,32 @@ pub trait Translator {
 impl Translator for FileSystem {
     /// Translates a path from `guest` to `host`.
     fn translate_path(&self, user_path: &Path, deref_final: bool) -> Result<PathBuf> {
-        let mut guest_path = PathBuf::new();
-        let user_path_is_absolute = user_path.is_absolute();
-
-        if !user_path_is_absolute {
-            // It is relative to the current working directory.
-            guest_path.push(self.get_cwd().to_path_buf());
-
         //TODO: dir_fd != AT_FDCWD
+        let mut guest_path = if user_path.is_relative() {
+            // It is relative to the current working directory.
+            self.get_cwd().to_path_buf()
         } else {
-            guest_path.push(PathBuf::from("/"))
-        }
-
-        #[cfg(not(test))]
-        println!(
-            "\t translate({} + {})",
-            guest_path.display(),
-            user_path.display()
-        );
+            PathBuf::new()
+        };
+        debug!("translate_path: {:?} + {:?}", guest_path, user_path);
+        guest_path.push(user_path);
 
         //TODO: log verbose
         // VERBOSE(tracee, 2, "pid %d: translate(\"%s\" + \"%s\")",
         //         tracee != NULL ? tracee->pid : 0, result, user_path);
 
         //TODO: event GUEST_PATH for extensions
-        //    status = notify_extensions(tracee, GUEST_PATH, (intptr_t) result, (intptr_t) user_path);
-        //    if (status < 0)
+        //    status = notify_extensions(tracee, GUEST_PATH, (intptr_t) result,
+        // (intptr_t) user_path);    if (status < 0)
         //        return status;
         //    if (status > 0)
         //        goto skip;
 
-        guest_path.push(user_path);
         guest_path = self.canonicalize(&guest_path, deref_final)?;
-        let host_path = self.substitute_binding(&guest_path, Direction(Guest, Host))?;
+        debug!("canonicalized guest_path: {:?}", guest_path);
+
+        // TODO: Maybe we should remove this self.substitute() call
+        let host_path = self.substitute(&guest_path, Direction(Guest, Host))?;
         let result = host_path.unwrap_or(guest_path);
 
         #[cfg(not(test))]
@@ -92,8 +85,10 @@ impl Translator for FileSystem {
                 //TODO: readlink_proc2
                 unimplemented!(" /proc/.. referrer paths not supported!");
             } else if !self.belongs_to_guestfs(referrer_path) {
-                let maybe_binding_referree = self.get_binding(host_path, Host);
-                let binding_referrer = self.get_binding(referrer_path, Host).unwrap();
+                let maybe_binding_referree = self.get_first_appropriate_binding(host_path, Host);
+                let binding_referrer = self
+                    .get_first_appropriate_binding(referrer_path, Host)
+                    .unwrap();
 
                 // Resolve bindings for symlinks that belong
                 // to a binding and point to the same binding.
@@ -111,7 +106,7 @@ impl Translator for FileSystem {
         }
 
         if follow_binding {
-            if let Ok(maybe_path) = self.substitute_binding(host_path, Direction(Host, Guest)) {
+            if let Ok(maybe_path) = self.substitute(host_path, Direction(Host, Guest)) {
                 // if a suitable binding was found, we stop here
                 return Ok(maybe_path);
             }
@@ -174,7 +169,8 @@ mod tests {
         assert_eq!(
             fs.translate_path(&Path::new("/bin/../home"), false),
             Ok(PathBuf::from("/usr/bin/home"))
-        ); // checking that the substitution only happens at the end ("/" is translated, not "/bin")
+        ); // checking that the substitution only happens at the end ("/" is
+           // translated, not "/bin")
     }
 
     #[test]

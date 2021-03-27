@@ -15,7 +15,8 @@ use std::{fs::File, io::Read};
 /// point to the program to execute (respectively from host
 /// point-of-view and as-is), and @tracee's argv[] (pointed to by
 /// `SYSARG_2`) is correctly updated.
-// int expand_shebang(Tracee *tracee, char host_path[PATH_MAX], char user_path[PATH_MAX])
+// int expand_shebang(Tracee *tracee, char host_path[PATH_MAX], char
+// user_path[PATH_MAX])
 pub fn expand(fs: &FileSystem, user_path: &Path) -> Result<PathBuf> {
     //  ArrayOfXPointers *argv = NULL;
     //	bool has_shebang = false;
@@ -72,15 +73,15 @@ pub fn expand(fs: &FileSystem, user_path: &Path) -> Result<PathBuf> {
     //		}
     //
     //		/* Assuming the shebang of "script" is "#!/bin/sh -x",
-    //		 * a call to:
+    // 		 * a call to:
     //		 *
-    //		 *     execve("./script", { "script.sh", NULL }, ...)
+    // 		 * execve("./script", { "script.sh", NULL }, ...)
     //		 *
-    //		 * becomes:
+    // 		 * becomes:
     //		 *
-    //		 *     execve("/bin/sh", { "/bin/sh", "-x", "./script", NULL }, ...)
+    // 		 * execve("/bin/sh", { "/bin/sh", "-x", "./script", NULL }, ...)
     //		 *
-    //		 * See commit 8c8fbe85 about "argv->length == 1".  */
+    // 		 * See commit 8c8fbe85 about "argv->length == 1".  */
     //		if (argument[0] != '\0') {
     //			status = resize_array_of_xpointers(argv, 0, 2 + (argv->length == 1));
     //			if (status < 0)
@@ -137,7 +138,8 @@ pub fn translate_and_check_exec(fs: &FileSystem, guest_path: &Path) -> Result<Pa
 ///     On Linux, the entire string following the interpreter name is
 ///     passed as a *single* argument to the interpreter, and this
 ///     string can include white space.
-//const char *host_path, char user_path[PATH_MAX], char argument[BINPRM_BUF_SIZE]
+//const char *host_path, char user_path[PATH_MAX], char
+// argument[BINPRM_BUF_SIZE]
 fn extract(host_path: &Path) -> Result<Option<PathBuf>> {
     let mut bytes = BufReader::new(File::open(host_path)?).bytes();
     match (bytes.next(), bytes.next()) {
@@ -182,7 +184,8 @@ fn extract(host_path: &Path) -> Result<Option<PathBuf>> {
     //		}
     //
     //		current_length++;
-    //	} while ((tmp == ' ' || tmp == '\t') && current_length < BINPRM_BUF_SIZE);
+    //	} while ((tmp == ' ' || tmp == '\t') && current_length <
+    // BINPRM_BUF_SIZE);
     //
     //	/* Slurp the interpreter path until the first space or end-of-line. */
     //	for (i = 0; current_length < BINPRM_BUF_SIZE; current_length++, i++) {
@@ -190,7 +193,7 @@ fn extract(host_path: &Path) -> Result<Option<PathBuf>> {
     //		case ' ':
     //		case '\t':
     //			/* Remove spaces in between the interpreter
-    //			 * and the hypothetical argument. */
+    // 			 * and the hypothetical argument. */
     //			user_path[i] = '\0';
     //			break;
     //
@@ -204,7 +207,7 @@ fn extract(host_path: &Path) -> Result<Option<PathBuf>> {
     //
     //		default:
     //			/* There is an argument if the previous
-    //			 * character in user_path[] is '\0'. */
+    // 			 * character in user_path[] is '\0'. */
     //			if (i > 1 && user_path[i - 1] == '\0')
     //				goto argument;
     //			else

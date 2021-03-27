@@ -22,7 +22,8 @@ use nix::sys::ptrace::Event as PtraceEvent;
 use nix::sys::wait;
 use nix::sys::wait::WaitStatus::*;
 
-/// Used to store global info common to all tracees. Rename into `Configuration`?
+/// Used to store global info common to all tracees. Rename into
+/// `Configuration`?
 #[derive(Debug)]
 pub struct InfoBag {
     /// Used to know if the first raw sigtrap has been processed
@@ -30,8 +31,9 @@ pub struct InfoBag {
     pub deliver_sigtrap: bool,
     /// Binary loader, used by `execve`.
     /// The content of the binary is actually inlined in `proot-rs`
-    /// (see `src/kernel/execve/loader`), and is extracted into a temporary file before use.
-    /// This temporary file struct makes sure the file is deleted when it's dropped.
+    /// (see `src/kernel/execve/loader`), and is extracted into a temporary file
+    /// before use. This temporary file struct makes sure the file is
+    /// deleted when it's dropped.
     pub loader: TempFile,
 }
 
@@ -62,13 +64,13 @@ impl PRoot {
 
     /// Main process where proot splits into two threads:
     /// - a tracer, the parent thread.
-    /// - a (first) tracee, the child thread,
-    ///   that will declare itself as ptrace-able before executing the program.
+    /// - a (first) tracee, the child thread, that will declare itself as
+    ///   ptrace-able before executing the program.
     ///
     /// The `fork()` done here implies that the OS will apply copy-on-write
     /// on all the shared memory of the parent and child processes
-    /// (heap, libraries...), so both of them will have their own (owned) version
-    /// of the PRoot memory.
+    /// (heap, libraries...), so both of them will have their own (owned)
+    /// version of the PRoot memory.
     pub fn launch_process(&mut self, initial_fs: FileSystem) {
         match unsafe { fork() }.expect("fork in launch process") {
             ForkResult::Parent { child } => {
@@ -92,13 +94,15 @@ impl PRoot {
                     &[CString::new(".").unwrap(), CString::new("0").unwrap()],
                 )
                 .expect("failed execvp sleep");
-                //execvp(&CString::new("echo").unwrap(), &[CString::new(".").unwrap(),
-                // CString::new("TRACEE ECHO").unwrap()])
-                //    .expect("failed execvp echo");
-                //execvp(&CString::new("ls").unwrap(), &[CString::new(".").unwrap()])
+                //execvp(&CString::new("echo").unwrap(),
+                // &[CString::new(".").unwrap(), CString::new("
+                // TRACEE ECHO").unwrap()])    .expect("failed
+                // execvp echo"); execvp(&CString::new("ls").
+                // unwrap(), &[CString::new(".").unwrap()])
                 //   .expect("failed execvp ls");
-                //TODO: cli must handle command, or use 'sh' as default (like proot)
-                //execvp(tracee->exe, argv[0] != NULL ? argv : default_argv);
+                //TODO: cli must handle command, or use 'sh' as default (like
+                // proot) execvp(tracee->exe, argv[0] != NULL ?
+                // argv : default_argv);
             }
         }
     }
@@ -138,7 +142,8 @@ impl PRoot {
                         Signal::SIGTRAP => {
                             // it's the initial SIGTRAP signal
                             tracee.set_ptrace_options(&mut self.info_bag);
-                            // Use PTRACE_GETSIGINFO to distinguish a real syscall-stop. see ptrace(2): Syscall-stops
+                            // Use PTRACE_GETSIGINFO to distinguish a real syscall-stop. see
+                            // ptrace(2): Syscall-stops
                             if let Ok(siginfo) = ptrace::getsiginfo(pid) {
                                 if siginfo.si_code == Signal::SIGTRAP as i32
                                     || siginfo.si_code == (Signal::SIGTRAP as i32 | 0x80)
@@ -149,7 +154,8 @@ impl PRoot {
                         }
                         _ => {}
                     }
-                    // TODO: we should deliver this signal(sig) with ptrace(PTRACE_restart, pid, 0, sig)
+                    // TODO: we should deliver this signal(sig) with ptrace(PTRACE_restart, pid, 0,
+                    // sig)
                     tracee.restart();
                 }
                 // The tracee was stopped by a SIGTRAP with additional status (PTRACE_EVENT stops).
@@ -207,7 +213,7 @@ impl PRoot {
         }
     }
 
-    /******** Utilities ****************/
+    /******** Utilities *************** */
 
     pub fn create_tracee(&mut self, pid: Pid, fs: FileSystem) -> Option<&Tracee> {
         self.tracees.insert(pid, Tracee::new(pid, fs));

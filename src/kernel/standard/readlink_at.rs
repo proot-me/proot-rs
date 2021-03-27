@@ -81,6 +81,7 @@ pub fn exit() -> SyscallExitResult {
     //    if (status < 0)
     //        return SyscallExitResult::Value(status);
     //
-    // The value of "status" is used to update the returned value in translate_syscall_exit().
+    // The value of "status" is used to update the returned value in
+    // translate_syscall_exit().
     SyscallExitResult::None
 }

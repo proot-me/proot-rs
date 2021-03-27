@@ -7,7 +7,7 @@ use std::fs::FileType;
 use std::path::{Path, PathBuf};
 
 pub trait Substitutor {
-    fn substitute_binding(&self, path: &Path, direction: Direction) -> Result<Option<PathBuf>>;
+    fn substitute(&self, path: &Path, direction: Direction) -> Result<Option<PathBuf>>;
     fn substitute_intermediary_and_glue(&self, path: &Path) -> Result<(PathBuf, Option<FileType>)>;
 }
 
@@ -21,9 +21,10 @@ impl Substitutor for FileSystem {
     /// * `path` is the path that will be modified. Must be canonicalized.
     /// * `direction` is the direction of the substitution.
     #[inline]
-    fn substitute_binding(&self, path: &Path, direction: Direction) -> Result<Option<PathBuf>> {
-        let maybe_binding = self.get_binding(path, direction.0);
-
+    // TODO: maybe we should return Result<PathBuf>?
+    fn substitute(&self, path: &Path, direction: Direction) -> Result<Option<PathBuf>> {
+        let maybe_binding = self.get_first_appropriate_binding(path, direction.0);
+        // TODO: should we substitute with root?
         if maybe_binding.is_none() {
             return Err(Error::no_such_file_or_dir(
                 "when substituting binding, no binding found",
@@ -48,19 +49,24 @@ impl Substitutor for FileSystem {
         &self,
         guest_path: &Path,
     ) -> Result<(PathBuf, Option<FileType>)> {
-        let substituted_path = self.substitute_binding(guest_path, Direction(Guest, Host))?;
+        let substituted_path = self.substitute(guest_path, Direction(Guest, Host))?;
         let host_path = substituted_path.unwrap_or_else(|| guest_path.to_path_buf());
 
-        match self.get_direct_metadata(&host_path) {
+        // Retrieves the path's metadata without going through symlinks.
+        match host_path.symlink_metadata().map_err(Error::from) {
             Ok(metadata) => Ok((host_path, Some(metadata.file_type()))),
             Err(_) => {
                 if self.get_glue_type() != &Mode::empty() {
                     //TODO: implement glue
+
+                    // TODO: maybe we can implement glue by return `Permission denied` when access
+                    // glued path, instead of `mkdtemp`.
+
                     //        /* Build the glue between the hostfs and the guestfs during
                     //         * the initialization of a binding.  */
                     //        if (status < 0 && tracee->glue_type != 0) {
-                    //            statl.st_mode = build_glue(tracee, guest_path, host_path, finality);
-                    //            if (statl.st_mode == 0)
+                    //            statl.st_mode = build_glue(tracee, guest_path, host_path,
+                    // finality);            if (statl.st_mode == 0)
                     //                status = -1;
                     //        }
 
@@ -93,19 +99,19 @@ mod tests {
         fs.add_binding(Binding::new("/etc", "/media", true));
 
         assert_eq!(
-            fs.substitute_binding(&Path::new("/../../../.."), Direction(Host, Guest)),
+            fs.substitute(&Path::new("/../../../.."), Direction(Host, Guest)),
             Err(Error::no_such_file_or_dir(
                 "when substituting binding, no binding found",
             ))
         ); // invalid path
 
         assert_eq!(
-            fs.substitute_binding(&Path::new("/etc/folder/subfolder"), Direction(Host, Guest)),
+            fs.substitute(&Path::new("/etc/folder/subfolder"), Direction(Host, Guest)),
             Ok(Some(PathBuf::from("/media/folder/subfolder")))
         ); // "/etc" => "/media"
 
         assert_eq!(
-            fs.substitute_binding(
+            fs.substitute(
                 &Path::new("/media/folder/subfolder"),
                 Direction(Host, Guest),
             ),
@@ -115,12 +121,12 @@ mod tests {
         ); // the path isn't translatable to the guest fs (it's outside of the proot jail)
 
         assert_eq!(
-            fs.substitute_binding(&Path::new("/etc/folder/subfolder"), Direction(Guest, Host)),
+            fs.substitute(&Path::new("/etc/folder/subfolder"), Direction(Guest, Host)),
             Ok(Some(PathBuf::from("/home/user/etc/folder/subfolder")))
         ); // "/" => "/home/user"
 
         assert_eq!(
-            fs.substitute_binding(
+            fs.substitute(
                 &Path::new("/media/folder/subfolder"),
                 Direction(Guest, Host),
             ),
@@ -135,7 +141,7 @@ mod tests {
         fs.add_binding(Binding::new("/etc/something", "/etc/something", true));
 
         assert_eq!(
-            fs.substitute_binding(
+            fs.substitute(
                 &Path::new("/etc/something/subfolder"),
                 Direction(Guest, Host),
             ),
@@ -143,7 +149,7 @@ mod tests {
         );
 
         assert_eq!(
-            fs.substitute_binding(
+            fs.substitute(
                 &Path::new("/etc/something/subfolder"),
                 Direction(Host, Guest),
             ),

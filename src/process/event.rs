@@ -13,7 +13,8 @@ pub trait EventHandler {
 }
 
 impl EventHandler for Tracee {
-    /// Standard handling of syscall-stop: translate the system call's parameters and restart it
+    /// Standard handling of syscall-stop: translate the system call's
+    /// parameters and restart it
     fn handle_syscall_stop_event(&mut self, info_bag: &mut InfoBag) {
         /* This tracee got signaled then freed during the
         sysenter stage but the kernel reports the sysexit

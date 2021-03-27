@@ -27,7 +27,8 @@ pub struct Binding {
 }
 
 impl Binding {
-    //TODO: return Option<Binding> and make checks (test existence if must_exist, sanitize, canon..)
+    //TODO: return Option<Binding> and make checks (test existence if must_exist,
+    // sanitize, canon..)
     pub fn new(host: &str, guest: &str, must_exist: bool) -> Binding {
         Binding {
             host: PathBuf::from(host),

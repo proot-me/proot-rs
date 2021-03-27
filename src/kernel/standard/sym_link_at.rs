@@ -9,5 +9,6 @@ pub fn enter() -> Result<()> {
     //                if (status < 0)
     //                break;
     //
-    //                status = translate_path2(tracee, newdirfd, newpath, SYSARG_3, SYMLINK);
+    //                status = translate_path2(tracee, newdirfd, newpath,
+    // SYSARG_3, SYMLINK);
 }

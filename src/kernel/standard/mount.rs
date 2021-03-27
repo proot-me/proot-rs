@@ -9,8 +9,8 @@ pub fn enter() -> Result<()> {
     //
     //                /* The following check covers only 90% of the cases. */
     //                if (path[0] == '/' || path[0] == '.') {
-    //                    status = translate_path2(tracee, AT_FDCWD, path, SYSARG_1, REGULAR);
-    //                    if (status < 0)
+    //                    status = translate_path2(tracee, AT_FDCWD, path,
+    // SYSARG_1, REGULAR);                    if (status < 0)
     //                    break;
     //                }
     //

@@ -14,12 +14,13 @@ pub fn translate(tracee: &mut Tracee, loader: &dyn LoaderFile) -> Result<()> {
     //		tracee->as_ptracee.ignore_loader_syscalls = false;
     //
     //		/* Cancel this spurious kernel.execve, it was only used as a
-    //		 * notification.  */
+    // 		 * notification.  */
     //		set_sysnum(tracee, PR_void);
     //		return 0;
     //	}
 
     let raw_path = tracee.regs.get_sysarg_path(SysArg1)?;
+    debug!("execve: {:?}", raw_path);
     //TODO: return user path
     let host_path = match shebang::expand(&tracee.fs, &raw_path) {
         Ok(path) => path,
@@ -30,7 +31,7 @@ pub fn translate(tracee: &mut Tracee, loader: &dyn LoaderFile) -> Result<()> {
 
     //TODO: clear this when raw_path and user_path's implementations are done
     //	/* user_path is modified only if there's an interpreter
-    //	 * (ie. for a script or with qemu).  */
+    // 	 * (ie. for a script or with qemu).  */
     //	if (status == 0 && tracee->qemu == NULL)
     //		TALLOC_FREE(raw_path);
 
@@ -75,8 +76,8 @@ pub fn translate(tracee: &mut Tracee, loader: &dyn LoaderFile) -> Result<()> {
     // Execute the loader instead of the program
     loader.prepare_loader()?;
 
-    // Save the loader path in the register, so that the loader will be executed instead.
-    //TODO: uncomment this when execve::exit is ready
+    // Save the loader path in the register, so that the loader will be executed
+    // instead. TODO: uncomment this when execve::exit is ready
     /*
     regs.set_sysarg_path(
         SysArg1,

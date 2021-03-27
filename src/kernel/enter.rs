@@ -11,13 +11,10 @@ use crate::process::tracee::Tracee;
 use crate::register::Current;
 
 pub fn translate(info_bag: &InfoBag, tracee: &mut Tracee) -> Result<()> {
-    let sys_type = syscall_group_from_sysnum(tracee.regs.get_sys_num(Current));
+    let sys_num = tracee.regs.get_sys_num(Current);
+    let sys_type = syscall_group_from_sysnum(sys_num);
 
-    println!(
-        "enter  \t({:?}, \t{:?}) ",
-        tracee.regs.get_sys_num(Current),
-        sys_type
-    );
+    debug!("Syscall enter ({:?}, {:?})", sys_num, sys_type);
 
     match sys_type {
         Accept => accept::enter(),

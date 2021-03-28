@@ -134,8 +134,8 @@ mod tests {
         let mut fs = FileSystem::with_root("/");
 
         assert_eq!(
-            fs.translate_path(&Path::new("/home/../bin/./../bin"), false),
-            Ok(PathBuf::from("/bin"))
+            fs.translate_path(&Path::new("/home/../etc/./../etc"), false),
+            Ok(PathBuf::from("/etc"))
         ); // simple canonicalization here
 
         // "/etc/host" in the host, "/etc/guest" in the guest

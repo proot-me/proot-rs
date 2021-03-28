@@ -297,10 +297,10 @@ mod tests {
     fn test_expand_shebang_not_script() {
         let fs = FileSystem::with_root("/");
 
-        // it should detect that `/bin/sleep` has no shebang
+        // it should detect that `/etc/hostname` has no shebang
         assert_eq!(
-            Ok(PathBuf::from("/bin/sleep")),
-            expand(&fs, &PathBuf::from("/bin/sleep"))
+            Ok(PathBuf::from("/etc/hostname")),
+            expand(&fs, &PathBuf::from("/etc/hostname"))
         );
     }
 }

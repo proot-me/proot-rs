@@ -18,6 +18,7 @@ pub enum Side {
 /// to the `host` filesystem (in the real filesystem).
 pub struct Direction(pub Side, pub Side);
 
+// TODO: Maybe we should canonicalize guest path during initialization
 #[derive(Debug)]
 pub struct Binding {
     host: PathBuf,

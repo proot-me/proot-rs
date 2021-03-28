@@ -37,7 +37,8 @@ impl Canonicalizer for FileSystem {
         // build guest_path from user_path
         let mut guest_path = PathBuf::new();
 
-        // split user_path to components and check them
+        // split user_path to components and check them, so that path traversal can be
+        // avoided.
         // We need the `next` component to know if the current one is the last one
         let mut it = user_path.components();
         let mut next_comp = it.next();
@@ -62,6 +63,8 @@ impl Canonicalizer for FileSystem {
                     guest_path.push(path_part);
 
                     // Resolve bindings and add glue if necessary
+                    // TODO: currently we check and ensure that all the path exist on host, but
+                    // some syscall (e.g. mkdir, mknod) allow path not exist.
                     let (host_path, maybe_file_type) =
                         self.substitute_intermediary_and_glue(&guest_path)?;
 
@@ -142,6 +145,22 @@ mod tests {
     }
 
     #[test]
+    fn test_canonicalize_path_traversal() {
+        let fs = FileSystem::with_root("/usr");
+
+        let path = PathBuf::from("/../usr/bin");
+        // should be failed, because no /usr/usr/bin on host
+        assert_eq!(
+            fs.canonicalize(&path, false),
+            Err(Error::no_such_file_or_dir(
+                "when substituting intermediary without glue",
+            ))
+        );
+        // should be ok, because /usr/bin exist on host
+        let path = PathBuf::from("/../bin");
+        assert_eq!(fs.canonicalize(&path, false), Ok(PathBuf::from("/bin")));
+    }
+    #[test]
     fn test_canonicalize_normal_path() {
         // "/etc" on the host, "/" on the guest
         let mut fs = FileSystem::with_root("/usr");
@@ -175,17 +194,18 @@ mod tests {
     fn test_canonicalize_no_root_normal_path() {
         let mut fs = FileSystem::with_root("/");
 
+        // should be ok, because /home, /, /bin/, /bin/sleep are all exist on host
         assert_eq!(
-            fs.canonicalize(&PathBuf::from("/home/../bin/./../bin/sleep"), false)
+            fs.canonicalize(&PathBuf::from("/home/../etc/./../etc/hostname"), false)
                 .unwrap(),
-            PathBuf::from("/bin/sleep")
+            PathBuf::from("/etc/hostname")
         );
 
         // necessary, because nor "/test" probably doesn't exist
         fs.set_glue_type(Mode::S_IRWXU | Mode::S_IRWXG | Mode::S_IRWXO);
 
         assert_eq!(
-            fs.canonicalize(&PathBuf::from("/bin/../test"), false)
+            fs.canonicalize(&PathBuf::from("/etc/../test"), false)
                 .unwrap(),
             PathBuf::from("/test")
         );

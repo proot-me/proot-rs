@@ -5,7 +5,7 @@ use crate::kernel::socket::get_sockorpeer_name;
 pub fn enter() -> Result<()> {
     get_sockorpeer_name::enter()
 
-    /* Nothing special to do if no sockaddr was specified.  */
+    /* Nothing special to do if no sockaddr was specified. */
     // if (peek_reg(tracee, ORIGINAL, SYSARG_2) == 0) {
     //     status = 0;
     //     break;
@@ -14,7 +14,7 @@ pub fn enter() -> Result<()> {
 }
 
 pub fn exit() -> SyscallExitResult {
-    /* Nothing special to do if no sockaddr was specified.  */
+    /* Nothing special to do if no sockaddr was specified. */
     // if (peek_reg(tracee, ORIGINAL, SYSARG_2) == 0)
     //      return SyscallExitResult::None;
 

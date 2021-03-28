@@ -111,7 +111,8 @@ impl<T> ParameterizedElfHeader<T> {
         match self.e_phentsize == program_header_size {
             true => Ok(()),
             false => {
-                // note(tracee, WARNING, INTERNAL, "%d: unsupported size of program header.", fd);
+                // note(tracee, WARNING, INTERNAL, "%d: unsupported size of program header.",
+                // fd);
                 Err(Error::not_supported(
                     "when checking program header size, mismatch with struct size",
                 ))

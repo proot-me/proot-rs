@@ -6,7 +6,8 @@ pub fn enter() -> Result<()> {
 
     //    /* Remember: PEEK_WORD puts -errno in status and breaks if an
     //     * error occured.  */
-    //    // size = (int) PEEK_WORD(peek_reg(tracee, ORIGINAL, SYSARG_3), special ? -EINVAL : 0);
+    //    // size = (int) PEEK_WORD(peek_reg(tracee, ORIGINAL, SYSARG_3),
+    // special ? -EINVAL : 0);
     //
     //    /* The "size" argument is both used as an input parameter
     //     * (max. size) and as an output parameter (actual size).  The
@@ -31,8 +32,8 @@ pub fn exit() -> SyscallExitResult {
     //    size_addr = peek_reg(tracee, MODIFIED, SYSARG_3);
     //    max_size  = peek_reg(tracee, MODIFIED, SYSARG_6);
     //
-    //    status = translate_socketcall_exit(tracee, sock_addr, size_addr, max_size);
-    //    if (status < 0)
+    //    status = translate_socketcall_exit(tracee, sock_addr, size_addr,
+    // max_size);    if (status < 0)
     //        return SyscallExitResult::Value(status);
     //
     // Don't overwrite the syscall result.

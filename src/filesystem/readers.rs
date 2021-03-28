@@ -9,7 +9,8 @@ pub trait ExtraReader {
 }
 
 impl ExtraReader for File {
-    /// Reads the context of a file, and extracts + transmutes its content into a structure.
+    /// Reads the context of a file, and extracts + transmutes its content into
+    /// a structure.
     fn read_struct<T>(&mut self) -> Result<T> {
         let num_bytes = mem::size_of::<T>();
         unsafe {
@@ -25,9 +26,11 @@ impl ExtraReader for File {
         }
     }
 
-    /// Reads a path of the given size at a given offset, while not moving the file cursor.
+    /// Reads a path of the given size at a given offset, while not moving the
+    /// file cursor.
     ///
-    /// The file's cursor is reinitialised to its initial position afterwards (simulates `pread`).
+    /// The file's cursor is reinitialised to its initial position afterwards
+    /// (simulates `pread`).
     ///
     /// `path_size` is the number of bytes that will be read on the file.
     /// `offset` is the starting point of the read.

@@ -37,7 +37,7 @@ pub fn exit() -> SyscallExitResult {
     //		}
     //
     //		/* Get the old path, then convert it to the same
-    //		 * "point-of-view" as tracee->fs->cwd (guest).  */
+    // 		 * "point-of-view" as tracee->fs->cwd (guest).  */
     //		status = read_path(tracee, old_path, peek_reg(tracee, MODIFIED, old_reg));
     //		if (status < 0)
     //			return SyscallExitResult::Value(status);
@@ -48,14 +48,14 @@ pub fn exit() -> SyscallExitResult {
     //		old_length = (status > 0 ? status - 1 : (ssize_t) strlen(old_path));
     //
     //		/* Nothing special to do if the moved path is not the
-    //		 * current working directory.  */
+    // 		 * current working directory.  */
     //		comparison = compare_paths(old_path, tracee->fs->cwd);
     //		if (comparison != PATH1_IS_PREFIX && comparison != PATHS_ARE_EQUAL) {
     //			return SyscallExitResult::Value(0);
     //		}
     //
     //		/* Get the new path, then convert it to the same
-    //		 * "point-of-view" as tracee->fs->cwd (guest).  */
+    // 		 * "point-of-view" as tracee->fs->cwd (guest).  */
     //		status = read_path(tracee, new_path, peek_reg(tracee, MODIFIED, new_reg));
     //		if (status < 0)
     //			return SyscallExitResult::Value(status);

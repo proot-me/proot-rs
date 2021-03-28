@@ -8,6 +8,8 @@ extern crate sc;
 #[macro_use]
 extern crate lazy_static;
 extern crate byteorder;
+#[macro_use]
+extern crate log;
 
 mod cli;
 mod errors;
@@ -17,19 +19,20 @@ mod process;
 mod register;
 mod utils;
 
+use crate::errors::Result;
 use crate::filesystem::{FileSystem, Initialiser};
 use crate::process::proot::{show_info, stop_program, PRoot};
 use crate::process::sigactions;
 use std::process::exit;
 
-fn main() {
+fn run() -> Result<()> {
     // step 1: CLI parsing
     let mut fs: FileSystem = FileSystem::new();
 
     cli::parse_config(&mut fs);
 
     if let Err(error) = fs.initialize() {
-        eprintln!("Error during file system initialization: {}", error);
+        error!("Error during file system initialization: {}", error);
         exit(-1);
     }
 
@@ -48,4 +51,13 @@ fn main() {
     proot.event_loop();
 
     println!("{:#?}", proot);
+
+    Ok(())
+}
+
+fn main() {
+    env_logger::init();
+    if let Err(err) = run() {
+        error!("Exited with error: {}", err);
+    }
 }

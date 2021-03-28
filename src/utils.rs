@@ -25,9 +25,10 @@ pub mod tests {
     }
 
     /// Simulates PRoot by forking a parent and child processes.
-    /// The child process will be traced on, and will execute its respective function (2nd arg).
-    /// The parent process will wait and loop for events from the tracee (child process).
-    /// It only stops when the parent function (1st arg) returns true.
+    /// The child process will be traced on, and will execute its respective
+    /// function (2nd arg). The parent process will wait and loop for events
+    /// from the tracee (child process). It only stops when the parent
+    /// function (1st arg) returns true.
     pub fn fork_test<FuncParent: FnMut(&mut Tracee, &mut InfoBag) -> bool, FuncChild: FnMut()>(
         fs_root: &str,
         expected_exit_signal: i8,

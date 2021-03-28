@@ -15,8 +15,8 @@ pub fn enter() -> Result<()> {
     //                     : peek_reg(tracee, CURRENT, SYSARG_4);
     //
     //                 if ((flags & AT_SYMLINK_NOFOLLOW) != 0)
-    //                 status = translate_path2(tracee, dirfd, path, SYSARG_2, SYMLINK);
-    //                 else
-    //                 status = translate_path2(tracee, dirfd, path, SYSARG_2, REGULAR);
-    //                 break;
+    //                 status = translate_path2(tracee, dirfd, path, SYSARG_2,
+    // SYMLINK);                 else
+    //                 status = translate_path2(tracee, dirfd, path, SYSARG_2,
+    // REGULAR);                 break;
 }

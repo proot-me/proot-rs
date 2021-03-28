@@ -94,8 +94,8 @@ impl Registers {
     ///
     /// # Safety
     ///
-    /// Be sure that the `Current` registers exist, otherwise the program will panic.
-    /// It is like this so that a backtrace can be retrieved,
+    /// Be sure that the `Current` registers exist, otherwise the program will
+    /// panic. It is like this so that a backtrace can be retrieved,
     /// in order to remedy the issue so that it doesn't happen again.
     #[inline]
     pub fn set(&mut self, register: Register, new_value: Word, justification: &'static str) {
@@ -368,7 +368,8 @@ mod tests {
 
     #[test]
     /// Tests that `fetch_regs` works on a simple syscall;
-    /// the test is a success if the NANOSLEEP syscall is detected (with its corresponding signum).
+    /// the test is a success if the NANOSLEEP syscall is detected (with its
+    /// corresponding signum).
     fn test_fetch_regs_sysnum_sleep_test() {
         fork_test(
             "/",
@@ -393,8 +394,8 @@ mod tests {
 
     #[test]
     /// Tests that `push_regs` works by voiding the NANOSLEEP syscall.
-    /// It fails if the syscall is not cancelled (and in this case it will wait for 9999 secs),
-    /// or if the tracee returns abruptly.
+    /// It fails if the syscall is not cancelled (and in this case it will wait
+    /// for 9999 secs), or if the tracee returns abruptly.
     fn test_push_regs_void_sysnum_sleep_test() {
         let mut sleep_exit = false;
 

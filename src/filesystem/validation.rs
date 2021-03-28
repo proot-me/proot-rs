@@ -2,7 +2,8 @@ use std::path::Path;
 
 //TODO: replace all this by FileSystemNamespace's trait Validator
 
-/// Check wheter the path is a valid path (file that exists, or path that ends in /)
+/// Check wheter the path is a valid path (file that exists, or path that ends
+/// in /)
 pub fn is_valid_path(path: &str, error_message: String) -> Result<(), String> {
     if !Path::new(path).exists() {
         Err(error_message)
@@ -17,7 +18,8 @@ pub fn path_validator(path: String) -> Result<(), String> {
     //TODO: check for folder path
 }
 
-/// Check whether a path is of the type ```host_path:guest_path``` and that the host.
+/// Check whether a path is of the type ```host_path:guest_path``` and that the
+/// host.
 pub fn binding_validator(binding_paths: String) -> Result<(), String> {
     let parts: Vec<&str> = binding_paths.split_terminator(':').collect();
 
@@ -31,7 +33,8 @@ pub fn binding_validator(binding_paths: String) -> Result<(), String> {
 
     //TODO: add a check to avoid equivalent paths bindings?
     //TODO: add a check for guest path? (rootfs + guest path must exists?)
-    //TODO: add a check to check both paths are of the same type (file:file or folder:folder)
+    //TODO: add a check to check both paths are of the same type (file:file or
+    // folder:folder)
 }
 
 #[cfg(test)]

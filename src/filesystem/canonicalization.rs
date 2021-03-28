@@ -8,34 +8,47 @@ pub trait Canonicalizer {
 }
 
 impl Canonicalizer for FileSystem {
-    /// Canonicalizes `user_path` relative to the guest root (see `man 3 realpath`).
+    /// Canonicalizes `user_path` relative to the guest root (see `man 3
+    /// realpath`).
     ///
-    /// It removes ".." and "." from the paths and recursively dereferences symlinks.
-    /// It checks that every path of the path exists.
+    /// It removes ".." and "." from the paths and recursively dereferences
+    /// symlinks. It checks that every path of the path exists.
     /// The result is a canonicalized path on the `Guest` side.
     ///
     /// The final path is only deferenced if `deref_final` is true.
+    ///
+    /// # Paramters
+    ///
+    /// - user_path: path to be canonicalized, must be absolute path
+    /// - deref_final: weather or not to dereference final user_path
+    ///
+    /// # Return
+    ///
+    /// guest_path: the canonicalized user_path, which is a path in the view of
+    /// Guest
     fn canonicalize(&self, user_path: &Path, deref_final: bool) -> Result<PathBuf> {
-        let mut guest_path = PathBuf::new();
-
+        // The `user_path` must be absolute path
         if user_path.is_relative() {
             return Err(Error::invalid_argument(
                 "when canonicalizing a relative path",
             ));
         }
 
-        let mut it = user_path.components();
-        // we need the `next` component to know if the current one is the last one
-        let mut next_comp = it.next();
+        // build guest_path from user_path
+        let mut guest_path = PathBuf::new();
 
-        while next_comp.is_some() {
-            let component = next_comp.unwrap();
+        // split user_path to components and check them, so that path traversal can be
+        // avoided.
+        // We need the `next` component to know if the current one is the last one
+        let mut it = user_path.components();
+        let mut next_comp = it.next();
+        while let Some(component) = next_comp {
             next_comp = it.next();
             let is_last_component = next_comp.is_none();
 
             match component {
                 Component::RootDir => {
-                    guest_path.push("/");
+                    guest_path.push(Component::RootDir);
                     continue;
                 }
                 Component::CurDir | Component::Prefix(_) => {
@@ -50,7 +63,9 @@ impl Canonicalizer for FileSystem {
                     guest_path.push(path_part);
 
                     // Resolve bindings and add glue if necessary
-                    let (_, maybe_file_type) =
+                    // TODO: currently we check and ensure that all the path exist on host, but
+                    // some syscall (e.g. mkdir, mknod) allow path not exist.
+                    let (host_path, maybe_file_type) =
                         self.substitute_intermediary_and_glue(&guest_path)?;
 
                     //TODO: remove when glue is implemented
@@ -59,21 +74,45 @@ impl Canonicalizer for FileSystem {
                     }
                     let file_type = maybe_file_type.unwrap();
 
-                    // For this latter case, we check that the symlink points to a directory once
-                    // it is canonicalized, at the end of this loop.
-                    if !is_last_component && !file_type.is_dir() && !file_type.is_symlink() {
+                    // directory can always push
+                    if file_type.is_dir() {
+                        continue;
+                    }
+                    if file_type.is_symlink() {
+                        // we can continue if current path is symlink and is last component and
+                        // if we explicitly ask to not dereference 'user_path', as required by
+                        // kernel like `lstat(2)`
+                        if is_last_component && !deref_final {
+                            continue;
+                        }
+                        // we need to deref
+                        // TODO: add test for this
+                        let link_value = host_path.read_link()?;
+                        let mut new_user_path = if link_value.is_absolute() {
+                            // link_value is a absolute path, so we need to replace user_path
+                            // with link_value first.
+                            link_value
+                        } else {
+                            // link_value is a relative path, so we need to append link_value to
+                            // guest_path.
+                            guest_path.pop();
+                            guest_path.push(&link_value);
+                            guest_path
+                        };
+                        // append remaining Components
+                        if let Some(comp) = next_comp {
+                            new_user_path.push(comp);
+                        }
+                        it.for_each(|comp| new_user_path.push(comp));
+                        // use new_user_path to call this function again and return
+                        // TODO: Can be optimized by replacing `it`
+                        return self.canonicalize(&new_user_path, deref_final);
+                    }
+                    // we cannot go through a path which is neither a directory nor a symlink
+                    if !is_last_component {
                         return Err(Error::not_a_directory(
                             "when canonicalizing an intermediate path",
                         ));
-                    }
-
-                    // Nothing special to do if it's not a link or if we explicitly ask to not
-                    // dereference 'user_path', as required by kernel like `lstat(2)`. Obviously,
-                    // this later condition does not apply to intermediate path components.
-                    if file_type.is_dir() || (is_last_component && !deref_final) {
-                        continue;
-                    } else {
-                        //TODO: deref symlink
                     }
                 }
             }
@@ -105,6 +144,22 @@ mod tests {
         );
     }
 
+    #[test]
+    fn test_canonicalize_path_traversal() {
+        let fs = FileSystem::with_root("/usr");
+
+        let path = PathBuf::from("/../usr/bin");
+        // should be failed, because no /usr/usr/bin on host
+        assert_eq!(
+            fs.canonicalize(&path, false),
+            Err(Error::no_such_file_or_dir(
+                "when substituting intermediary without glue",
+            ))
+        );
+        // should be ok, because /usr/bin exist on host
+        let path = PathBuf::from("/../bin");
+        assert_eq!(fs.canonicalize(&path, false), Ok(PathBuf::from("/bin")));
+    }
     #[test]
     fn test_canonicalize_normal_path() {
         // "/etc" on the host, "/" on the guest
@@ -139,17 +194,18 @@ mod tests {
     fn test_canonicalize_no_root_normal_path() {
         let mut fs = FileSystem::with_root("/");
 
+        // should be ok, because /home, /, /bin/, /bin/sleep are all exist on host
         assert_eq!(
-            fs.canonicalize(&PathBuf::from("/home/../bin/./../bin/sleep"), false)
+            fs.canonicalize(&PathBuf::from("/home/../etc/./../etc/hostname"), false)
                 .unwrap(),
-            PathBuf::from("/bin/sleep")
+            PathBuf::from("/etc/hostname")
         );
 
         // necessary, because nor "/test" probably doesn't exist
         fs.set_glue_type(Mode::S_IRWXU | Mode::S_IRWXG | Mode::S_IRWXO);
 
         assert_eq!(
-            fs.canonicalize(&PathBuf::from("/bin/../test"), false)
+            fs.canonicalize(&PathBuf::from("/etc/../test"), false)
                 .unwrap(),
             PathBuf::from("/test")
         );

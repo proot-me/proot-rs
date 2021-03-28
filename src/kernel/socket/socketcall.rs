@@ -126,8 +126,8 @@ pub fn exit() -> SyscallExitResult {
     //    size_addr = PEEK_WORD(SYSARG_ADDR(3));
     //    max_size  = peek_reg(tracee, MODIFIED, SYSARG_6);
     //
-    //    status = translate_socketcall_exit(tracee, sock_addr, size_addr, max_size);
-    //    if (status < 0)
+    //    status = translate_socketcall_exit(tracee, sock_addr, size_addr,
+    // max_size);    if (status < 0)
     //        return SyscallExitResult::Value(status);
     //
     // Don't overwrite the syscall result.

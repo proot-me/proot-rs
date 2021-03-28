@@ -63,12 +63,13 @@ fn read_path(pid: Pid, src_path: *mut Word) -> Result<PathBuf> {
 ///
 /// It uses `ptrace(PEEK_DATA)` to read it word by word
 /// (1 word = 1 c_ulong = 1 u32 or 1 u64 = 4 or 8 u8 = 4 or 8 char).
-/// The copy stops when a null character `\0` is encountered (which is not added),
-/// The bytes contained at the string's address are returned as a Vector of u8.
+/// The copy stops when a null character `\0` is encountered (which is not
+/// added), The bytes contained at the string's address are returned as a Vector
+/// of u8.
 ///
 /// * `pid` is the pid of the tracee.
 /// * `src_string` is the address of the string in tracee's memory space
-///     (obtained for instance with `get_reg`).
+///   (obtained for instance with `get_reg`).
 /// * `max_size` is the maximum number of bytes copied from memory.
 fn read_string(pid: Pid, src_string: *mut Word, max_size: usize) -> Result<Vec<u8>> {
     let mut bytes: Vec<u8> = Vec::with_capacity(max_size);
@@ -103,7 +104,8 @@ fn read_string(pid: Pid, src_string: *mut Word, max_size: usize) -> Result<Vec<u
         }
     }
 
-    //todo: add trailing bytes processing (when necessary, need an example where it's actually used)
+    //todo: add trailing bytes processing (when necessary, need an example where
+    // it's actually used)
     unimplemented!("trailing bytes not supported!")
 
     /*
@@ -174,11 +176,12 @@ mod tests {
     }
 
     #[test]
-    /// Tests that `get_sysarg_path`, `read_path` and `read_string` all work on a simple syscall,
-    /// and succeeds in reading a syscall's path argument.
+    /// Tests that `get_sysarg_path`, `read_path` and `read_string` all work on
+    /// a simple syscall, and succeeds in reading a syscall's path argument.
     ///
-    /// The test is a success if the MKDIR syscall is detected (with its corresponding signum),
-    /// and if the first argument of the syscall correspond to the path given to the initial command.
+    /// The test is a success if the MKDIR syscall is detected (with its
+    /// corresponding signum), and if the first argument of the syscall
+    /// correspond to the path given to the initial command.
     fn test_reader_get_sysarg_path_for_mkdir_test() {
         let test_path = "my/impossible/test/path";
 

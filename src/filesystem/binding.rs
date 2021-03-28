@@ -18,6 +18,7 @@ pub enum Side {
 /// to the `host` filesystem (in the real filesystem).
 pub struct Direction(pub Side, pub Side);
 
+// TODO: Maybe we should canonicalize guest path during initialization
 #[derive(Debug)]
 pub struct Binding {
     host: PathBuf,
@@ -27,7 +28,8 @@ pub struct Binding {
 }
 
 impl Binding {
-    //TODO: return Option<Binding> and make checks (test existence if must_exist, sanitize, canon..)
+    //TODO: return Option<Binding> and make checks (test existence if must_exist,
+    // sanitize, canon..)
     pub fn new(host: &str, guest: &str, must_exist: bool) -> Binding {
         Binding {
             host: PathBuf::from(host),

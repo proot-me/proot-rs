@@ -49,7 +49,8 @@ pub struct Tracee {
     pub pid: Pid,
     /// Whether the tracee is in the enter or exit stage.
     pub status: TraceeStatus,
-    /// The ptrace's restart method depends on the status (enter or exit) and seccomp on/off.
+    /// The ptrace's restart method depends on the status (enter or exit) and
+    /// seccomp on/off.
     pub restart_how: TraceeRestartMethod,
     /// Contains the bindings and functions used for path translation.
     pub fs: FileSystem,
@@ -159,7 +160,8 @@ mod tests {
     #[test]
     /// Tests that the set_ptrace_options runs without panicking.
     /// It requires a traced child process to be applied on,
-    /// as using `ptrace(PTRACE_SETOPTIONS)` without preparation results in a Sys(ESRCH) error.
+    /// as using `ptrace(PTRACE_SETOPTIONS)` without preparation results in a
+    /// Sys(ESRCH) error.
     fn create_set_ptrace_options() {
         fork_test(
             "/",

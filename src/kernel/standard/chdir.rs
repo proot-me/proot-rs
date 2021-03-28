@@ -41,11 +41,11 @@ pub fn enter() -> Result<()> {
     //     * this means that there's an ambiguity when several
     //     * bindings are from the same host path:
     //     *
-    //     *    $ proot -m /tmp:/a -m /tmp:/b fchdir_getcwd /a
-    //     *    /b
+    //     * $ proot -m /tmp:/a -m /tmp:/b fchdir_getcwd /a
+    //     * /b
     //     *
-    //     *    $ proot -m /tmp:/b -m /tmp:/a fchdir_getcwd /a
-    //     *    /a
+    //     * $ proot -m /tmp:/b -m /tmp:/a fchdir_getcwd /a
+    //     * /a
     //     *
     //     * A solution would be to follow each file descriptor
     //     * just like it is done for cwd.

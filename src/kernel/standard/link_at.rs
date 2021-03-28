@@ -16,10 +16,11 @@ pub fn enter() -> Result<()> {
     //                  break;
     //
     //                 if ((flags & AT_SYMLINK_FOLLOW) != 0)
-    //                     status = translate_path2(tracee, olddirfd, oldpath, SYSARG_2, REGULAR);
-    //                 else
-    //                    status = translate_path2(tracee, olddirfd, oldpath, SYSARG_2, SYMLINK);
-    //                 if (status < 0)
+    //                     status = translate_path2(tracee, olddirfd, oldpath,
+    // SYSARG_2, REGULAR);                 else
+    //                    status = translate_path2(tracee, olddirfd, oldpath,
+    // SYSARG_2, SYMLINK);                 if (status < 0)
     //                 break;
-    //                status = translate_path2(tracee, newdirfd, newpath, SYSARG_4, SYMLINK);
+    //                status = translate_path2(tracee, newdirfd, newpath,
+    // SYSARG_4, SYMLINK);
 }

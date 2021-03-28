@@ -101,8 +101,8 @@ impl PtraceWriter for Registers {
         let mut bytes = convert_word_to_bytes(existing_word);
 
         // The trailing bytes are merged with the existing bytes. For example:
-        // bytes = [0, 0, 0, 0, 0, 0, 119, 0] // the already existing bytes at the dest addr
-        // trailing bytes = [164, 247, 274] // our trailing bytes
+        // bytes = [0, 0, 0, 0, 0, 0, 119, 0] // the already existing bytes at the dest
+        // addr trailing bytes = [164, 247, 274] // our trailing bytes
         // fusion = [164, 247, 274, 0, 0, 0, 119, 0] // the fusion of the two
         for byte in bytes.iter_mut().take(nb_trailing_bytes as usize) {
             *byte = buf.read_u8().unwrap();

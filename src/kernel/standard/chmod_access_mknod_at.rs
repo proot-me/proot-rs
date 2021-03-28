@@ -9,5 +9,6 @@ pub fn enter() -> Result<()> {
     //                 if (status < 0)
     //                    break;
     //
-    //                 status = translate_path2(tracee, dirfd, path, SYSARG_2, REGULAR);
+    //                 status = translate_path2(tracee, dirfd, path, SYSARG_2,
+    // REGULAR);
 }

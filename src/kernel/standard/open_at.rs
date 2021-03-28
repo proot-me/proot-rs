@@ -12,7 +12,8 @@ pub fn enter() -> Result<()> {
     //
     //                if (   ((flags & O_NOFOLLOW) != 0)
     //                || ((flags & O_EXCL) != 0 && (flags & O_CREAT) != 0))
-    //                status = translate_path2(tracee, dirfd, path, SYSARG_2, SYMLINK);
-    //                else
-    //                status = translate_path2(tracee, dirfd, path, SYSARG_2, REGULAR);
+    //                status = translate_path2(tracee, dirfd, path, SYSARG_2,
+    // SYMLINK);                else
+    //                status = translate_path2(tracee, dirfd, path, SYSARG_2,
+    // REGULAR);
 }

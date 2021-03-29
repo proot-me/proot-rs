@@ -1,4 +1,4 @@
-use crate::errors::{Error, Result};
+use crate::errors::*;
 use crate::filesystem::readers::ExtraReader;
 use std::fs::File;
 use std::io::{Read, Seek, SeekFrom};
@@ -98,8 +98,12 @@ impl<T> ParameterizedElfHeader<T> {
     pub fn is_exec_or_dyn(&self) -> Result<()> {
         match self.e_type {
             self::ET_EXEC | self::ET_DYN => Ok(()),
-            _ => Err(Error::invalid_argument(
-                "when checking elf header type, not supported type",
+            o => Err(Error::errno_with_msg(
+                EINVAL,
+                format!(
+                    "ELF type mismatch, ET_EXEC | ET_DYN expected, but got {}",
+                    o
+                ),
             )),
         }
     }
@@ -113,8 +117,12 @@ impl<T> ParameterizedElfHeader<T> {
             false => {
                 // note(tracee, WARNING, INTERNAL, "%d: unsupported size of program header.",
                 // fd);
-                Err(Error::not_supported(
-                    "when checking program header size, mismatch with struct size",
+                Err(Error::errno_with_msg(
+                    EOPNOTSUPP,
+                    format!(
+                        "Program header size mismatch, {} expected, got {}",
+                        program_header_size, self.e_phentsize
+                    ),
                 ))
             }
         }
@@ -167,12 +175,17 @@ impl ElfHeader {
             [0x7f, 69, 76, 70, exe_class] => match exe_class as i32 {
                 1 => Ok((ExecutableClass::Class32, file)),
                 2 => Ok((ExecutableClass::Class64, file)),
-                _ => Err(Error::cant_exec(
-                    "when extracting elf from unknown executable class",
+                _ => Err(Error::errno_with_msg(
+                    ENOEXEC,
+                    format!(
+                        "Extracting ELF from unknown executable class: {:X?}",
+                        exe_class
+                    ),
                 )),
             },
-            _ => Err(Error::cant_exec(
-                "when extracting elf header from non executable file",
+            _ => Err(Error::errno_with_msg(
+                ENOEXEC,
+                format!("Extracting ELF from non executable file: {:X?}", buffer),
             )),
         }
     }
@@ -228,7 +241,7 @@ mod tests {
         let mut file = File::open(PathBuf::from("/etc/hostname")).unwrap();
         assert_eq!(
             ElfHeader::extract_class(&mut file).unwrap_err(),
-            Error::cant_exec("when extracting elf header from non executable file")
+            Error::errno(ENOEXEC)
         );
     }
 

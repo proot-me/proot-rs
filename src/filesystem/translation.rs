@@ -39,8 +39,8 @@ impl Translator for FileSystem {
         debug!("canonicalized guest_path: {:?}", guest_path);
 
         // TODO: Maybe we should remove this self.substitute() call
-        let host_path = self.substitute(&guest_path, Direction(Guest, Host))?;
-        let result = host_path.unwrap_or(guest_path);
+        let host_path = self.substitute(&guest_path, Guest)?;
+        let result = host_path;
 
         #[cfg(not(test))]
         println!("\t\t -> {}", result.display());
@@ -106,9 +106,10 @@ impl Translator for FileSystem {
         }
 
         if follow_binding {
-            if let Ok(maybe_path) = self.substitute(host_path, Direction(Host, Guest)) {
+            if let Ok(maybe_path) = self.substitute(host_path, Host) {
+                // TODO: Error handling
                 // if a suitable binding was found, we stop here
-                return Ok(maybe_path);
+                return Ok(Some(maybe_path));
             }
         }
 
@@ -215,10 +216,8 @@ mod tests {
         // "/etc/host" in the host, "/etc/guest" in the guest
         fs.add_binding(Binding::new("/etc/guest", "/etc/guest", true));
 
-        assert_eq!(
-            fs.detranslate_path(&Path::new("/etc/guest/something"), None),
-            Ok(None)
-        ); // no change in path, because it's a symmetric binding
+        let pathbuf = PathBuf::from("/etc/guest/something");
+        assert_eq!(fs.detranslate_path(&pathbuf, None), Ok(Some(pathbuf))); // no change in path, because it's a symmetric binding
 
         //TODO: detranslate symlink tests
     }

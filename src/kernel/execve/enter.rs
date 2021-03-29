@@ -1,11 +1,10 @@
-use crate::errors::{Error, Result};
+use crate::errors::*;
 use crate::filesystem::Translator;
 use crate::kernel::execve::load_info::LoadInfo;
 use crate::kernel::execve::loader::LoaderFile;
 use crate::kernel::execve::shebang;
 use crate::process::tracee::Tracee;
 use crate::register::{PtraceReader, SysArg1};
-use nix::errno::Errno;
 
 pub fn translate(tracee: &mut Tracee, loader: &dyn LoaderFile) -> Result<()> {
     //TODO: implement this part for ptrace translation
@@ -25,7 +24,7 @@ pub fn translate(tracee: &mut Tracee, loader: &dyn LoaderFile) -> Result<()> {
     let host_path = match shebang::expand(&tracee.fs, &raw_path) {
         Ok(path) => path,
         // The Linux kernel actually returns -EACCES when trying to execute a directory.
-        Err(Error::Sys(Errno::EISDIR, _)) => return Err(Error::from(Errno::EACCES)),
+        Err(error) if error.get_errno() == Errno::EISDIR => return Err(Error::from(Errno::EACCES)),
         Err(error) => return Err(error),
     };
 
@@ -59,14 +58,16 @@ pub fn translate(tracee: &mut Tracee, loader: &dyn LoaderFile) -> Result<()> {
     load_info.host_path = Some(host_path);
 
     if load_info.interp.is_none() {
-        return Err(Error::invalid_argument(
-            "when translating enter execve, interp is none",
+        return Err(Error::errno_with_msg(
+            EINVAL,
+            "When translating enter execve, interp is none",
         ));
     }
     if let Some(ref interp) = load_info.interp {
         if interp.interp.is_some() {
-            return Err(Error::invalid_argument(
-                "when translating enter execve, an ELF interpreter is supposed to be standalone.",
+            return Err(Error::errno_with_msg(
+                EINVAL,
+                "When translating enter execve, an ELF interpreter is supposed to be standalone.",
             ));
         }
     }

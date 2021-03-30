@@ -157,7 +157,7 @@ impl From<NixError> for Error {
 
 /// This trait is something like [`anyhow::Context`], which provide
 /// `with_context()` and `context()` function to attach a message to
-/// `Result<T,E>`, In addition, he also allows to append an `errno` value.
+/// `Result<T,E>`, In addition, it also allows appending an `errno` value.
 ///
 /// [`anyhow::Context`]: https://docs.rs/anyhow/1.0.40/anyhow/trait.Context.html
 pub trait WithContext<T> {

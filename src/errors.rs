@@ -1,125 +1,198 @@
-use nix::errno::Errno;
+pub use nix::errno::Errno::{self, *};
 use nix::Error as NixError;
-use std::io::{Error as IOError, ErrorKind as IOErrorKind};
-use std::{error, fmt, result, string};
-
+use std::io::Error as IOError;
+use std::{
+    fmt::{self, Display},
+    result,
+};
 pub type Result<T> = result::Result<T, Error>;
 
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub enum Error {
-    Sys(Errno, &'static str),
-    InvalidPath(&'static str),
-    InvalidUtf8,
-    IOError(IOErrorKind),
-    UnsupportedOperation(&'static str),
+/// This struct is an abstraction of exceptions encountered in the code. It is
+/// inspired by [`anyhow`]. All type `E` which implements`std::error::Error` can
+/// be converted to this `Error`. In addition, it contains an `errno` field,
+/// which is useful in scenarios where errno value needs to be returned.
+///
+/// [`anyhow`]: https://docs.rs/anyhow/1.0.40/anyhow/
+
+pub struct Error {
+    errno: Errno,
+    msg: Option<Box<dyn Display + Send + Sync + 'static>>,
+    source: Option<Box<dyn std::error::Error>>,
 }
 
 impl Error {
-    pub fn get_errno(&self) -> i32 {
-        match *self {
-            Error::Sys(errno, _) => -(errno as i32),
-            _ => 0, //TODO: specify errno for other types of error
+    /// Create an Error with a unknown errno
+    pub fn unknown() -> Self {
+        Error::errno(Errno::UnknownErrno)
+    }
+
+    /// Create an Error with the specific errno
+    pub fn errno(errno: Errno) -> Self {
+        Error {
+            errno: errno,
+            msg: None,
+            source: None,
         }
     }
 
-    pub fn from_errno(errno: Errno, message: &'static str) -> Error {
-        Error::Sys(errno, message)
+    /// Create an Error with the specific message
+    pub fn msg<M>(msg: M) -> Self
+    where
+        M: Display + Send + Sync + 'static,
+    {
+        Error::errno_with_msg(Errno::UnknownErrno, msg)
     }
 
-    pub fn invalid_argument(message: &'static str) -> Error {
-        Error::Sys(Errno::EINVAL, message)
+    /// Create an Error with the specific errno and message
+    pub fn errno_with_msg<M>(errno: Errno, msg: M) -> Self
+    where
+        M: Display + Send + Sync + 'static,
+    {
+        Error {
+            errno: errno,
+            msg: Some(Box::new(msg)),
+            source: None,
+        }
     }
 
-    pub fn name_too_long(message: &'static str) -> Error {
-        Error::Sys(Errno::ENAMETOOLONG, message)
+    /// Set errno of self to a specific errno, and return this Error.
+    pub fn with_errno(mut self, errno: Errno) -> Self {
+        self.errno = errno;
+        self
     }
 
-    pub fn no_such_file_or_dir(message: &'static str) -> Error {
-        Error::Sys(Errno::ENOENT, message)
+    /// Set message of self to a specific message, and return this Error.
+    pub fn with_msg<M>(mut self, msg: M) -> Self
+    where
+        M: Display + Send + Sync + 'static,
+    {
+        self.msg = Some(Box::new(msg));
+        self
     }
 
-    #[cfg(test)]
-    pub fn is_a_directory(message: &'static str) -> Error {
-        Error::Sys(Errno::EISDIR, message)
+    /// Get errno of this Error. If errno is not set, the default value is
+    /// `UnknownErrno`.
+    pub fn get_errno(&self) -> Errno {
+        self.errno
     }
+}
 
-    pub fn not_a_directory(message: &'static str) -> Error {
-        Error::Sys(Errno::ENOTDIR, message)
+impl Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Error with {}({})", self.errno, self.errno as i32)?;
+
+        if let Some(msg) = &self.msg {
+            write!(f, ", msg: {}", msg)?;
+        }
+        if let Some(source) = &self.source {
+            write!(f, ", source: {}", source)?;
+        }
+        Ok(())
     }
+}
 
-    pub fn too_many_symlinks(message: &'static str) -> Error {
-        Error::Sys(Errno::ELOOP, message)
+impl fmt::Debug for Error {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut d = f.debug_struct("Error");
+        d.field("errno", &self.errno);
+        match self.msg.as_ref() {
+            Some(msg) => d.field("msg", &Some(format_args!("{}", msg))),
+            None => d.field("msg", &Option::<()>::None),
+        };
+        d.field("source", &self.source).finish()
     }
+}
 
-    pub fn cant_exec(message: &'static str) -> Error {
-        Error::Sys(Errno::ENOEXEC, message)
-    }
-
-    pub fn not_supported(message: &'static str) -> Error {
-        Error::Sys(Errno::EOPNOTSUPP, message)
-    }
-
-    pub fn bad_address(message: &'static str) -> Error {
-        Error::Sys(Errno::EFAULT, message)
+impl PartialEq for Error {
+    fn eq(&self, other: &Self) -> bool {
+        self.errno == other.errno
     }
 }
 
 impl From<Errno> for Error {
     fn from(errno: Errno) -> Error {
-        Error::from_errno(errno, "from sys errno")
+        Error::errno(errno)
     }
 }
 
-impl From<string::FromUtf8Error> for Error {
-    fn from(_: string::FromUtf8Error) -> Error {
-        Error::InvalidUtf8
+impl<E> From<E> for Error
+where
+    E: std::error::Error + 'static,
+{
+    default fn from(error: E) -> Self {
+        Error {
+            errno: UnknownErrno,
+            msg: None,
+            source: Some(Box::new(error)),
+        }
     }
 }
 
 impl From<IOError> for Error {
-    fn from(io_error: IOError) -> Error {
-        match io_error.raw_os_error() {
-            // we try to convert it to an errno
-            Some(errno) => Error::Sys(Errno::from_i32(errno), "from IO error"),
-            // if not successful, we keep the IOError to retain the context of the error
-            None => Error::IOError(io_error.kind()),
+    fn from(error: IOError) -> Error {
+        Error {
+            errno: match error.raw_os_error() {
+                // we try to convert it to an errno
+                Some(errno) => Errno::from_i32(errno),
+                None => Errno::UnknownErrno,
+            },
+            msg: None,
+            source: Some(Box::new(error)),
         }
     }
 }
 
 impl From<NixError> for Error {
-    fn from(nix_error: NixError) -> Error {
-        match nix_error {
-            NixError::Sys(errno) => Error::Sys(errno, "from Nix error"),
-            NixError::InvalidPath => Error::InvalidPath("from Nix error"),
-            NixError::InvalidUtf8 => Error::InvalidUtf8,
-            NixError::UnsupportedOperation => Error::UnsupportedOperation("from Nix error"),
+    fn from(error: NixError) -> Error {
+        Error {
+            errno: match error {
+                NixError::Sys(errno) => errno,
+                _ => Errno::UnknownErrno,
+            },
+            msg: None,
+            source: Some(Box::new(error)),
         }
     }
 }
 
-impl error::Error for Error {
-    fn description(&self) -> &str {
-        match self {
-            Error::InvalidPath(_) => "Invalid path",
-            Error::InvalidUtf8 => "Invalid UTF-8 string",
-            Error::Sys(ref errno, _) => errno.desc(),
-            Error::IOError(_) => "IO Error",
-            Error::UnsupportedOperation(_) => "Unsupported Operation",
-        }
-    }
+/// This trait is something like [`anyhow::Context`], which provide
+/// `with_context()` and `context()` function to attach a message to
+/// `Result<T,E>`, In addition, it also allows appending an `errno` value.
+///
+/// [`anyhow::Context`]: https://docs.rs/anyhow/1.0.40/anyhow/trait.Context.html
+pub trait WithContext<T> {
+    fn errno(self, errno: Errno) -> Result<T>;
+
+    fn context<C>(self, context: C) -> Result<T>
+    where
+        C: Display + Send + Sync + 'static;
+
+    fn with_context<C, F>(self, f: F) -> Result<T>
+    where
+        C: Display + Send + Sync + 'static,
+        F: FnOnce() -> C;
 }
 
-impl fmt::Display for Error {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            Error::InvalidPath(message) => write!(f, "Invalid path ({})", message),
-            Error::InvalidUtf8 => write!(f, "Invalid UTF-8 string"),
-            Error::Sys(errno, message) => write!(f, "{:?}: {} ({})", errno, errno.desc(), message),
-            Error::IOError(io_error_kind) => write!(f, "IO Error: {:?}", io_error_kind),
-            Error::UnsupportedOperation(message) => {
-                write!(f, "Unsupported Operation ({})", message)
-            }
-        }
+impl<T, E> WithContext<T> for result::Result<T, E>
+where
+    E: std::error::Error + 'static,
+{
+    default fn errno(self, errno: Errno) -> Result<T> {
+        self.map_err(|error| Into::<Error>::into(error).with_errno(errno))
+    }
+
+    default fn context<C>(self, context: C) -> Result<T>
+    where
+        C: Display + Send + Sync + 'static,
+    {
+        self.map_err(|error| Into::<Error>::into(error).with_msg(context))
+    }
+
+    default fn with_context<C, F>(self, f: F) -> Result<T>
+    where
+        C: Display + Send + Sync + 'static,
+        F: FnOnce() -> C,
+    {
+        self.map_err(|error| Into::<Error>::into(error).with_msg(f()))
     }
 }

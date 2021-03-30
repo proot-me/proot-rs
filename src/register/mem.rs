@@ -1,4 +1,4 @@
-use crate::errors::{Error, Result};
+use crate::errors::*;
 use crate::register::{Current, Original, Registers, StackPointer, Word};
 use std::usize::MAX as USIZE_MAX;
 
@@ -47,7 +47,8 @@ impl PtraceMemoryAllocator for Registers {
             //TODO: log warning
             // note(tracee, WARNING, INTERNAL, "integer under/overflow detected in %s",
             //     __FUNCTION__);
-            return Err(Error::bad_address(
+            return Err(Error::errno_with_msg(
+                EFAULT,
                 "when allocating memory, under/overflow detected",
             ));
         }
@@ -110,7 +111,8 @@ mod tests {
         let result = regs.alloc_mem(alloc_size);
 
         assert_eq!(
-            Err(Error::bad_address(
+            Err(Error::errno_with_msg(
+                EFAULT,
                 "when allocating memory, under/overflow detected",
             )),
             result
@@ -132,7 +134,8 @@ mod tests {
         let result = regs.alloc_mem(alloc_size);
 
         assert_eq!(
-            Err(Error::bad_address(
+            Err(Error::errno_with_msg(
+                EFAULT,
                 "when allocating memory, under/overflow detected",
             )),
             result

@@ -1,5 +1,4 @@
-use crate::errors::Error;
-use crate::errors::Result;
+use crate::errors::*;
 use crate::register::{Current, Registers, SysArg, SysArgIndex, Word};
 use libc::{c_void, PATH_MAX};
 use nix::sys::ptrace;
@@ -53,7 +52,14 @@ fn read_path(pid: Pid, src_path: *mut Word) -> Result<PathBuf> {
     let bytes = read_string(pid, src_path, PATH_MAX as usize)?;
 
     if bytes.len() >= PATH_MAX as usize {
-        return Err(Error::name_too_long("when reading sys arg path"));
+        return Err(Error::errno_with_msg(
+            ENAMETOOLONG,
+            format!(
+                "Error when reading sys arg path, path length {} exceed PATH_MAX {}",
+                bytes.len(),
+                PATH_MAX
+            ),
+        ));
     }
 
     Ok(PathBuf::from(unsafe { String::from_utf8_unchecked(bytes) }))

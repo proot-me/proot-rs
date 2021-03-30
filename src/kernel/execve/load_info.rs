@@ -1,4 +1,4 @@
-use crate::errors::{Error, Result};
+use crate::errors::*;
 use crate::filesystem::readers::ExtraReader;
 use crate::filesystem::FileSystem;
 use crate::kernel::execve::elf::{ElfHeader, ExecutableClass, ProgramHeader};
@@ -168,7 +168,8 @@ impl LoadInfo {
     ) -> Result<()> {
         // Only one PT_INTERP segment is allowed.
         if self.interp.is_some() {
-            return Err(Error::invalid_argument(
+            return Err(Error::errno_with_msg(
+                EINVAL,
                 "when translating execve, double interp",
             ));
         }
@@ -283,7 +284,7 @@ mod tests {
         let result = LoadInfo::from(&fs, &PathBuf::from("/../../.."));
 
         assert!(result.is_err());
-        assert_eq!(Error::is_a_directory("from IO error"), result.unwrap_err());
+        assert_eq!(Error::errno(EISDIR), result.unwrap_err());
     }
 
     #[test]
@@ -291,12 +292,7 @@ mod tests {
         let fs = FileSystem::with_root("/");
         let result = LoadInfo::from(&fs, &PathBuf::from("/etc/hostname"));
 
-        assert_eq!(
-            Err(Error::cant_exec(
-                "when extracting elf header from non executable file"
-            )),
-            result
-        );
+        assert_eq!(Err(Error::errno(ENOEXEC)), result);
     }
 
     #[test]

@@ -3,6 +3,7 @@ extern crate bstr;
 use self::bstr::BStr;
 use self::bstr::BString;
 use self::bstr::ByteSlice;
+use crate::errors::*;
 use crate::errors::{Error, Result};
 use crate::filesystem::{FileSystem, Translator};
 use std::io::{BufRead, BufReader};
@@ -104,7 +105,7 @@ pub fn expand(fs: &FileSystem, user_path: &Path) -> Result<PathBuf> {
     //
 
     if loop_iterations == max_sym_links {
-        return Err(Error::too_many_symlinks("when expanding shebang"));
+        return Err(Error::errno_with_msg(ELOOP, "when expanding shebang"));
     }
 
     //	/* Push argv[] only on demand.  */
@@ -119,7 +120,7 @@ pub fn expand(fs: &FileSystem, user_path: &Path) -> Result<PathBuf> {
     Ok(result_host_path.unwrap())
 }
 
-//TODO: move this somewhere more appropriate
+//TODO: remove this function
 /// Translate a guest path and checks that it's executable.
 pub fn translate_and_check_exec(fs: &FileSystem, guest_path: &Path) -> Result<PathBuf> {
     let host_path = fs.translate_path(guest_path, true)?;
@@ -161,7 +162,10 @@ fn extract(host_path: &Path) -> Result<Option<PathBuf>> {
         .unwrap_or(first_line.len())];
 
     if path.is_empty() {
-        return Err(Error::InvalidPath("Cannot have empty shebang"));
+        return Err(Error::errno_with_msg(
+            ENOEXEC,
+            format!("Empty shebang detected, host_path: {:?}", host_path),
+        ));
     }
     // NOTE: this unwrap may fail on non-UNIX systems (a.k.a Windows)
     // where paths may not be arbitrary bytes

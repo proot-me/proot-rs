@@ -1,4 +1,4 @@
-use crate::errors::{Error, Result};
+use crate::errors::*;
 use crate::filesystem::substitution::Substitutor;
 use crate::filesystem::FileSystem;
 use std::path::{Component, Path, PathBuf};
@@ -29,8 +29,9 @@ impl Canonicalizer for FileSystem {
     fn canonicalize(&self, user_path: &Path, deref_final: bool) -> Result<PathBuf> {
         // The `user_path` must be absolute path
         if user_path.is_relative() {
-            return Err(Error::invalid_argument(
-                "when canonicalizing a relative path",
+            return Err(Error::errno_with_msg(
+                Errno::EINVAL,
+                format!("Cannot canonicalizing a relative path: {:?}", user_path),
             ));
         }
 
@@ -110,7 +111,8 @@ impl Canonicalizer for FileSystem {
                     }
                     // we cannot go through a path which is neither a directory nor a symlink
                     if !is_last_component {
-                        return Err(Error::not_a_directory(
+                        return Err(Error::errno_with_msg(
+                            Errno::ENOTDIR,
                             "when canonicalizing an intermediate path",
                         ));
                     }
@@ -138,9 +140,7 @@ mod tests {
 
         assert_eq!(
             fs.canonicalize(&path, false),
-            Err(Error::no_such_file_or_dir(
-                "when substituting intermediary without glue",
-            ))
+            Err(Error::errno(Errno::ENOENT))
         );
     }
 
@@ -152,9 +152,7 @@ mod tests {
         // should be failed, because no /usr/usr/bin on host
         assert_eq!(
             fs.canonicalize(&path, false),
-            Err(Error::no_such_file_or_dir(
-                "when substituting intermediary without glue",
-            ))
+            Err(Error::errno(Errno::ENOENT))
         );
         // should be ok, because /usr/bin exist on host
         let path = PathBuf::from("/../bin");

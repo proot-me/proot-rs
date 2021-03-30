@@ -1,4 +1,4 @@
-use crate::errors::{Error, Result};
+use crate::errors::*;
 use libc::PATH_MAX;
 use nix::NixPath;
 use std::path::{Path, PathBuf};
@@ -7,6 +7,15 @@ use std::path::{Path, PathBuf};
 pub enum Side {
     Host,  // in the real filesystem
     Guest, // in the sandbox
+}
+
+impl Side {
+    pub fn reverse(&self) -> Side {
+        match self {
+            Side::Host => Side::Guest,
+            Side::Guest => Side::Host,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -53,33 +62,33 @@ impl Binding {
     }
 
     #[inline]
-    pub fn substitute_path_prefix(
-        &self,
-        path: &Path,
-        direction: Direction,
-    ) -> Result<Option<PathBuf>> {
-        if direction.0 == direction.1 {
-            return Ok(None);
-        }
-
-        let current_prefix = self.get_path(direction.0);
+    pub fn substitute_path_prefix(&self, path: &Path, from_side: Side) -> Result<PathBuf> {
+        let current_prefix = self.get_path(from_side);
 
         // we start with the new prefix
-        let mut new_path: PathBuf = PathBuf::from(self.get_path(direction.1));
-        let stripped_path = path.strip_prefix(current_prefix);
-
-        if stripped_path.is_err() {
-            return Ok(None);
-        }
+        let mut new_path: PathBuf = PathBuf::from(self.get_path(from_side.reverse()));
+        let stripped_path = path.strip_prefix(current_prefix).with_context(|| {
+            format!(
+                "Failed to strip_prefix {:?} from {:?}",
+                current_prefix, path
+            )
+        })?;
 
         // and then add what remains of the path when removing the old prefix
-        new_path.push(stripped_path.unwrap());
+        new_path.push(stripped_path);
 
         if new_path.len() >= PATH_MAX as usize {
-            return Err(Error::name_too_long("when substituting path prefix"));
+            return Err(Error::errno_with_msg(
+                Errno::ENAMETOOLONG,
+                format!(
+                    "Path length {} exceed PATH_MAX {}: {:?}",
+                    new_path.len(),
+                    PATH_MAX,
+                    new_path
+                ),
+            ));
         }
-
-        Ok(Some(new_path))
+        Ok(new_path)
     }
 }
 
@@ -104,20 +113,20 @@ mod tests {
         let binding = Binding::new("/home/user", "/", true);
 
         assert_eq!(
-            binding.substitute_path_prefix(&PathBuf::from("/bin/sleep"), Direction(Guest, Host)),
-            Ok(Some(PathBuf::from("/home/user/bin/sleep")))
+            binding.substitute_path_prefix(&PathBuf::from("/bin/sleep"), Guest),
+            Ok(PathBuf::from("/home/user/bin/sleep"))
         ); // "/" => "/home/user"
         assert_eq!(
-            binding.substitute_path_prefix(&PathBuf::from("/"), Direction(Guest, Host)),
-            Ok(Some(PathBuf::from("/home/user")))
+            binding.substitute_path_prefix(&PathBuf::from("/"), Guest),
+            Ok(PathBuf::from("/home/user"))
         ); // same here
         assert_eq!(
-            binding.substitute_path_prefix(&PathBuf::from("/bin/sleep"), Direction(Host, Guest)),
-            Ok(None)
+            binding.substitute_path_prefix(&PathBuf::from("/bin/sleep"), Host),
+            Err(Error::unknown())
         ); // "/home/user" is not a prefix of this path
         assert_eq!(
-            binding.substitute_path_prefix(&PathBuf::from("/"), Direction(Host, Guest)),
-            Ok(None)
+            binding.substitute_path_prefix(&PathBuf::from("/"), Host),
+            Err(Error::unknown())
         ); // same here
     }
 
@@ -127,28 +136,20 @@ mod tests {
         let binding = Binding::new("/etc", "/media", true);
 
         assert_eq!(
-            binding
-                .substitute_path_prefix(&PathBuf::from("/etc/bin/sleep"), Direction(Guest, Host)),
-            Ok(None)
+            binding.substitute_path_prefix(&PathBuf::from("/etc/bin/sleep"), Guest),
+            Err(Error::unknown())
         ); // no "/etc" prefix on the guest side
         assert_eq!(
-            binding.substitute_path_prefix(
-                &PathBuf::from("/media/bin/sleep"),
-                Direction(Guest, Host),
-            ),
-            Ok(Some(PathBuf::from("/etc/bin/sleep")))
+            binding.substitute_path_prefix(&PathBuf::from("/media/bin/sleep"), Guest,),
+            Ok(PathBuf::from("/etc/bin/sleep"))
         ); // "/media" => "/etc"
         assert_eq!(
-            binding
-                .substitute_path_prefix(&PathBuf::from("/etc/bin/sleep"), Direction(Host, Guest)),
-            Ok(Some(PathBuf::from("/media/bin/sleep")))
+            binding.substitute_path_prefix(&PathBuf::from("/etc/bin/sleep"), Host),
+            Ok(PathBuf::from("/media/bin/sleep"))
         ); // "/etc" => "/media"
         assert_eq!(
-            binding.substitute_path_prefix(
-                &PathBuf::from("/media/bin/sleep"),
-                Direction(Host, Guest),
-            ),
-            Ok(None)
+            binding.substitute_path_prefix(&PathBuf::from("/media/bin/sleep"), Host,),
+            Err(Error::unknown())
         ); // no "/media" prefix on the host side
     }
 }

@@ -1,13 +1,12 @@
-use crate::errors::{Error, Result};
-use crate::filesystem::binding::Direction;
-use crate::filesystem::binding::Side::{Guest, Host};
+use crate::errors::*;
+use crate::filesystem::binding::Side;
 use crate::filesystem::FileSystem;
 use nix::sys::stat::Mode;
 use std::fs::FileType;
 use std::path::{Path, PathBuf};
 
 pub trait Substitutor {
-    fn substitute(&self, path: &Path, direction: Direction) -> Result<Option<PathBuf>>;
+    fn substitute(&self, path: &Path, from_side: Side) -> Result<PathBuf>;
     fn substitute_intermediary_and_glue(&self, path: &Path) -> Result<(PathBuf, Option<FileType>)>;
 }
 
@@ -21,23 +20,26 @@ impl Substitutor for FileSystem {
     /// * `path` is the path that will be modified. Must be canonicalized.
     /// * `direction` is the direction of the substitution.
     #[inline]
-    // TODO: maybe we should return Result<PathBuf>?
-    fn substitute(&self, path: &Path, direction: Direction) -> Result<Option<PathBuf>> {
-        let maybe_binding = self.get_first_appropriate_binding(path, direction.0);
+    fn substitute(&self, path: &Path, from_side: Side) -> Result<PathBuf> {
+        let maybe_binding = self.get_first_appropriate_binding(path, from_side);
         // TODO: should we substitute with root?
         if maybe_binding.is_none() {
-            return Err(Error::no_such_file_or_dir(
-                "when substituting binding, no binding found",
+            return Err(Error::errno_with_msg(
+                ENOENT,
+                format!(
+                    "No binding found, when substituting binding for path: {:?}",
+                    path
+                ),
             ));
         }
         let binding = maybe_binding.unwrap();
 
         // Is it a "symmetric" binding?
         if !binding.needs_substitution() {
-            return Ok(None);
+            return Ok(path.to_path_buf());
         }
 
-        Ok(binding.substitute_path_prefix(path, direction)?)
+        binding.substitute_path_prefix(path, from_side)
     }
 
     /// Substitute a binding of a canonicalized path, from `Guest` to `Host`,
@@ -49,8 +51,7 @@ impl Substitutor for FileSystem {
         &self,
         guest_path: &Path,
     ) -> Result<(PathBuf, Option<FileType>)> {
-        let substituted_path = self.substitute(guest_path, Direction(Guest, Host))?;
-        let host_path = substituted_path.unwrap_or_else(|| guest_path.to_path_buf());
+        let host_path = self.substitute(guest_path, Side::Guest)?;
 
         // Retrieves the path's metadata without going through symlinks.
         match host_path.symlink_metadata().map_err(Error::from) {
@@ -73,7 +74,8 @@ impl Substitutor for FileSystem {
                     // for now we return the same path
                     Ok((host_path, None))
                 } else {
-                    Err(Error::no_such_file_or_dir(
+                    Err(Error::errno_with_msg(
+                        ENOENT,
                         "when substituting intermediary without glue",
                     ))
                 }
@@ -99,38 +101,28 @@ mod tests {
         fs.add_binding(Binding::new("/etc", "/media", true));
 
         assert_eq!(
-            fs.substitute(&Path::new("/../../../.."), Direction(Host, Guest)),
-            Err(Error::no_such_file_or_dir(
-                "when substituting binding, no binding found",
-            ))
+            fs.substitute(&Path::new("/../../../.."), Host),
+            Err(Error::errno(ENOENT))
         ); // invalid path
 
         assert_eq!(
-            fs.substitute(&Path::new("/etc/folder/subfolder"), Direction(Host, Guest)),
-            Ok(Some(PathBuf::from("/media/folder/subfolder")))
+            fs.substitute(&Path::new("/etc/folder/subfolder"), Host),
+            Ok(PathBuf::from("/media/folder/subfolder"))
         ); // "/etc" => "/media"
 
         assert_eq!(
-            fs.substitute(
-                &Path::new("/media/folder/subfolder"),
-                Direction(Host, Guest),
-            ),
-            Err(Error::no_such_file_or_dir(
-                "when substituting binding, no binding found",
-            ))
+            fs.substitute(&Path::new("/media/folder/subfolder"), Host,),
+            Err(Error::errno(ENOENT))
         ); // the path isn't translatable to the guest fs (it's outside of the proot jail)
 
         assert_eq!(
-            fs.substitute(&Path::new("/etc/folder/subfolder"), Direction(Guest, Host)),
-            Ok(Some(PathBuf::from("/home/user/etc/folder/subfolder")))
+            fs.substitute(&Path::new("/etc/folder/subfolder"), Guest),
+            Ok(PathBuf::from("/home/user/etc/folder/subfolder"))
         ); // "/" => "/home/user"
 
         assert_eq!(
-            fs.substitute(
-                &Path::new("/media/folder/subfolder"),
-                Direction(Guest, Host),
-            ),
-            Ok(Some(PathBuf::from("/etc/folder/subfolder")))
+            fs.substitute(&Path::new("/media/folder/subfolder"), Guest,),
+            Ok(PathBuf::from("/etc/folder/subfolder"))
         ); // "/media" => "/etc"
     }
 
@@ -140,20 +132,16 @@ mod tests {
 
         fs.add_binding(Binding::new("/etc/something", "/etc/something", true));
 
+        let path = PathBuf::from("/etc/something/subfolder");
+
         assert_eq!(
-            fs.substitute(
-                &Path::new("/etc/something/subfolder"),
-                Direction(Guest, Host),
-            ),
-            Ok(None) // the binding is symmetric, so no need to modify the path
+            fs.substitute(&path, Guest),
+            Ok(path.clone()) // the binding is symmetric
         );
 
         assert_eq!(
-            fs.substitute(
-                &Path::new("/etc/something/subfolder"),
-                Direction(Host, Guest),
-            ),
-            Ok(None) // same in the other direction
+            fs.substitute(&path, Host),
+            Ok(path.clone()) // same in the other direction
         );
     }
 

@@ -19,7 +19,7 @@ will be equivalent to:
 mkdir /home/user/myfolder/
 ```
 
-Hence, you can apply `proot-rs` to a whole program in order sandbox it.
+Hence, you can apply `proot-rs` to a whole program in order to sandbox it.
 More concretely, you can for instance download a docker image, extract it,
 and run it, without needing docker:
 ```

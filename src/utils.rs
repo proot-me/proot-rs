@@ -9,6 +9,11 @@ pub mod tests {
     use nix::sys::wait::WaitStatus::*;
     use nix::sys::{ptrace, wait::WaitPidFlag};
     use nix::unistd::{fork, getpid, ForkResult, Pid};
+    use std::{
+        env,
+        ffi::OsString,
+        path::{Path, PathBuf},
+    };
 
     /// Allow tests to fork and deal with child processes without mixing them.
     fn test_in_subprocess<F: FnMut()>(mut func: F) {
@@ -29,8 +34,12 @@ pub mod tests {
     /// function (2nd arg). The parent process will wait and loop for events
     /// from the tracee (child process). It only stops when the parent
     /// function (1st arg) returns true.
-    pub fn fork_test<FuncParent: FnMut(&mut Tracee, &mut InfoBag) -> bool, FuncChild: FnMut()>(
-        fs_root: &str,
+    pub fn fork_test<
+        P: AsRef<Path>,
+        FuncParent: FnMut(&mut Tracee, &mut InfoBag) -> bool,
+        FuncChild: FnMut(),
+    >(
+        fs_root: P,
         expected_exit_signal: i8,
         mut func_parent: FuncParent,
         mut func_child: FuncChild,
@@ -39,7 +48,7 @@ pub mod tests {
             match unsafe { fork() }.expect("fork in test") {
                 ForkResult::Parent { child } => {
                     let mut info_bag = InfoBag::new();
-                    let mut tracee = Tracee::new(child, FileSystem::with_root(fs_root));
+                    let mut tracee = Tracee::new(child, FileSystem::with_root(fs_root.as_ref()));
 
                     // the parent will wait for the child's signal before calling set_ptrace_options
                     assert_eq!(
@@ -107,5 +116,18 @@ pub mod tests {
                 }
             }
         }
+    }
+
+    pub fn get_test_rootfs() -> PathBuf {
+        if let Some(val) = env::var_os("PROOT_TEST_ROOTFS") {
+            if !val.is_empty() {
+                let path = Path::new(val.as_os_str());
+                if path.exists() && path.metadata().unwrap().is_dir() {
+                    return std::fs::canonicalize(path).unwrap();
+                }
+                panic!("The guest rootfs path is invalid: {:?}", val);
+            }
+        }
+        panic!("Unknown guest rootfs path: Please set the environment variable PROOT_TEST_ROOTFS to the path of the guest rootfs")
     }
 }

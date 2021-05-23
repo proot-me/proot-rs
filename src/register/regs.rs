@@ -318,7 +318,7 @@ impl fmt::Display for Registers {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::utils::tests::fork_test;
+    use crate::utils::tests::{fork_test, get_test_rootfs};
     use nix::unistd::{execvp, Pid};
     use sc::nr::{CLOCK_NANOSLEEP, NANOSLEEP};
     use std::ffi::CString;
@@ -344,8 +344,10 @@ mod tests {
 
     #[test]
     fn test_fetch_regs_test() {
+        let rootfs_path = get_test_rootfs();
+
         fork_test(
-            "/",
+            rootfs_path,
             // expecting a normal execution
             0,
             // parent
@@ -371,8 +373,10 @@ mod tests {
     /// the test is a success if the NANOSLEEP syscall is detected (with its
     /// corresponding signum).
     fn test_fetch_regs_sysnum_sleep_test() {
+        let rootfs_path = get_test_rootfs();
+
         fork_test(
-            "/",
+            rootfs_path,
             // expecting a normal execution
             0,
             // parent
@@ -397,10 +401,11 @@ mod tests {
     /// It fails if the syscall is not cancelled (and in this case it will wait
     /// for 9999 secs), or if the tracee returns abruptly.
     fn test_push_regs_void_sysnum_sleep_test() {
+        let rootfs_path = get_test_rootfs();
         let mut sleep_exit = false;
 
         fork_test(
-            "/",
+            rootfs_path,
             // expecting a normal execution
             0,
             // parent

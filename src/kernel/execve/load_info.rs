@@ -276,11 +276,14 @@ mod tests {
     use crate::errors::Error;
     use crate::filesystem::FileSystem;
     use crate::register::Word;
+    use crate::utils::tests::get_test_rootfs;
     use std::path::PathBuf;
 
     #[test]
     fn test_load_info_from_invalid_path() {
-        let fs = FileSystem::with_root("/");
+        let rootfs_path = get_test_rootfs();
+
+        let fs = FileSystem::with_root(rootfs_path);
         let result = LoadInfo::from(&fs, &PathBuf::from("/../../.."));
 
         assert!(result.is_err());
@@ -289,16 +292,20 @@ mod tests {
 
     #[test]
     fn test_load_info_from_path_not_executable() {
-        let fs = FileSystem::with_root("/");
-        let result = LoadInfo::from(&fs, &PathBuf::from("/etc/hostname"));
+        let rootfs_path = get_test_rootfs();
+
+        let fs = FileSystem::with_root(&rootfs_path);
+        let result = LoadInfo::from(&fs, &rootfs_path.join("etc/passwd"));
 
         assert_eq!(Err(Error::errno(ENOEXEC)), result);
     }
 
     #[test]
     fn test_load_info_from_path_has_mappings() {
-        let fs = FileSystem::with_root("/");
-        let result = LoadInfo::from(&fs, &PathBuf::from("/bin/sleep"));
+        let rootfs_path = get_test_rootfs();
+
+        let fs = FileSystem::with_root(&rootfs_path);
+        let result = LoadInfo::from(&fs, &rootfs_path.join("bin/sleep"));
 
         assert!(result.is_ok());
 
@@ -309,8 +316,10 @@ mod tests {
 
     #[test]
     fn test_load_info_from_path_has_interp() {
-        let fs = FileSystem::with_root("/");
-        let result = LoadInfo::from(&fs, &PathBuf::from("/bin/sleep"));
+        let rootfs_path = get_test_rootfs();
+
+        let fs = FileSystem::with_root(&rootfs_path);
+        let result = LoadInfo::from(&fs, &rootfs_path.join("bin/sleep"));
 
         assert!(result.is_ok());
 
@@ -327,8 +336,10 @@ mod tests {
     #[test]
     #[cfg(all(target_os = "linux", any(target_arch = "x86_64")))]
     fn test_load_info_compute_load_addresses() {
-        let fs = FileSystem::with_root("/");
-        let result = LoadInfo::from(&fs, &PathBuf::from("/bin/sleep"));
+        let rootfs_path = get_test_rootfs();
+
+        let fs = FileSystem::with_root(&rootfs_path);
+        let result = LoadInfo::from(&fs, &rootfs_path.join("bin/sleep"));
         let load_info = result.unwrap();
         let mut interp = load_info.interp.unwrap();
 

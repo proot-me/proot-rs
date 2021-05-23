@@ -39,11 +39,15 @@ pub struct Binding {
 impl Binding {
     //TODO: return Option<Binding> and make checks (test existence if must_exist,
     // sanitize, canon..)
-    pub fn new(host: &str, guest: &str, must_exist: bool) -> Binding {
+    pub fn new<P1, P2>(host: P1, guest: P2, must_exist: bool) -> Binding
+    where
+        P1: AsRef<Path>,
+        P2: AsRef<Path>,
+    {
         Binding {
-            host: PathBuf::from(host),
-            guest: PathBuf::from(guest),
-            need_substitution: !host.eq(guest),
+            host: PathBuf::from(host.as_ref()),
+            guest: PathBuf::from(guest.as_ref()),
+            need_substitution: !host.as_ref().eq(guest.as_ref()),
             _must_exist: must_exist,
         }
     }
@@ -96,6 +100,7 @@ impl Binding {
 mod tests {
     use super::Side::{Guest, Host};
     use super::*;
+    use crate::utils::tests::get_test_rootfs;
     use std::path::PathBuf;
 
     #[test]

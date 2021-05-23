@@ -18,6 +18,9 @@ impl Initialiser for FileSystem {
     fn initialize_cwd(&mut self) -> Result<()> {
         // Prepare the base in case cwd is relative.
         let mut raw_cwd = match self.get_cwd().is_relative() {
+            // FIXME: This will crash when get_cwd() is a relative path. Because
+            // nix::unistd::getcwd() returns a host path, which will result in `raw_cwd`
+            // also being a host path. This problem also exists in proot written in C.
             true => getcwd()?,
             false => PathBuf::new(),
         };
@@ -51,17 +54,18 @@ impl Initialiser for FileSystem {
 mod tests {
     use super::*;
     use crate::filesystem::FileSystem;
-    use std::path::PathBuf;
+    use crate::utils::tests::get_test_rootfs;
+    use std::path::{Path, PathBuf};
 
     #[test]
     fn test_initialisation_cwd_invalid_should_default_to_root() {
-        let mut fs = FileSystem::with_root("/");
+        let mut fs = FileSystem::with_root(get_test_rootfs());
 
         fs.set_cwd(PathBuf::from("/my/impossible/cwd"));
 
         assert_eq!(Ok(()), fs.initialize_cwd());
 
-        // the cwd must have defaulted to "/"
+        // because the `cwd` we set is not existed, the cwd must have defaulted to "/"
         assert!(fs.get_cwd().is_absolute());
         assert!(fs.get_cwd().exists());
         assert_eq!(&PathBuf::from("/"), fs.get_cwd());
@@ -69,29 +73,31 @@ mod tests {
 
     #[test]
     fn test_initialisation_cwd_absolute() {
-        let mut fs = FileSystem::with_root("/");
+        let mut fs = FileSystem::with_root(get_test_rootfs());
 
-        fs.set_cwd(PathBuf::from("/usr/bin"));
+        fs.set_cwd(PathBuf::from("/bin"));
 
         assert_eq!(Ok(()), fs.initialize_cwd());
 
+        // because the value of cwd is `/bin`, and ${rootfs}/bin exists, so the cwd need
+        // not to be reset to "/".
         assert!(fs.get_cwd().is_absolute());
         assert!(fs.get_cwd().exists());
-        assert_eq!(&PathBuf::from("/usr/bin"), fs.get_cwd());
+        assert_eq!(&PathBuf::from("/bin"), fs.get_cwd());
     }
 
     #[test]
     fn test_initialisation_cwd_relative() {
-        let mut fs = FileSystem::with_root("/");
-        let real_cwd = getcwd().unwrap();
+        let rootfs_path = get_test_rootfs();
+        let mut fs = FileSystem::with_root(rootfs_path.as_path());
+        // let real_cwd = getcwd().unwrap();
 
         fs.set_cwd(PathBuf::from("./.."));
 
-        // the cwd should be canonicalized and verified
+        // the cwd should be reset to default value "/"
         assert_eq!(Ok(()), fs.initialize_cwd());
 
         assert!(fs.get_cwd().is_absolute());
-        assert!(fs.get_cwd().exists());
-        assert_eq!(real_cwd.parent().unwrap(), fs.get_cwd());
+        assert_eq!(Path::new("/"), fs.get_cwd());
     }
 }

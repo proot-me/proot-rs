@@ -288,23 +288,27 @@ fn extract(host_path: &Path) -> Result<Option<PathBuf>> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::filesystem::FileSystem;
+    use crate::{filesystem::FileSystem, utils::tests::get_test_rootfs};
     use std::path::PathBuf;
 
     #[test]
     fn test_extract_shebang_not_script() {
+        let rootfs_path = get_test_rootfs();
+
         // it should detect that `/bin/sleep` is not a script
-        assert_eq!(Ok(None), extract(&PathBuf::from("/bin/sleep")));
+        assert_eq!(Ok(None), extract(&rootfs_path.join("bin/sleep")));
     }
 
     #[test]
     fn test_expand_shebang_not_script() {
-        let fs = FileSystem::with_root("/");
+        let rootfs_path = get_test_rootfs();
+
+        let fs = FileSystem::with_root(&rootfs_path);
 
         // it should detect that `/etc/hostname` has no shebang
         assert_eq!(
-            Ok(PathBuf::from("/etc/hostname")),
-            expand(&fs, &PathBuf::from("/etc/hostname"))
+            Ok(rootfs_path.join("etc/passwd")),
+            expand(&fs, &PathBuf::from("/etc/passwd"))
         );
     }
 }

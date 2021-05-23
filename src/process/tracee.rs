@@ -147,8 +147,8 @@ impl Tracee {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::filesystem::FileSystem;
     use crate::utils::tests::fork_test;
+    use crate::{filesystem::FileSystem, utils::tests::get_test_rootfs};
     use nix::unistd::Pid;
 
     #[test]
@@ -163,8 +163,10 @@ mod tests {
     /// as using `ptrace(PTRACE_SETOPTIONS)` without preparation results in a
     /// Sys(ESRCH) error.
     fn create_set_ptrace_options() {
+        let rootfs_path = get_test_rootfs();
+
         fork_test(
-            "/",
+            rootfs_path,
             // expecting a normal execution
             0,
             // parent

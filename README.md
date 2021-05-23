@@ -52,7 +52,27 @@ cargo build --release
 ```
 
 ## Tests
-Simply run:
+
+Typically, we need to specify a new rootfs path for testing proot-rs. You can use the script we provided to create one:
+
+```sh
+# This will create a busybox-based temporary rootfs at ./rootfs/
+bash scripts/create_rootfs_directory.sh ./rootfs/
+```
+
+Then set an environment variable `PROOT_TEST_ROOTFS` so the test program can find it:
+
+```sh
+export PROOT_TEST_ROOTFS=./rootfs/
+```
+
+If you want to use the same rootfs as the host, just set it to `/`:
+
+```sh
+export PROOT_TEST_ROOTFS=/
+```
+
+Start running tests:
 ```
 cargo test
 ```

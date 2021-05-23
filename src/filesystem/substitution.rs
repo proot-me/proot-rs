@@ -91,6 +91,7 @@ mod tests {
     use crate::filesystem::binding::Binding;
     use crate::filesystem::binding::Side::{Guest, Host};
     use crate::filesystem::FileSystem;
+    use crate::utils::tests::get_test_rootfs;
     use std::path::{Path, PathBuf};
 
     #[test]
@@ -147,14 +148,15 @@ mod tests {
 
     #[test]
     fn test_substitute_intermediary_and_glue() {
-        let mut fs = FileSystem::with_root("/usr/bin");
+        let rootfs_path = get_test_rootfs();
+        let mut fs = FileSystem::with_root(PathBuf::from(rootfs_path.as_path()).join("bin"));
 
         // testing a folder
         let (path, file_type) = fs
             .substitute_intermediary_and_glue(&Path::new("/sleep"))
             .expect("no error");
 
-        assert_eq!(path, PathBuf::from("/usr/bin/sleep")); // "/" => "/usr/bin/"
+        assert_eq!(path, PathBuf::from(rootfs_path).join("bin/sleep")); // "/" => "/usr/bin/"
         assert!(file_type.unwrap().is_file());
 
         fs.add_binding(Binding::new("/bin", "/bin", true));
@@ -173,6 +175,6 @@ mod tests {
             .expect("no error");
 
         assert_eq!(path_3, PathBuf::from("/bin/true")); // same here
-        assert!(file_type_3.unwrap().is_file());
+        assert!(file_type_3.unwrap().is_file() || file_type_3.unwrap().is_symlink());
     }
 }

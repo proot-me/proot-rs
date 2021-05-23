@@ -39,4 +39,9 @@ jobs:
     - name: Build
       run: cargo build --verbose
     - name: Run tests
-      run: cargo test --verbose
+      shell: bash
+      run: |
+        # Setup rootfs
+        bash scripts/create_rootfs_directory.sh ./rootfs
+        # Run cargo test
+        PROOT_TEST_ROOTFS=./rootfs cargo test --verbose

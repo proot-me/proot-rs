@@ -129,14 +129,14 @@ mod tests {
     use super::*;
     use crate::filesystem::binding::Binding;
     use crate::filesystem::FileSystem;
+    use crate::utils::tests::get_test_rootfs;
     use nix::sys::stat::Mode;
     use std::path::PathBuf;
 
     #[test]
     fn test_canonicalize_invalid_path() {
-        // "/home/user" on the host, "/" on the guest
-        let fs = FileSystem::with_root("/home/user");
-        let path = PathBuf::from("/my/impossible/path");
+        let fs = FileSystem::with_root(get_test_rootfs());
+        let path = PathBuf::from("/impossible_path");
 
         assert_eq!(
             fs.canonicalize(&path, false),
@@ -146,22 +146,22 @@ mod tests {
 
     #[test]
     fn test_canonicalize_path_traversal() {
-        let fs = FileSystem::with_root("/usr");
+        let fs = FileSystem::with_root(get_test_rootfs());
 
-        let path = PathBuf::from("/../usr/bin");
-        // should be failed, because no /usr/usr/bin on host
+        let path = PathBuf::from("/../impossible_path");
+        // should be failed, because ${rootfs}/impossible_path does not exist on host
         assert_eq!(
             fs.canonicalize(&path, false),
             Err(Error::errno(Errno::ENOENT))
         );
-        // should be ok, because /usr/bin exist on host
+        // should be ok, because ${rootfs}/etc exists on host
         let path = PathBuf::from("/../bin");
         assert_eq!(fs.canonicalize(&path, false), Ok(PathBuf::from("/bin")));
     }
     #[test]
     fn test_canonicalize_normal_path() {
-        // "/etc" on the host, "/" on the guest
-        let mut fs = FileSystem::with_root("/usr");
+        let mut rootfs_path = get_test_rootfs();
+        let mut fs = FileSystem::with_root(rootfs_path.as_path());
 
         assert_eq!(
             fs.canonicalize(&PathBuf::from("/bin/./../bin//sleep"), false)
@@ -175,10 +175,16 @@ mod tests {
             PathBuf::from("/")
         );
 
-        fs.set_root("/etc");
-        fs.add_binding(Binding::new("/usr/bin", "/bin", true));
+        // change new root to ${rootfs}/etc
+        let mut new_rootfs_path = rootfs_path.clone();
+        new_rootfs_path.push("etc");
+        fs.set_root(new_rootfs_path);
 
-        // necessary, because nor "/bin" nor "/home" exist in "/etc"
+        // add binding from ${rootfs}/bin to /bin
+        rootfs_path.push("bin");
+        fs.add_binding(Binding::new(rootfs_path, "/bin", true));
+
+        // necessary, because nor "/bin" nor "/home" exist in "${rootfs}/etc"
         fs.set_glue_type(Mode::S_IRWXU | Mode::S_IRWXG | Mode::S_IRWXO);
 
         assert_eq!(
@@ -190,13 +196,14 @@ mod tests {
 
     #[test]
     fn test_canonicalize_no_root_normal_path() {
-        let mut fs = FileSystem::with_root("/");
+        let mut fs = FileSystem::with_root(get_test_rootfs());
 
-        // should be ok, because /home, /, /bin/, /bin/sleep are all exist on host
+        // should be ok, because ${rootfs}/home, ${rootfs}/, ${rootfs}/bin/,
+        // ${rootfs}/bin/sleep are all exist on host
         assert_eq!(
-            fs.canonicalize(&PathBuf::from("/home/../etc/./../etc/hostname"), false)
+            fs.canonicalize(&PathBuf::from("/home/../etc/./../etc/passwd"), false)
                 .unwrap(),
-            PathBuf::from("/etc/hostname")
+            PathBuf::from("/etc/passwd")
         );
 
         // necessary, because nor "/test" probably doesn't exist
@@ -211,12 +218,16 @@ mod tests {
 
     #[test]
     fn test_canonicalize_symlink_not_deref() {
-        // "/bin" on the host, "/" on the guest
-        let fs = FileSystem::with_root("/bin");
+        let fs = FileSystem::with_root(get_test_rootfs());
 
+        // "${rootfs}/lib64" is a symlink to "lib"
         assert_eq!(
-            fs.canonicalize(&PathBuf::from("/sh"), false).unwrap(),
-            PathBuf::from("/sh")
-        ); // "/sh" is a symlink, and is not dereferenced
+            fs.canonicalize(&PathBuf::from("/lib64"), false).unwrap(),
+            PathBuf::from("/lib64")
+        );
+        assert_eq!(
+            fs.canonicalize(&PathBuf::from("/lib64"), true).unwrap(),
+            PathBuf::from("/lib")
+        );
     }
 }

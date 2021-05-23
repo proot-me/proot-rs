@@ -30,7 +30,7 @@ impl FileSystem {
     }
 
     #[cfg(test)]
-    pub fn with_root(root: &str) -> FileSystem {
+    pub fn with_root<P: AsRef<Path>>(root: P) -> FileSystem {
         let mut file_system = FileSystem::new();
 
         file_system.set_root(root);
@@ -117,8 +117,8 @@ impl FileSystem {
     }
 
     #[inline]
-    pub fn set_root(&mut self, root: &str) {
-        self.root = PathBuf::from(root);
+    pub fn set_root<P: AsRef<Path>>(&mut self, root: P) {
+        self.root = root.as_ref().into();
         self.add_binding(Binding::new(root, "/", true));
     }
 
@@ -143,10 +143,14 @@ mod tests {
     use super::*;
     use crate::filesystem::binding::Binding;
     use crate::filesystem::binding::Side::{Guest, Host};
+    use crate::utils::tests::get_test_rootfs;
     use std::path::{Path, PathBuf};
 
+    // TODO: consider remove this test
     #[test]
     fn test_fs_belongs_to_guestfs() {
+        // this test does not trigger real file access, so we do not call
+        // `get_test_rootfs()` here.
         let fs = FileSystem::with_root("/etc");
 
         assert_eq!(fs.belongs_to_guestfs(Path::new("/etc")), true);
@@ -158,6 +162,9 @@ mod tests {
 
     #[test]
     fn test_fs_get_binding() {
+        // this test does not trigger real file access, so we do not call
+        // `get_test_rootfs()` here.
+
         let mut fs = FileSystem::new();
 
         assert!(fs
@@ -223,7 +230,7 @@ mod tests {
 
     #[test]
     fn test_fs_is_path_executable() {
-        let fs = FileSystem::with_root("/");
+        let fs = FileSystem::with_root(get_test_rootfs());
 
         assert!(fs.is_path_executable(&PathBuf::from("/bin/sleep")).is_ok());
         assert!(fs.is_path_executable(&PathBuf::from("/../sleep")).is_err());

@@ -99,18 +99,22 @@ pub fn translate(tracee: &mut Tracee, loader: &dyn LoaderFile) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::register::{Current, PtraceReader};
     use crate::utils::tests::fork_test;
+    use crate::{
+        register::{Current, PtraceReader},
+        utils::tests::get_test_rootfs,
+    };
     use nix::unistd::execvp;
     use sc::nr::{EXECVE, NANOSLEEP};
     use std::ffi::CString;
 
     #[test]
     fn test_execve_translate_enter() {
+        let rootfs_path = get_test_rootfs();
         let mut at_least_one_translation_occured = false;
 
         fork_test(
-            "/",
+            rootfs_path,
             // expecting a normal execution
             0,
             // parent

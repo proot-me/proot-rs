@@ -1,0 +1,10 @@
+version: "3"
+services:
+  proot-rs:
+    container_name: proot-rs
+    hostname: proot-rs
+    build: .
+    image: proot/proot-rs:latest
+    volumes:
+      - ~/src/proot-rs/:/usr/src/proot-rs
+

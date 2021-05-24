@@ -9,14 +9,10 @@
 
 PROOT_TEST_ROOTFS="./rootfs"
 
-while getopts ":d" opt; do
+while getopts "d:" opt; do
   case $opt in
     d)
       PROOT_TEST_ROOTFS="${OPTARG}"
-      ;;
-    :)
-      echo "Option -${OPTARG} requires an argument"
-      exit 1
       ;;
     *)
       echo "Invalid option"

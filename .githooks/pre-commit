@@ -1,7 +1,7 @@
 #!/bin/bash
 
-echo "Starting check shell code format ..."
-find . -name "*.sh" -exec shellcheck {} \;
+echo "Starting check shell code issues ..."
+find . -name "*.sh" | xargs --no-run-if-empty shellcheck || exit 1
 
 echo "Starting check Rust code format ..."
 has_issues=0

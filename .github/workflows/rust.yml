@@ -42,6 +42,6 @@ jobs:
       shell: bash
       run: |
         # Setup rootfs
-        bash scripts/create_rootfs_directory.sh ./rootfs
+        bash scripts/mkrootfs.sh
         # Run cargo test
         PROOT_TEST_ROOTFS=./rootfs cargo test --verbose

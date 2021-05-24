@@ -1,5 +1,8 @@
 #!/bin/bash
 
+echo "Starting check shell code format ..."
+find . -name "*.sh" -exec shellcheck {} \;
+
 echo "Starting check Rust code format ..."
 has_issues=0
 edition=2018

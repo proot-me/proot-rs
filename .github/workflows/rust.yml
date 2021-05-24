@@ -37,7 +37,7 @@ jobs:
         git fetch origin "${before_commit}" --depth=1
 
         # Run Shell code issues check
-        git diff --name-only "${before_commit}".."${after_commit}" | grep '\.rs$' | xargs --no-run-if-empty ls -1df 2>/dev/null | xargs --no-run-if-empty shellcheck || { echo "shell check failed and exit"; exit 1; }
+        git diff --name-only "${before_commit}".."${after_commit}" | grep '\.sh$' | xargs --no-run-if-empty ls -1df 2>/dev/null | xargs --no-run-if-empty shellcheck || { echo "shell check failed and exit"; exit 1; }
         echo 'Shell code issues check passed.'
 
         # Run Rust code formatting check

@@ -1,17 +1,17 @@
 #!/bin/bash
 
 echo "Starting check shell code issues ..."
-find . -name "*.sh" | xargs --no-run-if-empty shellcheck || exit 1
+find . -name "*.sh" -print0 | xargs -0 --no-run-if-empty shellcheck || exit 1
 
 echo "Starting check Rust code format ..."
 has_issues=0
 edition=2018
 
 for file in $(git diff --name-only --staged | grep '\.rs$'); do
-    if [ -f ${file} ] && ! rustfmt --edition ${edition} --check --color auto ${file}; then
+    if [ -f "${file}" ] && ! rustfmt --edition ${edition} --check --color auto "${file}"; then
         echo ""
         has_issues=1
-        rustfmt --edition ${edition} ${file}
+        rustfmt --edition ${edition} "${file}"
     fi
 done
 
@@ -19,5 +19,5 @@ if [ ${has_issues} -eq 0 ]; then
     exit 0
 fi
 
-echo 'Your code contains formatting issues and has been corrected. Please run `git add` to add them and commit them.'
+echo "Your code contains formatting issues and has been corrected. Please run \`git add\` to add them and commit them."
 exit 1

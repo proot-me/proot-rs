@@ -21,9 +21,8 @@ use crate::{
 /// `Configuration`?
 #[derive(Debug)]
 pub struct InfoBag {
-    /// Used to know if the first raw sigtrap has been processed
-    /// (and if the `set_ptrace_options` step is required).
-    pub deliver_sigtrap: bool,
+    /// Used to know if the ptrace options is already set
+    pub options_already_set: bool,
     /// Binary loader, used by `execve`.
     /// The content of the binary is actually inlined in `proot-rs`
     /// (see `src/kernel/execve/loader`), and is extracted into a temporary file
@@ -35,7 +34,7 @@ pub struct InfoBag {
 impl InfoBag {
     pub fn new() -> InfoBag {
         InfoBag {
-            deliver_sigtrap: false,
+            options_already_set: false,
             loader: TempFile::new("prooted"),
         }
     }
@@ -146,10 +145,14 @@ impl PRoot {
                     let tracee = self.tracees.get_mut(&pid).expect("get stopped tracee");
                     tracee.reset_restart_how();
                     match stop_signal {
-                        Signal::SIGSTOP => tracee.handle_sigstop_event(),
+                        Signal::SIGSTOP => {
+                            // When the first child process starts, it sends a SIGSTOP to itself.
+                            // And we need to set ptrace options at this point.
+                            tracee.check_and_set_ptrace_options(&mut self.info_bag)?;
+
+                            tracee.handle_sigstop_event()
+                        }
                         Signal::SIGTRAP => {
-                            // it's the initial SIGTRAP signal
-                            tracee.set_ptrace_options(&mut self.info_bag);
                             // Since PTRACE_O_TRACESYSGOOD is not supported on older versions of
                             // Linux (version<2.4.6) and some architectures, we need to use
                             // PTRACE_GETSIGINFO to distinguish a real syscall-stop from
@@ -171,7 +174,6 @@ impl PRoot {
                     tracee.restart();
                 }
                 // The tracee was stopped by a SIGTRAP with additional status (PTRACE_EVENT stops).
-                // In this case, the status should be (SIGTRAP | PTRACE_EVENT_foo << 8).
                 PtraceEvent(pid, signal, status_additional) => {
                     trace!(
                         "-- {}, Ptrace event, {:?}, {:?}",

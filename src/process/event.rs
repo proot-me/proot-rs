@@ -42,7 +42,7 @@ impl EventHandler for Tracee {
     }
 
     fn handle_sigstop_event(&mut self) {
-        println!("sigstop! {}", self.pid);
+        debug!("sigstop! {}", self.pid);
 
         // Stop this tracee until PRoot has received
         // the EVENT_*FORK|CLONE notification.
@@ -54,14 +54,14 @@ impl EventHandler for Tracee {
     }
 
     fn handle_seccomp_event(&mut self, info_bag: &mut InfoBag, signal: PtraceEvent) {
-        println!("seccomp event! {:?}, {:?}", info_bag, signal);
+        debug!("seccomp event! {:?}, {:?}", info_bag, signal);
     }
 
     fn handle_exec_vfork_event(&mut self) {
-        println!("EXEC or VFORK event");
+        debug!("EXEC or VFORK event");
     }
 
     fn handle_new_child_event(&mut self, event: PtraceEvent) {
-        println!("new child: {:?}", event);
+        debug!("new child: {:?}", event);
     }
 }

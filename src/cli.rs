@@ -35,7 +35,7 @@ pub fn parse_config() -> (FileSystem, Vec<String>) {
             .multiple(true))
         .get_matches();
 
-    dbg!(&matches);
+    debug!("proot-rs startup with args:\n{:#?}", matches);
 
     // option -r
     let rootfs: &str = matches.value_of("rootfs").unwrap();

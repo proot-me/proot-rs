@@ -56,7 +56,9 @@ pub mod tests {
                             .expect("event loop waitpid"),
                         Stopped(child, SIGSTOP)
                     );
-                    tracee.set_ptrace_options(&mut info_bag);
+                    tracee
+                        .check_and_set_ptrace_options(&mut info_bag)
+                        .expect("error when set ptrace options");
 
                     restart(child);
 

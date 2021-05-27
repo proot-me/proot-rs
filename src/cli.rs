@@ -7,7 +7,9 @@ use std::path::PathBuf;
 pub const DEFAULT_ROOTFS: &'static str = "/";
 pub const DEFAULT_CWD: &'static str = ".";
 
-pub fn parse_config(fs: &mut FileSystem) {
+pub fn parse_config() -> (FileSystem, Vec<String>) {
+    let mut fs: FileSystem = FileSystem::new();
+
     let matches = App::new("proot-rsc")
         .arg(Arg::with_name("rootfs")
             .short("r")
@@ -29,7 +31,11 @@ pub fn parse_config(fs: &mut FileSystem) {
             .help("Set the initial working directory to *path*.")
             .takes_value(true)
             .default_value(DEFAULT_CWD))
+        .arg(Arg::with_name("command")
+            .multiple(true))
         .get_matches();
+
+    dbg!(&matches);
 
     // option -r
     let rootfs: &str = matches.value_of("rootfs").unwrap();
@@ -49,4 +55,12 @@ pub fn parse_config(fs: &mut FileSystem) {
     // option -w
     let cwd: &str = matches.value_of("cwd").unwrap();
     fs.set_cwd(PathBuf::from(cwd));
+
+    // command
+    let command: Vec<String> = match matches.values_of("command") {
+        Some(values) => values.map(|s| s.into()).collect(),
+        None => ["/bin/sh".into()].into(),
+    };
+
+    (fs, command)
 }

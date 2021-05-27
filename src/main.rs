@@ -28,9 +28,8 @@ use std::process::exit;
 
 fn run() -> Result<()> {
     // step 1: CLI parsing
-    let mut fs: FileSystem = FileSystem::new();
 
-    cli::parse_config(&mut fs);
+    let (mut fs, command) = cli::parse_config();
 
     if let Err(error) = fs.initialize() {
         error!("Error during file system initialization: {}", error);
@@ -40,7 +39,7 @@ fn run() -> Result<()> {
     let mut proot: PRoot = PRoot::new();
 
     // step 2: Start the first tracee
-    proot.launch_process(fs);
+    proot.launch_process(fs, command)?;
 
     // what follows (event loop) is only for the main thread,
     // as the child thread will stop after executing the `kernel.execve` command

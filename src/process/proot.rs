@@ -1,26 +1,21 @@
-use crate::filesystem::temp::TempFile;
-use crate::filesystem::FileSystem;
-use crate::process::event::EventHandler;
-use crate::process::tracee::Tracee;
 use std::ffi::CString;
+use std::os::unix::prelude::OsStrExt;
+use std::path::Path;
+use std::process;
 use std::{collections::HashMap, convert::TryFrom};
 
-// libc
 use libc::{c_int, c_void, pid_t, siginfo_t};
-// signals
-use nix::sys::{
-    signal::{kill, Signal},
-    wait::WaitPidFlag,
+use nix::sys::ptrace::{self, Event as PtraceEvent};
+use nix::sys::signal::{self, Signal};
+use nix::sys::wait::{self, WaitPidFlag, WaitStatus::*};
+use nix::unistd::{self, ForkResult, Pid};
+
+use crate::process::event::EventHandler;
+use crate::process::tracee::Tracee;
+use crate::{
+    errors::{Result, WithContext},
+    filesystem::{temp::TempFile, FileSystem},
 };
-use nix::unistd::Pid;
-// ptrace
-use nix::sys::ptrace;
-// fork
-use nix::unistd::{execvp, fork, getpid, ForkResult};
-// event loop
-use nix::sys::ptrace::Event as PtraceEvent;
-use nix::sys::wait;
-use nix::sys::wait::WaitStatus::*;
 
 /// Used to store global info common to all tracees. Rename into
 /// `Configuration`?
@@ -71,69 +66,82 @@ impl PRoot {
     /// on all the shared memory of the parent and child processes
     /// (heap, libraries...), so both of them will have their own (owned)
     /// version of the PRoot memory.
-    pub fn launch_process(&mut self, initial_fs: FileSystem) {
-        match unsafe { fork() }.expect("fork in launch process") {
+    pub fn launch_process(&mut self, initial_fs: FileSystem, command: Vec<String>) -> Result<()> {
+        // parse command
+        assert!(command.len() > 0); // TODO: remove this
+        let args = command
+            .iter()
+            .map(|arg| {
+                CString::new(arg.as_bytes()).with_context(|| {
+                    format!("Illegal parameters, should not contain \0 bytes: {}", arg)
+                })
+            })
+            .collect::<Result<Vec<_>>>()?;
+        let filename = &args[0];
+        match unsafe { unistd::fork() }.context("Failed to fork() when starting process")? {
             ForkResult::Parent { child } => {
                 // we create the first tracee
                 self.create_tracee(child, initial_fs);
             }
             ForkResult::Child => {
-                // Declare the tracee as ptraceable
-                ptrace::traceme().expect("ptrace traceme");
+                let init_child_func = || -> Result<()> {
+                    // Declare the tracee as ptraceable
+                    ptrace::traceme()
+                        .context("Failed to execute ptrace::traceme() in a child process")?;
+                    // Synchronise with the parent's event loop by waiting until it's ready
+                    // (otherwise the execvp is executed too quickly)
+                    signal::kill(unistd::getpid(), Signal::SIGSTOP)
+                        .context("Child process failed to synchronize with parent process")?;
+                    //TODO: seccomp
+                    //if (getenv("PROOT_NO_SECCOMP") == NULL)
+                    //    (void) enable_syscall_filtering(tracee);
+                    unistd::execvp(&filename, &args).with_context(|| {
+                        format!("Failed to call with execvp() with command: {:?}", command)
+                    })?;
+                    unreachable!()
+                };
 
-                // Synchronise with the parent's event loop by waiting until it's ready
-                // (otherwise the execvp is executed too quickly)
-                kill(getpid(), Signal::SIGSTOP).expect("first child synchronisation");
-
-                //TODO: seccomp
-                //if (getenv("PROOT_NO_SECCOMP") == NULL)
-                //    (void) enable_syscall_filtering(tracee);
-
-                execvp(
-                    &CString::new("sleep").unwrap(),
-                    &[CString::new(".").unwrap(), CString::new("0").unwrap()],
-                )
-                .expect("failed execvp sleep");
-                //execvp(&CString::new("echo").unwrap(),
-                // &[CString::new(".").unwrap(), CString::new("
-                // TRACEE ECHO").unwrap()])    .expect("failed
-                // execvp echo"); execvp(&CString::new("ls").
-                // unwrap(), &[CString::new(".").unwrap()])
-                //   .expect("failed execvp ls");
-                //TODO: cli must handle command, or use 'sh' as default (like
-                // proot) execvp(tracee->exe, argv[0] != NULL ?
-                // argv : default_argv);
+                if let Err(e) = init_child_func() {
+                    error!("Failed to initialize the child process: {}", e);
+                    // Ensure that child processes will not return to the main function
+                    process::exit(1);
+                }
             }
-        }
+        };
+        Ok(())
     }
 
     /// Infinite loop where PRoot will wait for tracees signals with `waitpid`.
     /// Tracees will be stopped when they use a system call.
     /// The tracer will be notified through `waitpid` and will be able to alter
     /// the parameters of the system call, before restarting the tracee.
-    pub fn event_loop(&mut self) {
+    pub fn event_loop(&mut self) -> Result<()> {
+        // TODO: what should we do if there is a terrible error in eventloop?
         while !self.alive_tracees.is_empty() {
             match wait::waitpid(Pid::from_raw(-1), Some(WaitPidFlag::__WALL))
-                .expect("event loop waitpid")
+                .context("Error calling waitpid() in event loop")?
             {
                 Exited(pid, exit_status) => {
-                    println!("-- {}, Exited with status: {}", pid, exit_status);
+                    trace!("-- {}, Exited with status: {}", pid, exit_status);
                     self.register_tracee_finished(pid);
                 }
                 Signaled(pid, term_signal, dumped_core) => {
-                    println!(
+                    trace!(
                         "-- {}, Signaled with status: {:?}, and dump core: {}",
-                        pid, term_signal, dumped_core
+                        pid,
+                        term_signal,
+                        dumped_core
                     );
                     self.register_tracee_finished(pid);
                 }
                 // The tracee was stopped by a normal signal (signal-delivery-stop), or was stopped
-                // by a system call (syscall-stop) with PTRACE_O_TRACESYSGOOD not effect. We can
-                // use PTRACE_GETSIGINFO to distinguish the second situation.
+                // by a system call (syscall-stop) with PTRACE_O_TRACESYSGOOD not effect.
                 Stopped(pid, stop_signal) => {
-                    println!(
+                    trace!(
                         "-- {}, Stopped, {:?}, {}",
-                        pid, stop_signal, stop_signal as c_int
+                        pid,
+                        stop_signal,
+                        stop_signal as c_int
                     );
                     let tracee = self.tracees.get_mut(&pid).expect("get stopped tracee");
                     tracee.reset_restart_how();
@@ -142,8 +150,12 @@ impl PRoot {
                         Signal::SIGTRAP => {
                             // it's the initial SIGTRAP signal
                             tracee.set_ptrace_options(&mut self.info_bag);
-                            // Use PTRACE_GETSIGINFO to distinguish a real syscall-stop. see
-                            // ptrace(2): Syscall-stops
+                            // Since PTRACE_O_TRACESYSGOOD is not supported on older versions of
+                            // Linux (version<2.4.6) and some architectures, we need to use
+                            // PTRACE_GETSIGINFO to distinguish a real syscall-stop from
+                            // signal-delivery-stop on these devices.
+                            // NOTE: this may be somewhat expensive.
+                            // See ptrace(2): Syscall-stops
                             if let Ok(siginfo) = ptrace::getsiginfo(pid) {
                                 if siginfo.si_code == Signal::SIGTRAP as i32
                                     || siginfo.si_code == (Signal::SIGTRAP as i32 | 0x80)
@@ -161,9 +173,11 @@ impl PRoot {
                 // The tracee was stopped by a SIGTRAP with additional status (PTRACE_EVENT stops).
                 // In this case, the status should be (SIGTRAP | PTRACE_EVENT_foo << 8).
                 PtraceEvent(pid, signal, status_additional) => {
-                    println!(
+                    trace!(
                         "-- {}, Ptrace event, {:?}, {:?}",
-                        pid, signal, status_additional
+                        pid,
+                        signal,
+                        status_additional
                     );
                     let tracee = self.tracees.get_mut(&pid).expect("get stopped tracee");
                     tracee.reset_restart_how();
@@ -194,23 +208,24 @@ impl PRoot {
                 }
                 // The tracee was stopped by execution of a system call (syscall-stop), and
                 // PTRACE_O_TRACESYSGOOD was effect. PTRACE_O_TRACESYSGOOD is used to make it
-                // easy for the tracer to distinguish normal SIGTRAP from those caused by
-                // a system call. In this case, the status should be (SIGTRAP | 0x80).
+                // easy for the tracer to distinguish syscall-stop from signal-delivery-stop.
                 PtraceSyscall(pid) => {
-                    println!("-- {}, Syscall", pid);
+                    trace!("-- {}, Syscall", pid);
                     let tracee = self.tracees.get_mut(&pid).expect("get stopped tracee");
                     tracee.reset_restart_how();
                     tracee.handle_syscall_stop_event(&mut self.info_bag);
                     tracee.restart();
                 }
                 Continued(pid) => {
-                    println!("-- {}, Continued", pid);
+                    trace!("-- {}, Continued", pid);
                 }
                 StillAlive => {
-                    println!("-- Still alive");
+                    trace!("-- Still alive");
                 }
             }
         }
+
+        Ok(())
     }
 
     /******** Utilities *************** */

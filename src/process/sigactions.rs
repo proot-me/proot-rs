@@ -41,7 +41,7 @@ pub fn prepare_sigactions(
         let sigaction_result = unsafe { sigaction(signal, &signal_action) };
 
         if let Err(err) = sigaction_result {
-            println!(
+            warn!(
                 "Warning: sigaction failed for signal {:?} : {:?}.",
                 signal, err
             );

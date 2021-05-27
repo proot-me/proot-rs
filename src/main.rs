@@ -48,9 +48,9 @@ fn run() -> Result<()> {
     sigactions::prepare_sigactions(stop_program, show_info);
 
     // step 4: Listen to and deal with tracees events
-    proot.event_loop();
+    proot.event_loop()?;
 
-    println!("{:#?}", proot);
+    debug!("proot-rs exit with final status:\n{:#?}", proot);
 
     Ok(())
 }

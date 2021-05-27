@@ -34,12 +34,12 @@ impl Initialiser for FileSystem {
             Ok(path) => path,
             Err(err) => {
                 //TODO: log error
-                eprintln!(
-                    "proot warning: can't chdir (\"{}\") in the guest rootfs: {}",
+                warn!(
+                    "can't chdir (\"{}\") in the guest rootfs: {}",
                     raw_cwd.display(),
                     err
                 );
-                println!("proot info: default working directory is now \"/\"");
+                info!("default working directory is now \"/\"");
                 PathBuf::from("/")
             }
         };

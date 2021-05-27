@@ -1,10 +1,13 @@
-use crate::errors::Error;
+use std::path::PathBuf;
+
+use nix::sys::ptrace::{self, Options};
+use nix::unistd::Pid;
+
+use crate::errors::Result;
+use crate::errors::{Error, WithContext};
 use crate::filesystem::FileSystem;
 use crate::process::proot::InfoBag;
 use crate::register::Registers;
-use nix::sys::ptrace::{self, Options};
-use nix::unistd::Pid;
-use std::path::PathBuf;
 
 #[derive(Debug, PartialEq)]
 pub enum TraceeStatus {
@@ -124,11 +127,11 @@ impl Tracee {
     /// related to the tracing loop, others SIGTRAP
     /// carry tracing information because of
     /// TRACE*FORK/CLONE/EXEC.
-    pub fn set_ptrace_options(&self, info_bag: &mut InfoBag) {
-        if info_bag.deliver_sigtrap {
-            return;
+    pub fn check_and_set_ptrace_options(&self, info_bag: &mut InfoBag) -> Result<()> {
+        if info_bag.options_already_set {
+            return Ok(());
         } else {
-            info_bag.deliver_sigtrap = true;
+            info_bag.options_already_set = true;
         }
 
         let default_options = Options::PTRACE_O_TRACESYSGOOD
@@ -140,7 +143,7 @@ impl Tracee {
             | Options::PTRACE_O_TRACEEXIT;
 
         //TODO: seccomp
-        ptrace::setoptions(self.pid, default_options).expect("set ptrace options");
+        ptrace::setoptions(self.pid, default_options).context("Failed to set ptrace options")
     }
 }
 

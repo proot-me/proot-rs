@@ -27,7 +27,7 @@ jobs:
           before_commit=${{ github.event.pull_request.base.sha }}
         else # is push event
           if [ "${{ github.event.before }}" = "0000000000000000000000000000000000000000" ]; then
-            before_commit="HEAD~1"
+            before_commit="$(git rev-parse HEAD~1)"
           else
             before_commit=${{ github.event.before }}
           fi

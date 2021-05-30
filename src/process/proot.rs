@@ -169,9 +169,12 @@ impl PRoot {
                         }
                         _ => {}
                     }
+
+                    // ptrace(2): If the tracer doesn't suppress the signal, it passes the signal to
+                    // the tracee in the next ptrace restart request.
                     // TODO: we should deliver this signal(sig) with ptrace(PTRACE_restart, pid, 0,
                     // sig)
-                    tracee.restart();
+                    tracee.restart(Some(stop_signal));
                 }
                 // The tracee was stopped by a SIGTRAP with additional status (PTRACE_EVENT stops).
                 PtraceEvent(pid, signal, status_additional) => {
@@ -206,7 +209,7 @@ impl PRoot {
                             PtraceEvent::PTRACE_EVENT_SECCOMP,
                         )
                     }
-                    tracee.restart();
+                    tracee.restart(None);
                 }
                 // The tracee was stopped by execution of a system call (syscall-stop), and
                 // PTRACE_O_TRACESYSGOOD was effect. PTRACE_O_TRACESYSGOOD is used to make it
@@ -216,7 +219,7 @@ impl PRoot {
                     let tracee = self.tracees.get_mut(&pid).expect("get stopped tracee");
                     tracee.reset_restart_how();
                     tracee.handle_syscall_stop_event(&mut self.info_bag);
-                    tracee.restart();
+                    tracee.restart(None);
                 }
                 Continued(pid) => {
                     trace!("-- {}, Continued", pid);

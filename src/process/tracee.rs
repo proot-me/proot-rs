@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
 use nix::sys::ptrace::{self, Options};
+use nix::sys::signal::Signal;
 use nix::unistd::Pid;
 
 use crate::errors::Result;
@@ -104,13 +105,13 @@ impl Tracee {
     }
 
     #[inline]
-    pub fn restart(&mut self) {
+    pub fn restart<T: Into<Option<Signal>>>(&mut self, sig: T) {
         match self.restart_how {
             TraceeRestartMethod::WithoutExitStage => {
-                ptrace::cont(self.pid, None).expect("exit tracee without exit stage");
+                ptrace::cont(self.pid, sig).expect("exit tracee without exit stage");
             }
             TraceeRestartMethod::WithExitStage => {
-                ptrace::syscall(self.pid, None).expect("exit tracee with exit stage");
+                ptrace::syscall(self.pid, sig).expect("exit tracee with exit stage");
             }
             TraceeRestartMethod::None => {}
         };

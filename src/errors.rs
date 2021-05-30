@@ -175,7 +175,7 @@ pub trait WithContext<T> {
 
 impl<T, E> WithContext<T> for result::Result<T, E>
 where
-    E: std::error::Error + 'static,
+    Error: From<E>,
 {
     default fn errno(self, errno: Errno) -> Result<T> {
         self.map_err(|error| Into::<Error>::into(error).with_errno(errno))

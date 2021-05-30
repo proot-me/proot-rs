@@ -4,6 +4,7 @@ use crate::kernel::execve::load_info::LoadInfo;
 use crate::kernel::execve::loader::LoaderFile;
 use crate::kernel::execve::shebang;
 use crate::process::tracee::Tracee;
+use crate::register::PtraceWriter;
 use crate::register::{PtraceReader, SysArg1};
 
 pub fn translate(tracee: &mut Tracee, loader: &dyn LoaderFile) -> Result<()> {
@@ -50,7 +51,9 @@ pub fn translate(tracee: &mut Tracee, loader: &dyn LoaderFile) -> Result<()> {
     //			return status;
     //	}
 
-    let mut load_info = LoadInfo::from(&tracee.fs, &host_path)?;
+    // parse LoadInfo from the binary file to be executed
+    let mut load_info = LoadInfo::from(&tracee.fs, &host_path)
+        .with_context(|| format!("Failed to parse LoadInfo for {:?}", host_path))?;
 
     load_info.raw_path = Some(raw_path.clone());
     //TODO: use user_path when implemented

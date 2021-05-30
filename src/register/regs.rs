@@ -102,8 +102,8 @@ impl Registers {
         let current_value = self.get(Current, register);
 
         //TODO: log DEBUG
-        println!(
-            "{}\t\t~ modifying current reg: {:?}, current_value: {}, new_value: {}, {}",
+        debug!(
+            "-- {}, Modifying current reg: {:?}, current_value: {:#x}, new_value: {:#x}, {}",
             self.pid, register, current_value, new_value, justification
         );
 

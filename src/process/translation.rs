@@ -61,12 +61,13 @@ impl SyscallTranslator for Tracee {
         // remember the tracee status for the "exit" stage and avoid
         // the actual syscall.
         if let Err(error) = status {
+            error!("{}", error);
             self.regs
-                .cancel_syscall("following error during enter stage, avoid syscall");
+                .cancel_syscall("Error in enter stage, avoid syscall");
             self.regs.set(
                 SysResult,
-                error.get_errno() as Word,
-                "following error during enter stage, remember errno for exit stage",
+                (-(error.get_errno() as i32)) as Word,
+                "Error in enter stage, record errno for exit stage",
             );
             self.status = TraceeStatus::Error(error);
         } else {
@@ -103,8 +104,8 @@ impl SyscallTranslator for Tracee {
         } else {
             self.regs.set(
                 SysResult,
-                self.status.get_errno() as Word,
-                "following previous error in enter stage, setting errno",
+                (-(self.status.get_errno() as i32)) as Word,
+                "Following previous error in enter stage, setting errno",
             );
         }
 

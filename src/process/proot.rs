@@ -95,7 +95,7 @@ impl PRoot {
                     //if (getenv("PROOT_NO_SECCOMP") == NULL)
                     //    (void) enable_syscall_filtering(tracee);
                     unistd::execvp(&filename, &args).with_context(|| {
-                        format!("Failed to call with execvp() with command: {:?}", command)
+                        format!("Failed to call execvp() with command: {:?}", command)
                     })?;
                     unreachable!()
                 };

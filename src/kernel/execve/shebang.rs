@@ -299,15 +299,16 @@ mod tests {
         assert_eq!(Ok(None), extract(&rootfs_path.join("bin/sleep")));
     }
 
+    // TODO: test shebang expand not contains shebang
     #[test]
-    fn test_expand_shebang_not_script() {
+    fn test_expand_shebang_no_exec_permission() {
         let rootfs_path = get_test_rootfs();
 
         let fs = FileSystem::with_root(&rootfs_path);
 
-        // it should detect that `/etc/hostname` has no shebang
+        // it should detect that `/etc/hostname` is not executable
         assert_eq!(
-            Ok(rootfs_path.join("etc/passwd")),
+            Err(Error::errno(Errno::EACCES)),
             expand(&fs, &PathBuf::from("/etc/passwd"))
         );
     }

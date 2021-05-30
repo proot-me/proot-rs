@@ -1,9 +1,13 @@
-use crate::errors::{Error, Result};
-use crate::filesystem::binding::Side::Host;
-use crate::filesystem::binding::{Binding, Side};
-use nix::sys::stat::Mode;
+use std::ffi::CString;
 use std::fs::Metadata;
 use std::path::{Path, PathBuf};
+
+use nix::sys::{self, stat::Mode};
+use nix::unistd::{self, AccessFlags};
+
+use crate::errors::{Error, Result, WithContext};
+use crate::filesystem::binding::Side::Host;
+use crate::filesystem::binding::{Binding, Side};
 
 /// Information related to a file-system name-space.
 #[derive(Debug)]
@@ -88,21 +92,9 @@ impl FileSystem {
     #[inline]
     /// Checks is `path` is a file, does exist and is executable.
     pub fn is_path_executable(&self, path: &Path) -> Result<()> {
-        path.symlink_metadata().map_err(Error::from)?;
-        //TODO: complete function
-        //	status = access(host_path, F_OK);
-        //	if (status < 0)
-        //		return -ENOENT;
-        //
-        //	status = access(host_path, X_OK);
-        //	if (status < 0)
-        //		return -EACCES;
-        //
-        //	status = lstat(host_path, &statl);
-        //	if (status < 0)
-        //		return -EPERM;
-        //
-        //	return 0;
+        unistd::access(path, AccessFlags::F_OK)?;
+        unistd::access(path, AccessFlags::X_OK)?;
+        sys::stat::lstat(path)?;
         Ok(())
     }
 

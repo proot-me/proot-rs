@@ -1,5 +1,5 @@
 pub mod enter;
-mod execve;
+pub mod execve;
 pub mod exit;
 mod groups;
 mod heap;

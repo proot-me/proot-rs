@@ -3,7 +3,7 @@ mod macros;
 mod elf;
 pub mod enter;
 pub mod exit;
-mod load_info;
+pub mod load_info;
 mod loader;
 mod shebang;
 

@@ -12,6 +12,7 @@ const ET_CORE: u16 = 4;
 pub const PT_LOAD: u32 = 1;
 pub const PT_DYNAMIC: u32 = 2;
 pub const PT_INTERP: u32 = 3;
+pub const PT_GNU_STACK: u32 = 0x6474_e551;
 pub const PF_X: u32 = 1;
 pub const PF_W: u32 = 2;
 pub const PF_R: u32 = 4;

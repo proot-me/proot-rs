@@ -7,8 +7,9 @@ use nix::unistd::Pid;
 use crate::errors::Result;
 use crate::errors::{Error, WithContext};
 use crate::filesystem::FileSystem;
+use crate::kernel::execve::load_info::LoadInfo;
 use crate::process::proot::InfoBag;
-use crate::register::Registers;
+use crate::register::{Registers, Word};
 
 #[derive(Debug, PartialEq)]
 pub enum TraceeStatus {
@@ -68,6 +69,9 @@ pub struct Tracee {
     pub new_exe: Option<PathBuf>,
     /// Path to the executable, à la /proc/self/exe. Used in `execve` exit.
     pub exe: Option<PathBuf>,
+    /// An instance of LoadInfo to record information about current `execve`
+    /// system call
+    pub load_info: Option<LoadInfo>,
 }
 
 impl Tracee {
@@ -82,6 +86,7 @@ impl Tracee {
             sysexit_pending: false,
             new_exe: None,
             exe: None,
+            load_info: None,
         }
     }
 
@@ -145,6 +150,11 @@ impl Tracee {
 
         //TODO: seccomp
         ptrace::setoptions(self.pid, default_options).context("Failed to set ptrace options")
+    }
+
+    /// Return the byte size of a Word in tracee
+    pub fn sizeof_word(&self) -> usize {
+        std::mem::size_of::<Word>()
     }
 }
 

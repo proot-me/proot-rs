@@ -2,7 +2,7 @@ use crate::errors::*;
 use crate::filesystem::readers::ExtraReader;
 use crate::filesystem::FileSystem;
 use crate::kernel::execve::elf::{ElfHeader, ExecutableClass, ProgramHeader};
-use crate::kernel::execve::elf::{PF_R, PF_W, PF_X, PT_INTERP, PT_LOAD};
+use crate::kernel::execve::elf::{PF_R, PF_W, PF_X, PT_GNU_STACK, PT_INTERP, PT_LOAD};
 use crate::kernel::execve::shebang::translate_and_check_exec;
 use crate::register::Word;
 use nix::sys::mman::MapFlags;
@@ -14,15 +14,16 @@ use std::path::{Path, PathBuf};
 
 #[derive(Debug, PartialEq)]
 pub struct Mapping {
-    addr: Word,
-    length: Word,
-    clear_length: Word,
-    prot: ProtFlags,
-    flags: MapFlags,
-    fd: Option<Word>,
-    offset: Word,
+    pub addr: Word,
+    pub length: Word,
+    pub clear_length: Word,
+    pub prot: ProtFlags,
+    pub flags: MapFlags,
+    pub fd: Option<Word>,
+    pub offset: Word,
 }
 
+// TODO: redesign this struct and remove unnecessary `Option`
 #[derive(Debug, PartialEq)]
 pub struct LoadInfo {
     pub raw_path: Option<PathBuf>,
@@ -31,6 +32,7 @@ pub struct LoadInfo {
     pub elf_header: ElfHeader,
     pub mappings: Vec<Mapping>,
     pub interp: Option<Box<LoadInfo>>,
+    pub needs_executable_stack: bool,
 }
 
 lazy_static! {
@@ -57,6 +59,7 @@ impl LoadInfo {
             elf_header: elf_header,
             mappings: Vec::new(),
             interp: None,
+            needs_executable_stack: false,
         }
     }
 
@@ -92,9 +95,17 @@ impl LoadInfo {
             let segment_type = get!(program_header, p_type)?;
 
             match segment_type {
+                // Loadable segment. The bytes from the file are mapped to the beginning of the
+                // memory segment
                 PT_LOAD => load_info.add_mapping(&program_header)?,
-                PT_INTERP => {
-                    load_info.add_interp(fs, &program_header, &mut file)?;
+                // Specifies the location and size of a null-terminated path name to invoke as an
+                // interpreter.
+                PT_INTERP => load_info.add_interp(fs, &program_header, &mut file)?,
+                // Check if the stack of this executable file is executable (NX disabled)
+                PT_GNU_STACK => {
+                    let flags = get!(program_header, p_flags)?;
+                    let prot = process_prot_flags(flags);
+                    load_info.needs_executable_stack = prot.contains(ProtFlags::PROT_EXEC);
                 }
                 _ => (),
             };
@@ -249,6 +260,84 @@ impl LoadInfo {
             }
         }
         Ok(())
+    }
+}
+
+// TODO: change size of enum tags
+#[repr(C, u64)]
+#[derive(Debug)]
+pub enum LoadStatement {
+    OpenNext(LoadStatementOpen),
+    Open(LoadStatementOpen),
+    MmapFile(LoadStatementMmap),
+    MmapAnonymous(LoadStatementMmap),
+    MakeStackExec(LoadStatementStackExec),
+    StartTraced(LoadStatementStart),
+    Start(LoadStatementStart),
+}
+
+#[repr(C)]
+#[derive(Debug)]
+pub struct LoadStatementOpen {
+    pub string_address: libc::c_ulong,
+}
+
+#[repr(C)]
+#[derive(Debug)]
+pub struct LoadStatementMmap {
+    pub addr: libc::c_ulong,
+    pub length: libc::c_ulong,
+    pub prot: libc::c_ulong,
+    pub offset: libc::c_ulong,
+    pub clear_length: libc::c_ulong,
+}
+
+#[repr(C)]
+#[derive(Debug)]
+pub struct LoadStatementStackExec {
+    pub start: libc::c_ulong,
+}
+
+#[repr(C)]
+#[derive(Debug)]
+pub struct LoadStatementStart {
+    pub stack_pointer: libc::c_ulong,
+    pub entry_point: libc::c_ulong,
+    pub at_phdr: libc::c_ulong,
+    pub at_phent: libc::c_ulong,
+    pub at_phnum: libc::c_ulong,
+    pub at_entry: libc::c_ulong,
+    pub at_execfn: libc::c_ulong,
+}
+
+impl LoadStatement {
+    pub fn as_bytes(&self) -> &[u8] {
+        let mut size = match self {
+            LoadStatement::OpenNext(_) | LoadStatement::Open(_) => {
+                std::mem::size_of::<LoadStatementOpen>()
+            }
+            LoadStatement::MmapFile(_) | LoadStatement::MmapAnonymous(_) => {
+                std::mem::size_of::<LoadStatementMmap>()
+            }
+            LoadStatement::MakeStackExec(_) => std::mem::size_of::<LoadStatementStackExec>(),
+            LoadStatement::StartTraced(_) | LoadStatement::Start(_) => {
+                std::mem::size_of::<LoadStatementStart>()
+            }
+        };
+
+        size += std::mem::size_of::<libc::c_ulong>();
+
+        let bytes = unsafe {
+            std::slice::from_raw_parts((self as *const LoadStatement) as *const u8, size)
+        };
+        debug!(
+            "size: {} self: {:x?} bytes.len(): {} bytes: {:x?}",
+            size,
+            self,
+            bytes.len(),
+            bytes
+        );
+        bytes
     }
 }
 

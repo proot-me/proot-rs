@@ -30,7 +30,7 @@ pub fn translate(info_bag: &InfoBag, tracee: &mut Tracee) -> Result<()> {
         Link => link_rename::enter(),
         LinkAt => link_at::enter(),
         Mount => mount::enter(),
-        Open => open::enter(),
+        Open => open::enter(tracee),
         OpenAt => open_at::enter(),
         PivotRoot => pivot_root::enter(),
         Ptrace => ptrace::enter(),

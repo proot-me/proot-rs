@@ -90,11 +90,11 @@ impl FileSystem {
     }
 
     #[inline]
-    /// Checks is `path` is a file, does exist and is executable.
-    pub fn is_path_executable(&self, path: &Path) -> Result<()> {
-        unistd::access(path, AccessFlags::F_OK)?;
-        unistd::access(path, AccessFlags::X_OK)?;
-        sys::stat::lstat(path)?;
+    /// Checks if a `host_path` is a file, does exist and is executable.
+    pub fn check_path_executable(&self, host_path: &Path) -> Result<()> {
+        unistd::access(host_path, AccessFlags::F_OK)?;
+        unistd::access(host_path, AccessFlags::X_OK)?;
+        sys::stat::lstat(host_path)?;
         Ok(())
     }
 
@@ -224,7 +224,11 @@ mod tests {
     fn test_fs_is_path_executable() {
         let fs = FileSystem::with_root(get_test_rootfs());
 
-        assert!(fs.is_path_executable(&PathBuf::from("/bin/sleep")).is_ok());
-        assert!(fs.is_path_executable(&PathBuf::from("/../sleep")).is_err());
+        assert!(fs
+            .check_path_executable(&PathBuf::from("/bin/sleep"))
+            .is_ok());
+        assert!(fs
+            .check_path_executable(&PathBuf::from("/../sleep"))
+            .is_err());
     }
 }

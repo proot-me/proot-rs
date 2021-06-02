@@ -1,9 +1,9 @@
 use crate::errors::*;
 use crate::filesystem::readers::ExtraReader;
 use crate::filesystem::FileSystem;
+use crate::filesystem::Translator;
 use crate::kernel::execve::elf::{ElfHeader, ExecutableClass, ProgramHeader};
 use crate::kernel::execve::elf::{PF_R, PF_W, PF_X, PT_GNU_STACK, PT_INTERP, PT_LOAD};
-use crate::kernel::execve::shebang::translate_and_check_exec;
 use crate::register::Word;
 use nix::sys::mman::MapFlags;
 use nix::sys::mman::ProtFlags;
@@ -207,7 +207,9 @@ impl LoadInfo {
         //                return -ENOMEM;
         //        }
 
-        let host_path = translate_and_check_exec(fs, &user_path)?;
+        let host_path = fs.translate_path(&user_path, true)?;
+        fs.check_path_executable(&host_path)?;
+
         let mut load_info = LoadInfo::from(fs, &host_path)?;
 
         load_info.host_path = Some(host_path);

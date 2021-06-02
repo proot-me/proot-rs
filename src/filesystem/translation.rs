@@ -7,26 +7,33 @@ use crate::filesystem::FileSystem;
 use std::path::{Component, Path, PathBuf};
 
 pub trait Translator {
-    fn translate_path(&self, path: &Path, deref_final: bool) -> Result<PathBuf>;
-    fn detranslate_path(&self, path: &Path, referrer: Option<&Path>) -> Result<Option<PathBuf>>;
+    fn translate_path(&self, guest_path: &Path, deref_final: bool) -> Result<PathBuf>;
+    fn detranslate_path(
+        &self,
+        host_path: &Path,
+        referrer: Option<&Path>,
+    ) -> Result<Option<PathBuf>>;
 }
 
 impl Translator for FileSystem {
-    /// Translates a path from `guest` to `host`.
-    fn translate_path(&self, user_path: &Path, deref_final: bool) -> Result<PathBuf> {
+    /// Translates a path from `guest` to `host`. If the `guest_path` is
+    /// relative, it will be will be converted to a absolute paths based on
+    /// the cwd.
+    fn translate_path(&self, guest_path: &Path, deref_final: bool) -> Result<PathBuf> {
+        let unchecked_guest_path = guest_path;
         //TODO: dir_fd != AT_FDCWD
-        let mut guest_path = if user_path.is_relative() {
+        let mut guest_path = if unchecked_guest_path.is_relative() {
             // It is relative to the current working directory.
             self.get_cwd().to_path_buf()
         } else {
             PathBuf::new()
         };
-        debug!("translate_path: {:?} + {:?}", guest_path, user_path);
-        guest_path.push(user_path);
-
-        //TODO: log verbose
-        // VERBOSE(tracee, 2, "pid %d: translate(\"%s\" + \"%s\")",
-        //         tracee != NULL ? tracee->pid : 0, result, user_path);
+        debug!(
+            "translate_path: {:?} + {:?}",
+            guest_path, unchecked_guest_path
+        );
+        guest_path.push(unchecked_guest_path);
+        drop(unchecked_guest_path);
 
         //TODO: event GUEST_PATH for extensions
         //    status = notify_extensions(tracee, GUEST_PATH, (intptr_t) result,
@@ -35,19 +42,20 @@ impl Translator for FileSystem {
         //    if (status > 0)
         //        goto skip;
 
-        guest_path = self.canonicalize(&guest_path, deref_final)?;
-        debug!("canonicalized guest_path: {:?}", guest_path);
+        let guest_path_canonicalized = self.canonicalize(&guest_path, deref_final)?;
+        debug!(
+            "canonicalize guest_path: {:?} -> {:?}",
+            guest_path, guest_path_canonicalized
+        );
 
         // TODO: Maybe we should remove this self.substitute() call
-        let host_path = self.substitute(&guest_path, Guest)?;
+        let host_path = self.substitute(&guest_path_canonicalized, Guest)?;
+        debug!(
+            "substitute guest_path to host_path: {:?} -> {:?}",
+            guest_path_canonicalized, host_path
+        );
+
         let result = host_path;
-
-        #[cfg(not(test))]
-        println!("\t\t -> {}", result.display());
-
-        //TODO: log verbose
-        // VERBOSE(tracee, 2, "pid %d:          -> \"%s\"",
-        //         tracee != NULL ? tracee->pid : 0, result);
 
         Ok(result)
     }

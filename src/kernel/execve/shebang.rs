@@ -49,7 +49,9 @@ pub fn expand(fs: &FileSystem, user_path: &Path) -> Result<PathBuf> {
         loop_iterations += 1;
 
         // Translate this path (user -> host), then check it is executable.
-        let host_path = translate_and_check_exec(fs, user_path)?;
+        let host_path = fs.translate_path(&user_path, true)?;
+        fs.check_path_executable(&host_path)?;
+
         let expanded_user_path = extract(&host_path)?;
 
         if expanded_user_path.is_none() {
@@ -59,7 +61,8 @@ pub fn expand(fs: &FileSystem, user_path: &Path) -> Result<PathBuf> {
         has_shebang = true;
 
         // Translate new path (user -> host), then check it is executable.
-        let new_host_path = translate_and_check_exec(fs, &expanded_user_path.unwrap())?;
+        let new_host_path = fs.translate_path(&expanded_user_path.unwrap(), true)?;
+        fs.check_path_executable(&new_host_path)?;
 
         println!("new host path: {:?}", new_host_path);
     }
@@ -118,16 +121,6 @@ pub fn expand(fs: &FileSystem, user_path: &Path) -> Result<PathBuf> {
     //	return (has_shebang ? 1 : 0);
 
     Ok(result_host_path.unwrap())
-}
-
-//TODO: remove this function
-/// Translate a guest path and checks that it's executable.
-pub fn translate_and_check_exec(fs: &FileSystem, guest_path: &Path) -> Result<PathBuf> {
-    let host_path = fs.translate_path(guest_path, true)?;
-
-    fs.is_path_executable(&host_path)?;
-
-    Ok(host_path)
 }
 
 /// Extract into `user_path` and `argument` the shebang from @host_path.

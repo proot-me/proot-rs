@@ -42,7 +42,12 @@ pub trait PtraceWriter {
 }
 
 impl PtraceWriter for Registers {
-    /// Converts `path` into bytes before calling the following function.
+    /// Copy the `path` to tracee's memory space, and make the register
+    /// `sys_arg` point to it. A null byte (b'\0') is implicitly appended to the
+    /// end.
+    ///
+    /// Note that this will "allocate" a block of memory on stack, which means
+    /// the value of the stack pointer register will be implicitly modified.
     fn set_sysarg_path(
         &mut self,
         sys_arg: SysArgIndex,
@@ -52,8 +57,11 @@ impl PtraceWriter for Registers {
         self.set_sysarg_data(sys_arg, path.as_os_str().as_bytes(), justification, true)
     }
 
-    /// Copies all bytes of `data` to the tracee's memory block
-    /// and makes `sys_arg` point to this new block.
+    /// Copy the `data` to tracee's memory space, and make the register
+    /// `sys_arg` point to it.
+    ///
+    /// Note that this will "allocate" a block of memory on stack, which means
+    /// the value of the stack pointer register will be implicitly modified.
     fn set_sysarg_data(
         &mut self,
         sys_arg: SysArgIndex,
@@ -62,7 +70,8 @@ impl PtraceWriter for Registers {
         append_null: bool,
     ) -> Result<()> {
         // Allocate space into the tracee's memory to host the new data.
-        let tracee_ptr = self.alloc_mem(data.len() as isize + if append_null { 1 } else { 0 })?;
+        let tracee_ptr =
+            self.alloc_mem_on_stack(data.len() as isize + if append_null { 1 } else { 0 })?;
 
         // Copy the new data into the previously allocated space.
         self.write_data(tracee_ptr as *mut Word, data, append_null)?;
@@ -73,20 +82,24 @@ impl PtraceWriter for Registers {
         Ok(())
     }
 
+    /// Copy the `data` to tracee's memory space by ptrace(PTRACE_POKEDATA) and
+    /// ptrace(PTRACE_PEEKDATA). It transmits one word at a time, and the
+    /// boundary case is carefully handled.
     fn write_data(&self, dest_tracee: *mut Word, data: &[u8], append_null: bool) -> Result<()> {
         //TODO implement belongs_to_heap_prealloc
         // if (belongs_to_heap_prealloc(tracee, dest_tracee))
         // return -EFAULT;
 
-        //TODO implement HAVE_PROCESS_VM
-        // The byteorder crate is used to read the [u8] slice as a [Word] slice.
+        // TODO: use process_vm_writev() to write data if process_vm feature was
+        // supported.
+
+        // if append null is required, we appen a b'\0' byte to the end of data.
         let mut buf = if append_null {
             let null_char_slice: &[u8] = &[b'\0'];
             data.chain(null_char_slice)
         } else {
             data.chain(&[] as &[u8])
         };
-
         let size = if append_null {
             // the +1 is for the `\0` byte that we will have manually
             data.len() + 1
@@ -99,6 +112,7 @@ impl PtraceWriter for Registers {
 
         // Copy one word by one word, except for the last one.
         for i in 0..nb_full_words {
+            // The byteorder crate is used to read the [u8] slice as a [Word] slice.
             let word = buf.read_uint::<NativeEndian>(word_size).unwrap() as Word;
             let dest_addr = unsafe { dest_tracee.offset(i) as *mut c_void };
 

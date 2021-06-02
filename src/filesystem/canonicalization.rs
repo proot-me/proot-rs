@@ -19,29 +19,29 @@ impl Canonicalizer for FileSystem {
     ///
     /// # Paramters
     ///
-    /// - user_path: path to be canonicalized, must be absolute path
+    /// - guest_path: path to be canonicalized, must be absolute path
     /// - deref_final: weather or not to dereference final user_path
     ///
     /// # Return
     ///
-    /// guest_path: the canonicalized user_path, which is a path in the view of
-    /// Guest
-    fn canonicalize(&self, user_path: &Path, deref_final: bool) -> Result<PathBuf> {
+    /// guest_path_new: the canonicalized user_path, which is a path in the view
+    /// of Guest
+    fn canonicalize(&self, guest_path: &Path, deref_final: bool) -> Result<PathBuf> {
         // The `user_path` must be absolute path
-        if user_path.is_relative() {
+        if guest_path.is_relative() {
             return Err(Error::errno_with_msg(
                 Errno::EINVAL,
-                format!("Cannot canonicalizing a relative path: {:?}", user_path),
+                format!("Cannot canonicalizing a relative path: {:?}", guest_path),
             ));
         }
 
-        // build guest_path from user_path
-        let mut guest_path = PathBuf::new();
+        // build guest_path_new from user_path
+        let mut guest_path_new = PathBuf::new();
 
         // split user_path to components and check them, so that path traversal can be
         // avoided.
         // We need the `next` component to know if the current one is the last one
-        let mut it = user_path.components();
+        let mut it = guest_path.components();
         let mut next_comp = it.next();
         while let Some(component) = next_comp {
             next_comp = it.next();
@@ -49,7 +49,7 @@ impl Canonicalizer for FileSystem {
 
             match component {
                 Component::RootDir => {
-                    guest_path.push(Component::RootDir);
+                    guest_path_new.push(Component::RootDir);
                     continue;
                 }
                 Component::CurDir | Component::Prefix(_) => {
@@ -57,17 +57,17 @@ impl Canonicalizer for FileSystem {
                     continue;
                 }
                 Component::ParentDir => {
-                    guest_path.pop();
+                    guest_path_new.pop();
                     continue;
                 }
                 Component::Normal(path_part) => {
-                    guest_path.push(path_part);
+                    guest_path_new.push(path_part);
 
                     // Resolve bindings and add glue if necessary
                     // TODO: currently we check and ensure that all the path exist on host, but
                     // some syscall (e.g. mkdir, mknod) allow path not exist.
                     let (host_path, maybe_file_type) =
-                        self.substitute_intermediary_and_glue(&guest_path)?;
+                        self.substitute_intermediary_and_glue(&guest_path_new)?;
 
                     //TODO: remove when glue is implemented
                     if maybe_file_type.is_none() {
@@ -95,10 +95,10 @@ impl Canonicalizer for FileSystem {
                             link_value
                         } else {
                             // link_value is a relative path, so we need to append link_value to
-                            // guest_path.
-                            guest_path.pop();
-                            guest_path.push(&link_value);
-                            guest_path
+                            // guest_path_new.
+                            guest_path_new.pop();
+                            guest_path_new.push(&link_value);
+                            guest_path_new
                         };
                         // append remaining Components
                         if let Some(comp) = next_comp {
@@ -120,7 +120,7 @@ impl Canonicalizer for FileSystem {
             }
         }
 
-        Ok(guest_path)
+        Ok(guest_path_new)
     }
 }
 

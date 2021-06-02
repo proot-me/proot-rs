@@ -20,7 +20,7 @@ pub fn translate(tracee: &mut Tracee, loader: &dyn LoaderFile) -> Result<()> {
     //	}
 
     let raw_path = tracee.regs.get_sysarg_path(SysArg1)?;
-    debug!("execve: {:?}", raw_path);
+    debug!("execve({:?})", raw_path);
     //TODO: return user path
     let host_path = match shebang::expand(&tracee.fs, &raw_path) {
         Ok(path) => path,

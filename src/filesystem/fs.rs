@@ -15,7 +15,7 @@ pub struct FileSystem {
     /// List of bindings used to replicate `mount` and `bind`.
     /// It will also contain the root binding (to replicate `chroot`).
     bindings: Vec<Binding>,
-    /// Working directory in gusetfs, à la `/proc/self/cwd`. Always is absolute
+    /// Working directory in guestfs, e.g., `/proc/self/cwd`, is always absolute
     /// path.
     cwd: PathBuf,
     /// Guest root (the binding associated to `/`)

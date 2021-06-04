@@ -52,7 +52,7 @@ fn run() -> Result<()> {
 
     debug!("proot-rs exit with final status:\n{:#?}", proot);
 
-    Ok(())
+    std::process::exit(proot.init_exit_code.unwrap());
 }
 
 fn main() {

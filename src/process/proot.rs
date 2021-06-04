@@ -43,6 +43,8 @@ pub struct PRoot {
     info_bag: InfoBag,
     tracees: HashMap<Pid, Tracee>,
     alive_tracees: Vec<Pid>,
+    init_pid: Option<Pid>,
+    pub init_exit_code: Option<i32>,
 }
 
 impl PRoot {
@@ -51,6 +53,8 @@ impl PRoot {
             info_bag: InfoBag::new(),
             tracees: HashMap::new(),
             alive_tracees: vec![],
+            init_pid: None,
+            init_exit_code: None,
         }
     }
 
@@ -79,6 +83,7 @@ impl PRoot {
             ForkResult::Parent { child } => {
                 // we create the first tracee
                 self.create_tracee(child, initial_fs);
+                self.init_pid = Some(child);
             }
             ForkResult::Child => {
                 let init_child_func = || -> Result<()> {
@@ -121,15 +126,30 @@ impl PRoot {
                 Exited(pid, exit_status) => {
                     trace!("-- {}, Exited with status: {}", pid, exit_status);
                     self.register_tracee_finished(pid);
+                    if Some(pid) == self.init_pid {
+                        // The "init" process was exited. We need to record the exit code.
+                        debug!("init process exited with exit code: {}", exit_status);
+                        self.init_exit_code = Some(exit_status);
+                        // TODO: maybe we also need to take care of all the
+                        // "orphans" process?
+                    }
                 }
                 Signaled(pid, term_signal, dumped_core) => {
                     trace!(
-                        "-- {}, Signaled with status: {:?}, and dump core: {}",
+                        "-- {}, Killed be a signal: {:?}, and dump core: {}",
                         pid,
                         term_signal,
                         dumped_core
                     );
                     self.register_tracee_finished(pid);
+                    if Some(pid) == self.init_pid {
+                        // The "init" process was killed by a signal, the exit code should be
+                        // 128+signal
+                        debug!("init process was killed by a signal: {}", term_signal);
+                        self.init_exit_code = Some(128 + (term_signal as i32));
+                        // TODO: maybe we also need to take care of all the
+                        // "orphans" process?
+                    }
                 }
                 // The tracee was stopped by a normal signal (signal-delivery-stop), or was stopped
                 // by a system call (syscall-stop) with PTRACE_O_TRACESYSGOOD not effect.

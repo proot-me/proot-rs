@@ -135,7 +135,7 @@ mod tests {
 
     #[test]
     fn test_canonicalize_invalid_path() {
-        let fs = FileSystem::with_root(get_test_rootfs());
+        let fs = FileSystem::with_root(get_test_rootfs()).unwrap();
         let path = PathBuf::from("/impossible_path");
 
         assert_eq!(
@@ -146,7 +146,7 @@ mod tests {
 
     #[test]
     fn test_canonicalize_path_traversal() {
-        let fs = FileSystem::with_root(get_test_rootfs());
+        let fs = FileSystem::with_root(get_test_rootfs()).unwrap();
 
         let path = PathBuf::from("/../impossible_path");
         // should be failed, because ${rootfs}/impossible_path does not exist on host
@@ -161,7 +161,7 @@ mod tests {
     #[test]
     fn test_canonicalize_normal_path() {
         let mut rootfs_path = get_test_rootfs();
-        let mut fs = FileSystem::with_root(rootfs_path.as_path());
+        let mut fs = FileSystem::with_root(rootfs_path.as_path()).unwrap();
 
         assert_eq!(
             fs.canonicalize(&PathBuf::from("/bin/./../bin//sleep"), false)
@@ -178,7 +178,7 @@ mod tests {
         // change new root to ${rootfs}/etc
         let mut new_rootfs_path = rootfs_path.clone();
         new_rootfs_path.push("etc");
-        fs.set_root(new_rootfs_path);
+        fs.set_root(new_rootfs_path).unwrap();
 
         // add binding from ${rootfs}/bin to /bin
         rootfs_path.push("bin");
@@ -196,7 +196,7 @@ mod tests {
 
     #[test]
     fn test_canonicalize_no_root_normal_path() {
-        let mut fs = FileSystem::with_root(get_test_rootfs());
+        let mut fs = FileSystem::with_root(get_test_rootfs()).unwrap();
 
         // should be ok, because ${rootfs}/home, ${rootfs}/, ${rootfs}/bin/,
         // ${rootfs}/bin/sleep are all exist on host
@@ -218,7 +218,7 @@ mod tests {
 
     #[test]
     fn test_canonicalize_symlink_not_deref() {
-        let fs = FileSystem::with_root(get_test_rootfs());
+        let fs = FileSystem::with_root(get_test_rootfs()).unwrap();
 
         // "${rootfs}/lib64" is a symlink to "lib"
         assert_eq!(

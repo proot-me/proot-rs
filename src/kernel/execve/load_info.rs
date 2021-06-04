@@ -374,7 +374,7 @@ mod tests {
     fn test_load_info_from_invalid_path() {
         let rootfs_path = get_test_rootfs();
 
-        let fs = FileSystem::with_root(rootfs_path);
+        let fs = FileSystem::with_root(rootfs_path).unwrap();
         let result = LoadInfo::from(&fs, &PathBuf::from("/../../.."));
 
         assert!(result.is_err());
@@ -385,7 +385,7 @@ mod tests {
     fn test_load_info_from_path_not_executable() {
         let rootfs_path = get_test_rootfs();
 
-        let fs = FileSystem::with_root(&rootfs_path);
+        let fs = FileSystem::with_root(&rootfs_path).unwrap();
         let result = LoadInfo::from(&fs, &rootfs_path.join("etc/passwd"));
 
         assert_eq!(Err(Error::errno(ENOEXEC)), result);
@@ -395,7 +395,7 @@ mod tests {
     fn test_load_info_from_path_has_mappings() {
         let rootfs_path = get_test_rootfs();
 
-        let fs = FileSystem::with_root(&rootfs_path);
+        let fs = FileSystem::with_root(&rootfs_path).unwrap();
         let result = LoadInfo::from(&fs, &rootfs_path.join("bin/sleep"));
 
         assert!(result.is_ok());
@@ -409,7 +409,7 @@ mod tests {
     fn test_load_info_from_path_has_interp() {
         let rootfs_path = get_test_rootfs();
 
-        let fs = FileSystem::with_root(&rootfs_path);
+        let fs = FileSystem::with_root(&rootfs_path).unwrap();
         let result = LoadInfo::from(&fs, &rootfs_path.join("bin/sleep"));
 
         assert!(result.is_ok());
@@ -429,7 +429,7 @@ mod tests {
     fn test_load_info_compute_load_addresses() {
         let rootfs_path = get_test_rootfs();
 
-        let fs = FileSystem::with_root(&rootfs_path);
+        let fs = FileSystem::with_root(&rootfs_path).unwrap();
         let result = LoadInfo::from(&fs, &rootfs_path.join("bin/sleep"));
         let load_info = result.unwrap();
         let mut interp = load_info.interp.unwrap();

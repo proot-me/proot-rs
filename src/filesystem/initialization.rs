@@ -59,7 +59,7 @@ mod tests {
 
     #[test]
     fn test_initialisation_cwd_invalid_should_default_to_root() {
-        let mut fs = FileSystem::with_root(get_test_rootfs());
+        let mut fs = FileSystem::with_root(get_test_rootfs()).unwrap();
 
         fs.set_cwd(PathBuf::from("/my/impossible/cwd"));
 
@@ -73,7 +73,7 @@ mod tests {
 
     #[test]
     fn test_initialisation_cwd_absolute() {
-        let mut fs = FileSystem::with_root(get_test_rootfs());
+        let mut fs = FileSystem::with_root(get_test_rootfs()).unwrap();
 
         fs.set_cwd(PathBuf::from("/bin"));
 
@@ -89,7 +89,7 @@ mod tests {
     #[test]
     fn test_initialisation_cwd_relative() {
         let rootfs_path = get_test_rootfs();
-        let mut fs = FileSystem::with_root(rootfs_path.as_path());
+        let mut fs = FileSystem::with_root(rootfs_path.as_path()).unwrap();
         // let real_cwd = getcwd().unwrap();
 
         fs.set_cwd(PathBuf::from("./.."));

@@ -29,7 +29,7 @@ use std::process::exit;
 fn run() -> Result<()> {
     // step 1: CLI parsing
 
-    let (mut fs, command) = cli::parse_config();
+    let (mut fs, command) = cli::parse_config()?;
 
     if let Err(error) = fs.initialize() {
         error!("Error during file system initialization: {}", error);

@@ -11,9 +11,9 @@ const VOID: Word = Word::MAX;
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum RegVersion {
-    Current = 0,
-    Original = 1,
-    Modified = 2,
+    Current = 0,  // indicates current registers value
+    Original = 1, // the original registers value of the syscall
+    Modified = 2, // registers value modified during syscall enter translation
 }
 use self::RegVersion::*;
 

@@ -332,13 +332,7 @@ impl LoadStatement {
         let bytes = unsafe {
             std::slice::from_raw_parts((self as *const LoadStatement) as *const u8, size)
         };
-        debug!(
-            "size: {} self: {:x?} bytes.len(): {} bytes: {:x?}",
-            size,
-            self,
-            bytes.len(),
-            bytes
-        );
+        debug!("size: {} self: {:x?}", size, self,);
         bytes
     }
 }

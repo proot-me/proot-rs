@@ -96,7 +96,7 @@ mod tests {
 
     #[test]
     fn test_substitute_binding_root_and_asymmetric() {
-        let mut fs = FileSystem::with_root("/home/user");
+        let mut fs = FileSystem::with_root("/home/user").unwrap();
 
         // "/etc" on the host, "/media" on the guest
         fs.add_binding(Binding::new("/etc", "/media", true));
@@ -129,7 +129,7 @@ mod tests {
 
     #[test]
     fn test_substitute_binding_symmetric() {
-        let mut fs = FileSystem::with_root("/home/user");
+        let mut fs = FileSystem::with_root("/home/user").unwrap();
 
         fs.add_binding(Binding::new("/etc/something", "/etc/something", true));
 
@@ -149,7 +149,8 @@ mod tests {
     #[test]
     fn test_substitute_intermediary_and_glue() {
         let rootfs_path = get_test_rootfs();
-        let mut fs = FileSystem::with_root(PathBuf::from(rootfs_path.as_path()).join("bin"));
+        let mut fs =
+            FileSystem::with_root(PathBuf::from(rootfs_path.as_path()).join("bin")).unwrap();
 
         // testing a folder
         let (path, file_type) = fs

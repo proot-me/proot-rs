@@ -1,12 +1,13 @@
-use std::path::PathBuf;
+use std::os::unix::io::RawFd;
+use std::path::{Path, PathBuf};
 
 use nix::sys::ptrace::{self, Options};
 use nix::sys::signal::Signal;
 use nix::unistd::Pid;
 
-use crate::errors::Result;
-use crate::errors::{Error, WithContext};
-use crate::filesystem::FileSystem;
+use crate::errors::*;
+use crate::filesystem::Translator;
+use crate::filesystem::{binding::Side, FileSystem};
 use crate::kernel::execve::load_info::LoadInfo;
 use crate::process::proot::InfoBag;
 use crate::register::{Registers, Word};
@@ -155,6 +156,66 @@ impl Tracee {
     /// Return the byte size of a Word in tracee
     pub fn sizeof_word(&self) -> usize {
         std::mem::size_of::<Word>()
+    }
+
+    /// Get current work directory (cwd)
+    /// This function will return a **guest side** **absolute path**
+    pub fn get_cwd(&self) -> &Path {
+        // TODO: each tracee has their own cwd
+        let cwd = self.fs.get_cwd();
+        if cwd.is_relative() {
+            warn!(
+                "cwd of tracee({}) is not absolute, there may be some bugs: {:?}",
+                self.pid, cwd
+            );
+        }
+        cwd
+    }
+
+    /// Get file path from file descriptor
+    pub fn get_path_from_fd(&self, fd: RawFd, side: Side) -> Result<PathBuf> {
+        #[cfg(any(target_os = "linux", target_os = "android"))]
+        {
+            if fd == libc::AT_FDCWD {
+                // special fd, which point to cwd
+                let guest_path = self.get_cwd();
+                Ok(match side {
+                    Side::Host => self.fs.translate_path(guest_path, false)?,
+                    Side::Guest => guest_path.into(),
+                })
+            } else {
+                let proc_fd = format!("/proc/{}/fd/{}", self.pid, fd);
+                let maybe_path = PathBuf::from(nix::fcntl::readlink(proc_fd.as_str())?);
+                // The /proc/PID/fd/FD is always a symlink pointing to a absolute file/dir path.
+                // If not, the FD must not be a file/dir.
+                if !maybe_path.is_absolute() {
+                    return Err(Error::errno_with_msg(
+                        Errno::EBADF,
+                        format!(
+                            "The file descriptor is not pointing to a file or directory: {:?}",
+                            maybe_path
+                        ),
+                    ));
+                }
+                let host_path = maybe_path;
+                Ok(match side {
+                    Side::Guest => {
+                        self.fs.detranslate_path(&host_path, None)?.ok_or_else(|| {
+                            Error::errno_with_msg(
+                                EBADF,
+                                format!(
+                                    "path exist but failed to convert to guest side: {:?}",
+                                    host_path
+                                ),
+                            )
+                        })?
+                    }
+                    Side::Host => host_path,
+                })
+            }
+        }
+        // TODO: on some Unix which contains no /proc, use fcntl(fd, F_GETPATH,
+        // pathbuf) instead.
     }
 }
 

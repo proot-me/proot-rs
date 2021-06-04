@@ -1,6 +1,4 @@
 use std::ffi::CString;
-use std::os::unix::prelude::OsStrExt;
-use std::path::Path;
 use std::process;
 use std::{collections::HashMap, convert::TryFrom};
 

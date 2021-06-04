@@ -36,7 +36,6 @@ pub fn translate(tracee: &mut Tracee) {
         SyscallGroup::Chdir => chdir::exit(),
         SyscallGroup::Rename => link_rename::exit(),
         SyscallGroup::RenameAt => rename_at::exit(),
-        SyscallGroup::ReadLink => readlink_at::exit(),
         SyscallGroup::ReadLinkAt => readlink_at::exit(),
         #[cfg(all(target_os = "linux", target_arch = "x86_64"))]
         SyscallGroup::Uname => uname::exit(),

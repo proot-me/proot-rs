@@ -297,7 +297,7 @@ mod tests {
     fn test_expand_shebang_no_exec_permission() {
         let rootfs_path = get_test_rootfs();
 
-        let fs = FileSystem::with_root(&rootfs_path);
+        let fs = FileSystem::with_root(&rootfs_path).unwrap();
 
         // it should detect that `/etc/hostname` is not executable
         assert_eq!(

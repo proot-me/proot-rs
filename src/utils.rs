@@ -48,7 +48,8 @@ pub mod tests {
             match unsafe { fork() }.expect("fork in test") {
                 ForkResult::Parent { child } => {
                     let mut info_bag = InfoBag::new();
-                    let mut tracee = Tracee::new(child, FileSystem::with_root(fs_root.as_ref()));
+                    let mut tracee =
+                        Tracee::new(child, FileSystem::with_root(fs_root.as_ref()).unwrap());
 
                     // the parent will wait for the child's signal before calling set_ptrace_options
                     assert_eq!(

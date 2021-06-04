@@ -15,7 +15,8 @@ pub struct FileSystem {
     /// List of bindings used to replicate `mount` and `bind`.
     /// It will also contain the root binding (to replicate `chroot`).
     bindings: Vec<Binding>,
-    /// Working directory in gusetfs, à la `/proc/self/pwd`.
+    /// Working directory in gusetfs, à la `/proc/self/cwd`. Always is absolute
+    /// path.
     cwd: PathBuf,
     /// Guest root (the binding associated to `/`)
     root: PathBuf,
@@ -34,11 +35,11 @@ impl FileSystem {
     }
 
     #[cfg(test)]
-    pub fn with_root<P: AsRef<Path>>(root: P) -> FileSystem {
+    pub fn with_root<P: AsRef<Path>>(root: P) -> Result<FileSystem> {
         let mut file_system = FileSystem::new();
 
-        file_system.set_root(root);
-        file_system
+        file_system.set_root(root)?;
+        Ok(file_system)
     }
 
     /// Add a binding at the beginning of the list,
@@ -109,9 +110,13 @@ impl FileSystem {
     }
 
     #[inline]
-    pub fn set_root<P: AsRef<Path>>(&mut self, root: P) {
-        self.root = root.as_ref().into();
-        self.add_binding(Binding::new(root, "/", true));
+    pub fn set_root<P: AsRef<Path>>(&mut self, root: P) -> Result<()> {
+        let raw_root = root.as_ref();
+        let canonicalized_root = std::fs::canonicalize(raw_root)?;
+
+        self.root = canonicalized_root;
+        self.add_binding(Binding::new(&self.root, "/", true));
+        Ok(())
     }
 
     #[inline]
@@ -143,7 +148,7 @@ mod tests {
     fn test_fs_belongs_to_guestfs() {
         // this test does not trigger real file access, so we do not call
         // `get_test_rootfs()` here.
-        let fs = FileSystem::with_root("/etc");
+        let fs = FileSystem::with_root("/etc").unwrap();
 
         assert_eq!(fs.belongs_to_guestfs(Path::new("/etc")), true);
         assert_eq!(fs.belongs_to_guestfs(Path::new("/etc/.")), true);
@@ -167,7 +172,7 @@ mod tests {
             .is_none()); // no bindings
 
         // testing root binding
-        fs.set_root("/home/user");
+        fs.set_root("/home/user").unwrap();
 
         assert_eq!(
             fs.get_first_appropriate_binding(&Path::new("/bin"), Guest)
@@ -222,7 +227,7 @@ mod tests {
 
     #[test]
     fn test_fs_is_path_executable() {
-        let fs = FileSystem::with_root(get_test_rootfs());
+        let fs = FileSystem::with_root(get_test_rootfs()).unwrap();
 
         assert!(fs
             .check_path_executable(&PathBuf::from("/bin/sleep"))

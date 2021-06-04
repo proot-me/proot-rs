@@ -1,13 +1,16 @@
+use std::path::PathBuf;
+
+use clap::{App, Arg};
+
+use crate::errors::*;
 use crate::filesystem::binding::Binding;
 use crate::filesystem::validation::{binding_validator, path_validator};
 use crate::filesystem::FileSystem;
-use clap::{App, Arg};
-use std::path::PathBuf;
 
 pub const DEFAULT_ROOTFS: &'static str = "/";
 pub const DEFAULT_CWD: &'static str = ".";
 
-pub fn parse_config() -> (FileSystem, Vec<String>) {
+pub fn parse_config() -> Result<(FileSystem, Vec<String>)> {
     let mut fs: FileSystem = FileSystem::new();
 
     let matches = App::new("proot-rsc")
@@ -40,7 +43,7 @@ pub fn parse_config() -> (FileSystem, Vec<String>) {
     // option -r
     let rootfs: &str = matches.value_of("rootfs").unwrap();
     // -r *path* is equivalent to -b *path*:/
-    fs.set_root(rootfs);
+    fs.set_root(rootfs)?;
 
     // option(s) -b
     if let Some(bindings) = matches.values_of("bind") {
@@ -62,5 +65,5 @@ pub fn parse_config() -> (FileSystem, Vec<String>) {
         None => ["/bin/sh".into()].into(),
     };
 
-    (fs, command)
+    Ok((fs, command))
 }

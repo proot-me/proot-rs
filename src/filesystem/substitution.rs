@@ -91,12 +91,13 @@ mod tests {
     use crate::filesystem::binding::Binding;
     use crate::filesystem::binding::Side::{Guest, Host};
     use crate::filesystem::FileSystem;
-    use crate::utils::tests::get_test_rootfs;
+    use crate::utils::tests::get_test_rootfs_path;
     use std::path::{Path, PathBuf};
 
     #[test]
     fn test_substitute_binding_root_and_asymmetric() {
-        let mut fs = FileSystem::with_root("/home/user").unwrap();
+        let rootfs_path = get_test_rootfs_path();
+        let mut fs = FileSystem::with_root(&rootfs_path).unwrap();
 
         // "/etc" on the host, "/media" on the guest
         fs.add_binding(Binding::new("/etc", "/media", true));
@@ -118,7 +119,7 @@ mod tests {
 
         assert_eq!(
             fs.substitute(&Path::new("/etc/folder/subfolder"), Guest),
-            Ok(PathBuf::from("/home/user/etc/folder/subfolder"))
+            Ok(rootfs_path.join("etc/folder/subfolder"))
         ); // "/" => "/home/user"
 
         assert_eq!(
@@ -129,7 +130,7 @@ mod tests {
 
     #[test]
     fn test_substitute_binding_symmetric() {
-        let mut fs = FileSystem::with_root("/home/user").unwrap();
+        let mut fs = FileSystem::with_root(get_test_rootfs_path()).unwrap();
 
         fs.add_binding(Binding::new("/etc/something", "/etc/something", true));
 
@@ -148,7 +149,7 @@ mod tests {
 
     #[test]
     fn test_substitute_intermediary_and_glue() {
-        let rootfs_path = get_test_rootfs();
+        let rootfs_path = get_test_rootfs_path();
         let mut fs =
             FileSystem::with_root(PathBuf::from(rootfs_path.as_path()).join("bin")).unwrap();
 

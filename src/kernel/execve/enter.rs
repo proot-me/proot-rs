@@ -104,7 +104,7 @@ mod tests {
     use crate::utils::tests::fork_test;
     use crate::{
         register::{Current, PtraceReader},
-        utils::tests::get_test_rootfs,
+        utils::tests::get_test_rootfs_path,
     };
     use nix::unistd::execvp;
     use sc::nr::{EXECVE, NANOSLEEP};
@@ -112,7 +112,7 @@ mod tests {
 
     #[test]
     fn test_execve_translate_enter() {
-        let rootfs_path = get_test_rootfs();
+        let rootfs_path = get_test_rootfs_path();
         let mut at_least_one_translation_occured = false;
 
         fork_test(

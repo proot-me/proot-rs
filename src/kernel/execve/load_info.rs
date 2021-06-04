@@ -361,12 +361,12 @@ mod tests {
     use crate::errors::Error;
     use crate::filesystem::FileSystem;
     use crate::register::Word;
-    use crate::utils::tests::get_test_rootfs;
+    use crate::utils::tests::get_test_rootfs_path;
     use std::path::PathBuf;
 
     #[test]
     fn test_load_info_from_invalid_path() {
-        let rootfs_path = get_test_rootfs();
+        let rootfs_path = get_test_rootfs_path();
 
         let fs = FileSystem::with_root(rootfs_path).unwrap();
         let result = LoadInfo::from(&fs, &PathBuf::from("/../../.."));
@@ -377,7 +377,7 @@ mod tests {
 
     #[test]
     fn test_load_info_from_path_not_executable() {
-        let rootfs_path = get_test_rootfs();
+        let rootfs_path = get_test_rootfs_path();
 
         let fs = FileSystem::with_root(&rootfs_path).unwrap();
         let result = LoadInfo::from(&fs, &rootfs_path.join("etc/passwd"));
@@ -387,7 +387,7 @@ mod tests {
 
     #[test]
     fn test_load_info_from_path_has_mappings() {
-        let rootfs_path = get_test_rootfs();
+        let rootfs_path = get_test_rootfs_path();
 
         let fs = FileSystem::with_root(&rootfs_path).unwrap();
         let result = LoadInfo::from(&fs, &rootfs_path.join("bin/sleep"));
@@ -401,7 +401,7 @@ mod tests {
 
     #[test]
     fn test_load_info_from_path_has_interp() {
-        let rootfs_path = get_test_rootfs();
+        let rootfs_path = get_test_rootfs_path();
 
         let fs = FileSystem::with_root(&rootfs_path).unwrap();
         let result = LoadInfo::from(&fs, &rootfs_path.join("bin/sleep"));
@@ -421,7 +421,7 @@ mod tests {
     #[test]
     #[cfg(all(target_os = "linux", any(target_arch = "x86_64")))]
     fn test_load_info_compute_load_addresses() {
-        let rootfs_path = get_test_rootfs();
+        let rootfs_path = get_test_rootfs_path();
 
         let fs = FileSystem::with_root(&rootfs_path).unwrap();
         let result = LoadInfo::from(&fs, &rootfs_path.join("bin/sleep"));

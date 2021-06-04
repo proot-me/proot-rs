@@ -140,7 +140,7 @@ fn read_string(pid: Pid, src_string: *mut Word, max_size: usize) -> Result<Vec<u
 mod tests {
     use super::*;
     use crate::register::*;
-    use crate::utils::tests::{fork_test, get_test_rootfs};
+    use crate::utils::tests::{fork_test, get_test_rootfs_path};
     use libc::user_regs_struct;
     use nix::unistd::{execvp, getpid};
     use sc::nr::MKDIR;
@@ -189,7 +189,7 @@ mod tests {
     /// corresponding signum), and if the first argument of the syscall
     /// correspond to the path given to the initial command.
     fn test_reader_get_sysarg_path_for_mkdir_test() {
-        let rootfs_path = get_test_rootfs();
+        let rootfs_path = get_test_rootfs_path();
         let test_path = "my/impossible/test/path";
 
         fork_test(

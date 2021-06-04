@@ -140,7 +140,8 @@ mod tests {
     use super::*;
     use crate::filesystem::binding::Binding;
     use crate::filesystem::binding::Side::{Guest, Host};
-    use crate::utils::tests::get_test_rootfs;
+    use crate::utils;
+    use crate::utils::tests::get_test_rootfs_path;
     use std::path::{Path, PathBuf};
 
     // TODO: consider remove this test
@@ -172,7 +173,7 @@ mod tests {
             .is_none()); // no bindings
 
         // testing root binding
-        fs.set_root("/home/user").unwrap();
+        fs.set_root(get_test_rootfs_path()).unwrap();
 
         assert_eq!(
             fs.get_first_appropriate_binding(&Path::new("/bin"), Guest)
@@ -227,7 +228,7 @@ mod tests {
 
     #[test]
     fn test_fs_is_path_executable() {
-        let fs = FileSystem::with_root(get_test_rootfs()).unwrap();
+        let fs = FileSystem::with_root(get_test_rootfs_path()).unwrap();
 
         assert!(fs
             .check_path_executable(&PathBuf::from("/bin/sleep"))

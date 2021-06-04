@@ -135,13 +135,13 @@ mod tests {
     use super::*;
     use crate::filesystem::binding::Binding;
     use crate::filesystem::FileSystem;
-    use crate::utils::tests::get_test_rootfs;
+    use crate::utils::tests::get_test_rootfs_path;
     use nix::sys::stat::Mode;
     use std::path::{Path, PathBuf};
 
     #[test]
     fn test_translate_path_without_root() {
-        let rootfs_path = get_test_rootfs();
+        let rootfs_path = get_test_rootfs_path();
 
         let mut fs = FileSystem::with_root(rootfs_path.as_path()).unwrap();
 
@@ -161,7 +161,7 @@ mod tests {
 
     #[test]
     fn test_translate_path_with_root() {
-        let rootfs_path = get_test_rootfs();
+        let rootfs_path = get_test_rootfs_path();
 
         let mut fs = FileSystem::with_root(rootfs_path.clone().join("bin")).unwrap();
 
@@ -192,7 +192,7 @@ mod tests {
 
     #[test]
     fn test_detranslate_path_root() {
-        let rootfs_path = PathBuf::from(get_test_rootfs());
+        let rootfs_path = PathBuf::from(get_test_rootfs_path());
 
         // "${rootfs}" on the host, "/" on the guest
         let fs = FileSystem::with_root(rootfs_path.as_path()).unwrap();
@@ -218,7 +218,7 @@ mod tests {
 
     #[test]
     fn test_detranslate_path_asymmetric() {
-        let rootfs_path = get_test_rootfs();
+        let rootfs_path = get_test_rootfs_path();
 
         // "${rootfs}" on the host, "/" on the guest
         let mut fs = FileSystem::with_root(rootfs_path).unwrap();
@@ -234,8 +234,8 @@ mod tests {
 
     #[test]
     fn test_detranslate_path_symmetric() {
-        // "/home/user" on the host, "/" on the guest
-        let mut fs = FileSystem::with_root("/home/user").unwrap();
+        // "${rootfs}" on the host, "/" on the guest
+        let mut fs = FileSystem::with_root(get_test_rootfs_path()).unwrap();
 
         // "/etc/host" in the host, "/etc/guest" in the guest
         fs.add_binding(Binding::new("/etc/guest", "/etc/guest", true));

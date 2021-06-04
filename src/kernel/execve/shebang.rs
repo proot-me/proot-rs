@@ -281,12 +281,12 @@ fn extract(host_path: &Path) -> Result<Option<PathBuf>> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{filesystem::FileSystem, utils::tests::get_test_rootfs};
+    use crate::{filesystem::FileSystem, utils::tests::get_test_rootfs_path};
     use std::path::PathBuf;
 
     #[test]
     fn test_extract_shebang_not_script() {
-        let rootfs_path = get_test_rootfs();
+        let rootfs_path = get_test_rootfs_path();
 
         // it should detect that `/bin/sleep` is not a script
         assert_eq!(Ok(None), extract(&rootfs_path.join("bin/sleep")));
@@ -295,7 +295,7 @@ mod tests {
     // TODO: test shebang expand not contains shebang
     #[test]
     fn test_expand_shebang_no_exec_permission() {
-        let rootfs_path = get_test_rootfs();
+        let rootfs_path = get_test_rootfs_path();
 
         let fs = FileSystem::with_root(&rootfs_path).unwrap();
 

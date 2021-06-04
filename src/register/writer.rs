@@ -147,7 +147,7 @@ mod tests {
     use crate::utils::tests::fork_test;
     use crate::{
         register::{Current, Original, PtraceReader, SysArg1},
-        utils::tests::get_test_rootfs,
+        utils::tests::get_test_rootfs_path,
     };
     use nix::unistd::execvp;
     use sc::nr::MKDIR;
@@ -156,7 +156,7 @@ mod tests {
 
     #[test]
     fn test_write_set_sysarg_path_write_same_path() {
-        let rootfs_path = get_test_rootfs();
+        let rootfs_path = get_test_rootfs_path();
 
         let test_path = "my/impossible/test/path";
         let test_path_2 = "my/second/impossible/test/path";

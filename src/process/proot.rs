@@ -136,7 +136,7 @@ impl PRoot {
                 }
                 Signaled(pid, term_signal, dumped_core) => {
                     trace!(
-                        "-- {}, Killed be a signal: {:?}, and dump core: {}",
+                        "-- {}, Killed by signal: {:?}, and dump core: {}",
                         pid,
                         term_signal,
                         dumped_core

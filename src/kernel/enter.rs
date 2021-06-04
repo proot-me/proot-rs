@@ -14,7 +14,7 @@ pub fn translate(info_bag: &InfoBag, tracee: &mut Tracee) -> Result<()> {
     let sys_num = tracee.regs.get_sys_num(Current);
     let sys_type = syscall_group_from_sysnum(sys_num);
 
-    debug!("Syscall enter ({:?}, {:?})", sys_num, sys_type);
+    trace!("Syscall enter ({:?}, {:?})", sys_num, sys_type);
 
     match sys_type {
         Accept => accept::enter(),

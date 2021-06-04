@@ -61,7 +61,7 @@ impl SyscallTranslator for Tracee {
         // remember the tracee status for the "exit" stage and avoid
         // the actual syscall.
         if let Err(error) = status {
-            error!("{}", error);
+            debug!("translate_syscall_enter: {}", error);
             self.regs
                 .cancel_syscall("Error in enter stage, avoid syscall");
             self.regs.set(

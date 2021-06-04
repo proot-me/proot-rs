@@ -38,6 +38,7 @@ pub enum Register {
 }
 use self::Register::*;
 
+#[derive(Debug)]
 pub struct Registers {
     /// Pid of the tracee that it was generated from
     pid: Pid,
@@ -157,6 +158,7 @@ impl Registers {
         let pid = self.pid;
         let current_regs = self.get_mut_regs(Current);
 
+        debug!("Push regs: {:x?}", current_regs);
         ptrace::setregs(pid, *current_regs)?;
         Ok(())
     }
@@ -214,8 +216,8 @@ impl Registers {
     /// Requires both `Current` and `Original` regs to be defined.
     #[inline]
     fn restore_regs(&mut self) {
-        let original_regs = &mut self.registers[Original as usize].unwrap();
-        let current_regs = &mut self.registers[Current as usize].unwrap();
+        let original_regs = self.registers[Original as usize].unwrap(); // get a copy of original regs
+        let current_regs = self.registers[Current as usize].as_mut().unwrap();
 
         get_reg!(current_regs, SysNum) = get_reg!(original_regs, SysNum);
         get_reg!(current_regs, SysArg1) = get_reg!(original_regs, SysArg1);
@@ -300,12 +302,6 @@ impl Registers {
             get_reg!(current_regs, SysResult),
             get_reg!(current_regs, StackPointer),
         )
-    }
-}
-
-impl fmt::Debug for Registers {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        self.display(f)
     }
 }
 

@@ -33,7 +33,6 @@ impl Translator for FileSystem {
             guest_path, unchecked_guest_path
         );
         guest_path.push(unchecked_guest_path);
-        drop(unchecked_guest_path);
 
         //TODO: event GUEST_PATH for extensions
         //    status = notify_extensions(tracee, GUEST_PATH, (intptr_t) result,

@@ -100,7 +100,7 @@ impl Binding {
 mod tests {
     use super::Side::{Guest, Host};
     use super::*;
-    use crate::utils::tests::get_test_rootfs;
+    use crate::utils::tests::get_test_rootfs_path;
     use std::path::PathBuf;
 
     #[test]

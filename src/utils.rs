@@ -121,7 +121,7 @@ pub mod tests {
         }
     }
 
-    pub fn get_test_rootfs() -> PathBuf {
+    pub fn get_test_rootfs_path() -> PathBuf {
         if let Some(val) = env::var_os("PROOT_TEST_ROOTFS") {
             if !val.is_empty() {
                 let path = Path::new(val.as_os_str());

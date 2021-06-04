@@ -54,12 +54,12 @@ impl Initialiser for FileSystem {
 mod tests {
     use super::*;
     use crate::filesystem::FileSystem;
-    use crate::utils::tests::get_test_rootfs;
+    use crate::utils::tests::get_test_rootfs_path;
     use std::path::{Path, PathBuf};
 
     #[test]
     fn test_initialisation_cwd_invalid_should_default_to_root() {
-        let mut fs = FileSystem::with_root(get_test_rootfs()).unwrap();
+        let mut fs = FileSystem::with_root(get_test_rootfs_path()).unwrap();
 
         fs.set_cwd(PathBuf::from("/my/impossible/cwd"));
 
@@ -73,7 +73,7 @@ mod tests {
 
     #[test]
     fn test_initialisation_cwd_absolute() {
-        let mut fs = FileSystem::with_root(get_test_rootfs()).unwrap();
+        let mut fs = FileSystem::with_root(get_test_rootfs_path()).unwrap();
 
         fs.set_cwd(PathBuf::from("/bin"));
 
@@ -88,7 +88,7 @@ mod tests {
 
     #[test]
     fn test_initialisation_cwd_relative() {
-        let rootfs_path = get_test_rootfs();
+        let rootfs_path = get_test_rootfs_path();
         let mut fs = FileSystem::with_root(rootfs_path.as_path()).unwrap();
         // let real_cwd = getcwd().unwrap();
 

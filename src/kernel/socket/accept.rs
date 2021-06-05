@@ -1,5 +1,5 @@
 use crate::errors::Result;
-use crate::kernel::exit::SyscallExitResult;
+
 use crate::kernel::socket::get_sockorpeer_name;
 
 pub fn enter() -> Result<()> {
@@ -13,7 +13,7 @@ pub fn enter() -> Result<()> {
     // special = true;
 }
 
-pub fn exit() -> SyscallExitResult {
+pub fn exit() -> Result<()> {
     /* Nothing special to do if no sockaddr was specified. */
     // if (peek_reg(tracee, ORIGINAL, SYSARG_2) == 0)
     //      return SyscallExitResult::None;

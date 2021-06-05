@@ -1,5 +1,4 @@
 use crate::errors::Result;
-use crate::kernel::exit::SyscallExitResult;
 
 pub fn enter() -> Result<()> {
     Ok(())
@@ -73,7 +72,7 @@ pub fn enter() -> Result<()> {
     //    break;
 }
 
-pub fn exit() -> SyscallExitResult {
+pub fn exit() -> Result<()> {
     //    word_t args_addr;
     //    word_t sock_addr;
     //    word_t size_addr;
@@ -131,5 +130,5 @@ pub fn exit() -> SyscallExitResult {
     //        return SyscallExitResult::Value(status);
     //
     // Don't overwrite the syscall result.
-    SyscallExitResult::None
+    Ok(())
 }

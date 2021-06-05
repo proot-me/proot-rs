@@ -1,5 +1,4 @@
 use crate::errors::Result;
-use crate::kernel::exit::SyscallExitResult;
 
 pub fn enter() -> Result<()> {
     Ok(())
@@ -106,7 +105,7 @@ pub fn enter() -> Result<()> {
     //	return 0;
 }
 
-pub fn exit() -> SyscallExitResult {
+pub fn exit() -> Result<()> {
     //	word_t result;
     //	word_t sysnum;
     //	int tracee_errno;
@@ -168,5 +167,5 @@ pub fn exit() -> SyscallExitResult {
     //	}
     //
     //	DEBUG_BRK("brk() = 0x%lx\n", peek_reg(tracee, CURRENT, SYSARG_RESULT));
-    SyscallExitResult::None
+    Ok(())
 }

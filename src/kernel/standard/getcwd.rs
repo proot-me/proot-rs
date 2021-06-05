@@ -1,14 +1,14 @@
-use crate::errors::Result;
-use crate::kernel::exit::SyscallExitResult;
+use crate::errors::*;
 
-pub fn enter() -> Result<()> {
+use crate::process::tracee::Tracee;
+
+use crate::register::{Current, SysArg, SysArg1, SysArg2};
+
+pub fn enter(tracee: &mut Tracee) -> Result<()> {
     Ok(())
-
-    //set_sysnum(tracee, PR_void);
-    //status = 0;
 }
 
-pub fn exit() -> SyscallExitResult {
+pub fn exit(tracee: &mut Tracee) -> Result<()> {
     //    char path[PATH_MAX];
     //    size_t new_size;
     //    size_t size;
@@ -37,5 +37,5 @@ pub fn exit() -> SyscallExitResult {
     //    if (status < 0)
     //        break;
     //
-    SyscallExitResult::None
+    Ok(())
 }

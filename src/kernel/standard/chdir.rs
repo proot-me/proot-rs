@@ -1,5 +1,4 @@
 use crate::errors::Result;
-use crate::kernel::exit::SyscallExitResult;
 
 pub fn enter() -> Result<()> {
     Ok(())
@@ -71,7 +70,7 @@ pub fn enter() -> Result<()> {
     //    SyscallExitResult::Value(0)
 }
 
-pub fn exit() -> SyscallExitResult {
+pub fn exit() -> Result<()> {
     // This syscall is fully emulated, see method `enter()` above.
-    SyscallExitResult::None
+    Ok(())
 }

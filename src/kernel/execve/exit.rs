@@ -1,5 +1,6 @@
 use std::os::unix::prelude::OsStrExt;
 
+use libc::c_void;
 use nix::sys::mman::MapFlags;
 use nix::unistd::SysconfVar;
 
@@ -11,7 +12,7 @@ use crate::kernel::execve::load_info::LoadStatementStackExec;
 use crate::kernel::execve::load_info::LoadStatementStart;
 use crate::process::tracee::Tracee;
 use crate::register::PtraceWriter;
-use crate::register::{Current, StackPointer, SysArg, SysArgIndex, SysResult, Word};
+use crate::register::{Current, StackPointer, SysArg, SysArgIndex, SysResult};
 
 pub fn translate(tracee: &mut Tracee) -> Result<()> {
     let syscall_result = tracee.regs.get(Current, SysResult) as isize;
@@ -201,7 +202,7 @@ pub fn transfert_load_script(tracee: &mut Tracee) -> Result<()> {
     let new_stack_pointer = stack_pointer - padding_size - buffer.len();
     tracee
         .regs
-        .write_data(new_stack_pointer as *mut Word, &buffer, false)?;
+        .write_data(new_stack_pointer as *mut c_void, &buffer, false)?;
     tracee.regs.set(
         StackPointer,
         new_stack_pointer as u64,

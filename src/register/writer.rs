@@ -37,7 +37,7 @@ pub trait PtraceWriter {
         justification: &'static str,
         append_null: bool,
     ) -> Result<()>;
-    fn write_data(&self, dest_tracee: *mut Word, data: &[u8], append_null: bool) -> Result<()>;
+    fn write_data(&self, dest_tracee: *mut c_void, data: &[u8], append_null: bool) -> Result<()>;
 }
 
 impl PtraceWriter for Registers {
@@ -73,7 +73,7 @@ impl PtraceWriter for Registers {
             self.alloc_mem_on_stack(data.len() as isize + if append_null { 1 } else { 0 })?;
 
         // Copy the new data into the previously allocated space.
-        self.write_data(tracee_ptr as *mut Word, data, append_null)?;
+        self.write_data(tracee_ptr as *mut c_void, data, append_null)?;
 
         // Make this argument point to the new data.
         self.set(SysArg(sys_arg), tracee_ptr, justification);
@@ -84,7 +84,7 @@ impl PtraceWriter for Registers {
     /// Copy the `data` to tracee's memory space by ptrace(PTRACE_POKEDATA) and
     /// ptrace(PTRACE_PEEKDATA). It transmits one word at a time, and the
     /// boundary case is carefully handled.
-    fn write_data(&self, dest_tracee: *mut Word, data: &[u8], append_null: bool) -> Result<()> {
+    fn write_data(&self, dest_tracee: *mut c_void, data: &[u8], append_null: bool) -> Result<()> {
         //TODO implement belongs_to_heap_prealloc
         // if (belongs_to_heap_prealloc(tracee, dest_tracee))
         // return -EFAULT;
@@ -113,14 +113,15 @@ impl PtraceWriter for Registers {
         for i in 0..nb_full_words {
             // The byteorder crate is used to read the [u8] slice as a [Word] slice.
             let word = buf.read_uint::<NativeEndian>(word_size).unwrap() as Word;
-            let dest_addr = unsafe { dest_tracee.offset(i) as *mut c_void };
+            let dest_addr = unsafe { (dest_tracee as *mut Word).offset(i) as *mut c_void };
 
             unsafe { ptrace::write(self.get_pid(), dest_addr, word as *mut c_void)? };
         }
 
         // Copy the bytes in the last word carefully since we have to
         // overwrite only the relevant ones.
-        let last_dest_addr = unsafe { dest_tracee.offset(nb_full_words) as *mut c_void };
+        let last_dest_addr =
+            unsafe { (dest_tracee as *mut Word).offset(nb_full_words) as *mut c_void };
         let existing_word = ptrace::read(self.get_pid(), last_dest_addr)? as Word;
         let mut bytes = convert_word_to_bytes(existing_word);
 

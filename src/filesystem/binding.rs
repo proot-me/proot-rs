@@ -99,7 +99,6 @@ impl Binding {
 mod tests {
     use super::Side::{Guest, Host};
     use super::*;
-
     use std::path::PathBuf;
 
     #[test]

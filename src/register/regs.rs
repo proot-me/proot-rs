@@ -312,10 +312,14 @@ impl fmt::Display for Registers {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::utils::tests::{fork_test, get_test_rootfs_path};
+
+    use std::ffi::CString;
+    use std::mem;
+
     use nix::unistd::{execvp, Pid};
     use sc::nr::{CLOCK_NANOSLEEP, NANOSLEEP};
-    use std::{ffi::CString, mem};
+
+    use crate::utils::tests::{fork_test, get_test_rootfs_path};
 
     #[test]
     fn test_regs_where_changed() {

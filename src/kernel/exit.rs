@@ -5,10 +5,10 @@ use crate::kernel::ptrace::*;
 use crate::kernel::socket::*;
 use crate::kernel::standard::*;
 use crate::process::tracee::Tracee;
-use crate::register::{Current, SysResult, Word};
+use crate::register::{Original, SysResult, Word};
 
 pub fn translate(tracee: &mut Tracee) {
-    let syscall_number = tracee.regs.get_sys_num(Current);
+    let syscall_number = tracee.regs.get_sys_num(Original);
     let syscall_group = syscall_group_from_sysnum(syscall_number);
 
     trace!("Syscall exit ({:?}, {:?})", syscall_number, syscall_group);
@@ -32,6 +32,7 @@ pub fn translate(tracee: &mut Tracee) {
     };
 
     if let Err(error) = result {
+        debug!("syscall translate raised an error: {:?}", error);
         tracee.regs.set(
             SysResult,
             // errno is negative

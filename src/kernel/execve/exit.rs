@@ -9,18 +9,17 @@ use crate::kernel::execve::load_info::LoadStatementMmap;
 use crate::kernel::execve::load_info::LoadStatementOpen;
 use crate::kernel::execve::load_info::LoadStatementStackExec;
 use crate::kernel::execve::load_info::LoadStatementStart;
-use crate::kernel::exit::SyscallExitResult;
 use crate::process::tracee::Tracee;
 use crate::register::PtraceWriter;
 use crate::register::{Current, StackPointer, SysArg, SysArgIndex, SysResult, Word};
 
-pub fn translate(tracee: &mut Tracee) -> SyscallExitResult {
+pub fn translate(tracee: &mut Tracee) -> Result<()> {
     let syscall_result = tracee.regs.get(Current, SysResult) as isize;
 
     //TODO: implement ptrace execve exit translation
 
     if syscall_result < 0 {
-        return SyscallExitResult::None;
+        return Ok(());
     }
 
     if tracee.new_exe.is_some() {
@@ -32,10 +31,7 @@ pub fn translate(tracee: &mut Tracee) -> SyscallExitResult {
     // New processes have no heap.
     //bzero(tracee->heap, sizeof(Heap));
 
-    let res = match transfert_load_script(tracee) {
-        Err(error) => SyscallExitResult::Error(error),
-        Ok(()) => SyscallExitResult::None,
-    };
+    let res = transfert_load_script(tracee);
     tracee.load_info = None;
     res
 }

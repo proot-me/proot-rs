@@ -1,5 +1,5 @@
 use crate::errors::Result;
-use crate::kernel::exit::SyscallExitResult;
+
 use crate::kernel::standard::link_rename;
 
 pub fn enter() -> Result<()> {
@@ -24,6 +24,6 @@ pub fn enter() -> Result<()> {
     // SYSARG_4, SYMLINK);
 }
 
-pub fn exit() -> SyscallExitResult {
+pub fn exit() -> Result<()> {
     link_rename::exit()
 }

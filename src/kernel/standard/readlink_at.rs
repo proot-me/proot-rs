@@ -1,12 +1,12 @@
 use crate::errors::Result;
-use crate::kernel::exit::SyscallExitResult;
+
 use crate::kernel::standard::unlink_mkdir_at;
 
 pub fn enter() -> Result<()> {
     unlink_mkdir_at::enter()
 }
 
-pub fn exit() -> SyscallExitResult {
+pub fn exit() -> Result<()> {
     //    char referee[PATH_MAX];
     //    char referer[PATH_MAX];
     //    size_t old_size;
@@ -83,5 +83,5 @@ pub fn exit() -> SyscallExitResult {
     //
     // The value of "status" is used to update the returned value in
     // translate_syscall_exit().
-    SyscallExitResult::None
+    Ok(())
 }

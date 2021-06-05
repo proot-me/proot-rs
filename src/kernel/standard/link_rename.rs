@@ -1,5 +1,4 @@
 use crate::errors::Result;
-use crate::kernel::exit::SyscallExitResult;
 
 /// Translates link and rename kernel
 pub fn enter() -> Result<()> {
@@ -13,7 +12,7 @@ pub fn enter() -> Result<()> {
 }
 
 /// Translates `rename` and `rename_at` kernel
-pub fn exit() -> SyscallExitResult {
+pub fn exit() -> Result<()> {
     //    char old_path[PATH_MAX];
     //		char new_path[PATH_MAX];
     //		ssize_t old_length;
@@ -83,5 +82,5 @@ pub fn exit() -> SyscallExitResult {
     //		tracee->fs->cwd = tmp;
     //
     //		status = 0;
-    SyscallExitResult::None
+    Ok(())
 }

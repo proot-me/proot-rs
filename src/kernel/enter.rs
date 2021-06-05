@@ -24,7 +24,7 @@ pub fn translate(info_bag: &InfoBag, tracee: &mut Tracee) -> Result<()> {
         ChmodAccessMkNodAt => chmod_access_mknod_at::enter(),
         DirLinkAttr => dir_link_attr::enter(tracee),
         Execve => execve::enter(tracee, &info_bag.loader),
-        GetCwd => getcwd::enter(),
+        GetCwd => getcwd::enter(tracee),
         GetSockOrPeerName => get_sockorpeer_name::enter(),
         InotifyAddWatch => inotify_add_watch::enter(),
         Link => link_rename::enter(),

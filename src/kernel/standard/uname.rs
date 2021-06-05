@@ -1,7 +1,7 @@
-use crate::kernel::exit::SyscallExitResult;
+use crate::errors::*;
 
 #[cfg(all(target_os = "linux", target_arch = "x86_64"))]
-pub fn exit() -> SyscallExitResult {
+pub fn exit() -> Result<()> {
     //    struct utsname utsname;
     //    word_t address;
     //    size_t size;
@@ -29,5 +29,5 @@ pub fn exit() -> SyscallExitResult {
     //    if (status < 0)
     //        return SyscallExitResult::Value(status);
     //
-    SyscallExitResult::None
+    Ok(())
 }

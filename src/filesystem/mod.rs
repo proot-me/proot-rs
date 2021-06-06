@@ -1,8 +1,8 @@
 pub mod binding;
-mod canonicalization;
+pub mod canonicalization;
 mod fs;
 pub mod readers;
-mod substitution;
+pub mod substitution;
 pub mod temp;
 mod translation;
 pub mod validation;

@@ -1,8 +1,10 @@
 use crate::errors::*;
+use crate::filesystem::binding::Side;
+use crate::filesystem::Substitutor;
 use crate::filesystem::Translator;
 use crate::process::tracee::Tracee;
 use crate::register::PtraceWriter;
-use crate::register::{Current, PtraceReader, SysArg, SysArg1, SysArg2};
+use crate::register::{PtraceReader, SysArg1};
 
 pub fn enter(tracee: &mut Tracee) -> Result<()> {
     let raw_path = tracee.regs.get_sysarg_path(SysArg1)?;

@@ -19,7 +19,7 @@ pub fn translate(tracee: &mut Tracee) {
         SyscallGroup::Accept => accept::exit(),
         SyscallGroup::GetSockOrPeerName => get_sockorpeer_name::exit(),
         SyscallGroup::SocketCall => socketcall::exit(),
-        SyscallGroup::Chdir => chdir::exit(),
+        SyscallGroup::Chdir => chdir::exit(tracee),
         SyscallGroup::Rename => link_rename::exit(),
         SyscallGroup::RenameAt => rename_at::exit(),
         SyscallGroup::ReadLinkAt => readlink_at::exit(),

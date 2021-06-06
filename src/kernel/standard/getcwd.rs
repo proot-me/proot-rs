@@ -31,9 +31,11 @@ pub fn exit(tracee: &mut Tracee) -> Result<()> {
         return Err(Error::errno(Errno::ERANGE));
     }
 
+    error!("{:?}", guest_path);
+
     tracee
         .regs
-        .write_data(buf_addr as *mut c_void, bytes, false)?;
+        .write_data(buf_addr as *mut c_void, bytes, true)?;
 
     tracee
         .regs

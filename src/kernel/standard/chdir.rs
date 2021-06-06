@@ -2,8 +2,7 @@ use nix::unistd::AccessFlags;
 
 use crate::errors::*;
 use crate::filesystem::binding::Side;
-use crate::filesystem::Canonicalizer;
-use crate::filesystem::Translator;
+use crate::filesystem::Substitutor;
 use crate::process::tracee::Tracee;
 use crate::register::{Current, PtraceReader, SysArg, SysArg1, SysResult};
 
@@ -32,17 +31,17 @@ pub fn enter(tracee: &mut Tracee) -> Result<()> {
     // it is not a directory.
     guest_path.push(".");
 
-    let host_path = tracee.fs.translate_path(&guest_path, true)?;
+    let canonical_guest_path =
+        tracee.get_canonical_guest_path(libc::AT_FDCWD, &guest_path, true)?;
+
+    let host_path = tracee.fs.substitute(&canonical_guest_path, Side::Guest)?;
 
     // To change cwd to a dir, the tracee must have execute (`x`) permission to this
     // dir, FIXME: This may be wrong, because we need to check if tracee has
     // permission
     nix::unistd::access(&host_path, AccessFlags::X_OK)?;
 
-    // TODO: this can be optimized
-    let guest_path_canonical = tracee.fs.canonicalize(&guest_path, true)?;
-
-    tracee.set_cwd(guest_path_canonical);
+    tracee.set_cwd(canonical_guest_path);
 
     // Avoid this syscall
     tracee

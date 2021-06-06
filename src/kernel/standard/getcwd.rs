@@ -3,7 +3,6 @@ use std::os::unix::prelude::OsStrExt;
 use libc::c_void;
 
 use crate::errors::*;
-use crate::filesystem::Translator;
 use crate::process::tracee::Tracee;
 use crate::register::PtraceWriter;
 use crate::register::{Original, SysArg, SysArg1, SysArg2, SysResult};
@@ -22,16 +21,15 @@ pub fn exit(tracee: &mut Tracee) -> Result<()> {
         return Err(Error::errno(Errno::EINVAL));
     }
 
-    // ensure cwd still exists
+    // we need to ensure cwd still exists
     let guest_path = tracee.get_cwd();
-    tracee.fs.translate_path(guest_path, true)?;
+    let _canonical_guest_path =
+        tracee.get_canonical_guest_path(libc::AT_FDCWD, &guest_path, true)?;
 
     let bytes = guest_path.as_os_str().as_bytes();
     if bytes.len() + 1 > size {
         return Err(Error::errno(Errno::ERANGE));
     }
-
-    error!("{:?}", guest_path);
 
     tracee
         .regs

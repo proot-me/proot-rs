@@ -1,76 +1,63 @@
-use crate::errors::Result;
+use nix::unistd::AccessFlags;
 
-pub fn enter() -> Result<()> {
+use crate::errors::*;
+use crate::filesystem::binding::Side;
+use crate::filesystem::Canonicalizer;
+use crate::filesystem::Translator;
+use crate::process::tracee::Tracee;
+use crate::register::{Current, PtraceReader, SysArg, SysArg1, SysResult};
+
+pub fn enter(tracee: &mut Tracee) -> Result<()> {
+    let sys_num = tracee.regs.get_sys_num(Current);
+    let mut guest_path = if sys_num == sc::nr::CHDIR {
+        tracee.regs.get_sysarg_path(SysArg1)?
+    } else if sys_num == sc::nr::FCHDIR {
+        tracee.get_path_from_fd(
+            tracee.regs.get(Current, SysArg(SysArg1)) as i32,
+            Side::Guest,
+        )?
+    } else {
+        Err(Error::errno_with_msg(
+            Errno::ENOSYS,
+            format!(
+                "sysno should be CHDIR({}) or FCHDIR({}), but got {}",
+                sc::nr::CHDIR,
+                sc::nr::FCHDIR,
+                sys_num
+            ),
+        ))?
+    };
+
+    // The ending "." ensures an error will be reported if path does not exist or if
+    // it is not a directory.
+    guest_path.push(".");
+
+    let host_path = tracee.fs.translate_path(&guest_path, true)?;
+
+    // To change cwd to a dir, the tracee must have execute (`x`) permission to this
+    // dir, FIXME: This may be wrong, because we need to check if tracee has
+    // permission
+    nix::unistd::access(&host_path, AccessFlags::X_OK)?;
+
+    // TODO: this can be optimized
+    let guest_path_canonical = tracee.fs.canonicalize(&guest_path, true)?;
+
+    tracee.set_cwd(guest_path_canonical);
+
+    // Avoid this syscall
+    tracee
+        .regs
+        .cancel_syscall("Cancel chdir since it is fully emulated");
+
     Ok(())
-
-    //    struct stat statl;
-    //    char *tmp;
-    //
-    //    /* The ending "." ensures an error will be reported if
-    //     * path does not exist or if it is not a directory.  */
-    //    if (syscall_number == PR_chdir) {
-    //        status = get_sysarg_path(tracee, path, SYSARG_1);
-    //        if (status < 0)
-    //            return SyscallExitResult::Value(status);
-    //
-    //        status = join_paths(2, oldpath, path, ".");
-    //        if (status < 0)
-    //            return SyscallExitResult::Value(status);
-    //
-    //        dirfd = AT_FDCWD;
-    //    }
-    //    else {
-    //        strcpy(oldpath, ".");
-    //        dirfd = peek_reg(tracee, CURRENT, SYSARG_1);
-    //    }
-    //
-    //    status = translate_path(tracee, path, dirfd, oldpath, true);
-    //    if (status < 0)
-    //        return SyscallExitResult::Value(status);
-    //
-    //    status = lstat(path, &statl);
-    //    if (status < 0)
-    //        return SyscallExitResult::Value(status);
-    //
-    //    /* Check this directory is accessible.  */
-    //    if ((statl.st_mode & S_IXUSR) == 0)
-    //        return -EACCES;
-    //
-    //    /* Sadly this method doesn't detranslate statefully,
-    //     * this means that there's an ambiguity when several
-    //     * bindings are from the same host path:
-    //     *
-    //     * $ proot -m /tmp:/a -m /tmp:/b fchdir_getcwd /a
-    //     * /b
-    //     *
-    //     * $ proot -m /tmp:/b -m /tmp:/a fchdir_getcwd /a
-    //     * /a
-    //     *
-    //     * A solution would be to follow each file descriptor
-    //     * just like it is done for cwd.
-    //     */
-    //
-    //    status = detranslate_path(tracee, path, NULL);
-    //    if (status < 0)
-    //        return SyscallExitResult::Value(status);
-    //
-    //    /* Remove the trailing "/" or "/.".  */
-    //    chop_finality(path);
-    //
-    //    tmp = talloc_strdup(tracee->fs, path);
-    //    if (tmp == NULL) {
-    //        return SyscallExitResult::Value(-ENOMEM);
-    //    }
-    //    TALLOC_FREE(tracee->fs->cwd);
-    //
-    //    tracee->fs->cwd = tmp;
-    //    talloc_set_name_const(tracee->fs->cwd, "$cwd");
-    //
-    //    set_sysnum(tracee, PR_void);
-    //    SyscallExitResult::Value(0)
 }
 
-pub fn exit() -> Result<()> {
+pub fn exit(tracee: &mut Tracee) -> Result<()> {
     // This syscall is fully emulated, see method `enter()` above.
+
+    tracee
+        .regs
+        .set(SysResult, 0u64, "update return value in chdir::exit()");
+    tracee.regs.set_restore_original_regs(false);
     Ok(())
 }

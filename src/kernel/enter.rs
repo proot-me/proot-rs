@@ -19,7 +19,7 @@ pub fn translate(info_bag: &InfoBag, tracee: &mut Tracee) -> Result<()> {
         BindConnect => bind_connect::enter(),
         Brk => brk::enter(),
         Chdir => chdir::enter(tracee),
-        ChmodAccessMkNodAt => chmod_access_mknod_at::enter(),
+        ChmodAccessMkNodAt => chmod_access_mknod_at::enter(tracee),
         DirLinkAttr => dir_link_attr::enter(tracee),
         Execve => execve::enter(tracee, &info_bag.loader),
         GetCwd => getcwd::enter(tracee),

@@ -1,7 +1,8 @@
+use crate::kernel::syscall;
 use crate::kernel::{enter, exit};
 use crate::process::proot::InfoBag;
 use crate::process::tracee::{Tracee, TraceeRestartMethod, TraceeStatus};
-use crate::register::{Modified, Original, StackPointer, SysResult, Word};
+use crate::register::{Current, Modified, Original, StackPointer, SysResult, Word};
 
 pub trait SyscallTranslator {
     fn translate_syscall(
@@ -54,6 +55,12 @@ impl SyscallTranslator for Tracee {
         func_syscall_hook
             .as_ref()
             .map(|func| func(self, is_sysenter, false));
+
+        if is_sysenter {
+            syscall::print_syscall(self, Current, "sysenter end");
+        } else {
+            syscall::print_syscall(self, Current, "sysexit end");
+        }
     }
 
     fn translate_syscall_enter(&mut self, info_bag: &InfoBag) {
@@ -65,6 +72,8 @@ impl SyscallTranslator for Tracee {
         // and also as memory in order to remember the original values (like
         // the syscall number, in case this one is changed during the enter stage).
         self.regs.save_current_regs(Original);
+
+        syscall::print_syscall(self, Current, "sysenter start");
 
         //TODO: notify extensions for SYSCALL_ENTER_START
         // status = notify_extensions(tracee, SYSCALL_ENTER_START, 0, 0);
@@ -116,6 +125,8 @@ impl SyscallTranslator for Tracee {
     fn translate_syscall_exit(&mut self) {
         // By default, restore original register values at the end of this stage.
         self.regs.set_restore_original_regs(true);
+
+        syscall::print_syscall(self, Current, "sysexit start");
 
         //TODO: notify extensions for SYSCALL_EXIT_START event
         // status = notify_extensions(tracee, SYSCALL_EXIT_START, 0, 0);

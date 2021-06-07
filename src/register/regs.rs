@@ -156,7 +156,6 @@ impl Registers {
         let pid = self.pid;
         let current_regs = self.get_mut_regs(Current);
 
-        debug!("Push regs: {:x?}", current_regs);
         ptrace::setregs(pid, *current_regs)?;
         Ok(())
     }

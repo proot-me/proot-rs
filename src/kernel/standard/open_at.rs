@@ -5,7 +5,6 @@ use nix::fcntl::OFlag;
 use crate::errors::*;
 use crate::filesystem::binding::Side;
 use crate::filesystem::Substitutor;
-use crate::filesystem::Translator;
 use crate::process::tracee::Tracee;
 use crate::register::PtraceWriter;
 use crate::register::{Current, PtraceReader, SysArg, SysArg1, SysArg2, SysArg3};

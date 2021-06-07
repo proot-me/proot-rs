@@ -6,3 +6,4 @@ mod heap;
 mod ptrace;
 mod socket;
 mod standard;
+pub mod syscall;

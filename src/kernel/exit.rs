@@ -11,8 +11,6 @@ pub fn translate(tracee: &mut Tracee) {
     let syscall_number = tracee.regs.get_sys_num(Original);
     let syscall_group = syscall_group_from_sysnum(syscall_number);
 
-    trace!("Syscall exit ({:?}, {:?})", syscall_number, syscall_group);
-
     let result = match syscall_group {
         SyscallGroup::Brk => brk::exit(),
         SyscallGroup::GetCwd => getcwd::exit(tracee),

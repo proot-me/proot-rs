@@ -8,13 +8,11 @@ use crate::kernel::socket::*;
 use crate::kernel::standard::*;
 use crate::process::proot::InfoBag;
 use crate::process::tracee::Tracee;
-use crate::register::Current;
+use crate::register::Original;
 
 pub fn translate(info_bag: &InfoBag, tracee: &mut Tracee) -> Result<()> {
-    let sys_num = tracee.regs.get_sys_num(Current);
+    let sys_num = tracee.regs.get_sys_num(Original);
     let sys_type = syscall_group_from_sysnum(sys_num);
-
-    trace!("Syscall enter ({:?}, {:?})", sys_num, sys_type);
 
     match sys_type {
         Accept => accept::enter(),

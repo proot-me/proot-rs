@@ -21,20 +21,13 @@ mod register;
 mod utils;
 
 use crate::errors::Result;
-use crate::filesystem::{FileSystem, Initialiser};
 use crate::process::proot::{show_info, stop_program, PRoot};
 use crate::process::sigactions;
 use std::process::exit;
 
 fn run() -> Result<()> {
     // step 1: CLI parsing
-
-    let (mut fs, command) = cli::parse_config()?;
-
-    if let Err(error) = fs.initialize() {
-        error!("Error during file system initialization: {}", error);
-        exit(-1);
-    }
+    let (fs, command) = cli::parse_config()?;
 
     let mut proot: PRoot = PRoot::new();
 

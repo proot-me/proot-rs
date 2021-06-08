@@ -16,9 +16,9 @@ pub fn enter(tracee: &mut Tracee) -> Result<()> {
     let host_path = if flags.contains(OFlag::O_NOFOLLOW)
         || (flags.contains(OFlag::O_EXCL) && flags.contains(OFlag::O_CREAT))
     {
-        tracee.fs.translate_path(&raw_path, false)?
+        tracee.fs.borrow().translate_path(&raw_path, false)?
     } else {
-        tracee.fs.translate_path(&raw_path, true)?
+        tracee.fs.borrow().translate_path(&raw_path, true)?
     };
 
     tracee.regs.set_sysarg_path(

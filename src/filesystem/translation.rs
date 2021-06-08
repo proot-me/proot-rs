@@ -16,9 +16,8 @@ pub trait Translator {
 }
 
 impl Translator for FileSystem {
-    /// Translates a path from `guest` to `host`. If the `guest_path` is
-    /// relative, it will be will be converted to a absolute paths based on
-    /// the cwd.
+    /// Translates a path from `guest` to `host`. `guest_path` should be an
+    /// absolute paths.
     fn translate_path(&self, guest_path: &Path, deref_final: bool) -> Result<PathBuf> {
         let unchecked_guest_path = guest_path;
         //TODO: dir_fd != AT_FDCWD

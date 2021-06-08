@@ -8,12 +8,10 @@ use crate::filesystem::validation::{binding_validator, path_validator};
 use crate::filesystem::FileSystem;
 
 pub const DEFAULT_ROOTFS: &'static str = "/";
-pub const DEFAULT_CWD: &'static str = ".";
+pub const DEFAULT_CWD: &'static str = "/";
 
-pub fn parse_config() -> Result<(FileSystem, Vec<String>)> {
-    let mut fs: FileSystem = FileSystem::new();
-
-    let matches = App::new("proot-rsc")
+pub fn get_args_parser() -> App<'static, 'static> {
+    App::new("proot-rs")
         .arg(Arg::with_name("rootfs")
             .short("r")
             .long("rootfs")
@@ -36,7 +34,14 @@ pub fn parse_config() -> Result<(FileSystem, Vec<String>)> {
             .default_value(DEFAULT_CWD))
         .arg(Arg::with_name("command")
             .multiple(true))
-        .get_matches();
+}
+
+pub fn parse_config() -> Result<(FileSystem, Vec<String>)> {
+    let app = get_args_parser();
+
+    let mut fs: FileSystem = FileSystem::new();
+
+    let matches = app.get_matches();
 
     debug!("proot-rs startup with args:\n{:#?}", matches);
 
@@ -57,7 +62,7 @@ pub fn parse_config() -> Result<(FileSystem, Vec<String>)> {
 
     // option -w
     let cwd: &str = matches.value_of("cwd").unwrap();
-    fs.set_cwd(PathBuf::from(cwd));
+    fs.set_cwd(cwd);
 
     // command
     let command: Vec<String> = match matches.values_of("command") {

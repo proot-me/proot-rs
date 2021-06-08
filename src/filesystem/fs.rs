@@ -9,14 +9,19 @@ use crate::errors::{Error, Result, WithContext};
 use crate::filesystem::binding::Side::Host;
 use crate::filesystem::binding::{Binding, Side};
 
-/// Information related to a file-system name-space.
+/// The file-system information associated with one or more tracee, which
+/// corresponds to the [`fs_struct`] structure in the kernel. If clone() is
+/// called with `CLONE_FS` set, then both tracee will share this structure,
+/// otherwise a copy will be created.
+///
+/// [`fs_struct`]: https://elixir.bootlin.com/linux/latest/source/include/linux/fs_struct.h
 #[derive(Debug)]
 pub struct FileSystem {
     /// List of bindings used to replicate `mount` and `bind`.
     /// It will also contain the root binding (to replicate `chroot`).
     bindings: Vec<Binding>,
     /// Working directory in guestfs, e.g., `/proc/self/cwd`, is always absolute
-    /// path.
+    /// and canonical path.
     cwd: PathBuf,
     /// Guest root (the binding associated to `/`)
     root: PathBuf,
@@ -28,7 +33,7 @@ impl FileSystem {
     pub fn new() -> FileSystem {
         FileSystem {
             bindings: vec![],
-            cwd: PathBuf::from("."),
+            cwd: PathBuf::from("/"),
             root: PathBuf::from("/"),
             glue_type: Mode::empty(),
         }
@@ -99,14 +104,30 @@ impl FileSystem {
         Ok(())
     }
 
-    #[inline]
-    pub fn set_cwd(&mut self, cwd: PathBuf) {
-        self.cwd = cwd;
+    /// Get current work directory (cwd)
+    /// This function will return a guest side path, which is always canonical.
+    pub fn get_cwd(&self) -> &Path {
+        let cwd = &self.cwd;
+        if cwd.is_relative() {
+            warn!(
+                "cwd of tracee is not absolute, there may be some bugs: {:?}",
+                cwd
+            );
+        }
+        cwd
     }
 
-    #[inline]
-    pub fn get_cwd(&self) -> &Path {
-        &self.cwd
+    /// Set current work directory (cwd) for this FileSystem instance.
+    /// `path` should be a canonical guest side path.
+    pub fn set_cwd<P: Into<PathBuf>>(&mut self, path: P) {
+        let cwd = path.into();
+        if cwd.is_relative() {
+            warn!(
+                "cwd of tracee is not absolute, there may be some bugs: {:?}",
+                cwd
+            );
+        }
+        self.cwd = cwd;
     }
 
     #[inline]

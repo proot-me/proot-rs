@@ -1,5 +1,7 @@
+use std::cell::RefCell;
 use std::os::unix::io::RawFd;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
+use std::rc::Rc;
 
 use nix::sys::ptrace::{self, Options};
 use nix::sys::signal::Signal;
@@ -59,7 +61,7 @@ pub struct Tracee {
     /// seccomp on/off.
     pub restart_how: TraceeRestartMethod,
     /// Contains the bindings and functions used for path translation.
-    pub fs: FileSystem,
+    pub fs: Rc<RefCell<FileSystem>>,
     /// Cached version of the process' general purpose registers.
     pub regs: Registers,
     /// State of the seccomp acceleration for this tracee.
@@ -76,7 +78,7 @@ pub struct Tracee {
 }
 
 impl Tracee {
-    pub fn new(pid: Pid, fs: FileSystem) -> Tracee {
+    pub fn new(pid: Pid, fs: Rc<RefCell<FileSystem>>) -> Tracee {
         Tracee {
             pid: pid,
             status: TraceeStatus::SysEnter, // it always starts by the enter stage
@@ -158,29 +160,17 @@ impl Tracee {
         std::mem::size_of::<Word>()
     }
 
-    /// Get current work directory (cwd)
-    /// This function will return a **guest side** **absolute path**
-    pub fn get_cwd(&self) -> &Path {
-        // TODO: each tracee has their own cwd
-        let cwd = self.fs.get_cwd();
-        if cwd.is_relative() {
-            warn!(
-                "cwd of tracee({}) is not absolute, there may be some bugs: {:?}",
-                self.pid, cwd
-            );
-        }
-        cwd
-    }
-
     /// Get file path from file descriptor
     pub fn get_path_from_fd(&self, fd: RawFd, side: Side) -> Result<PathBuf> {
         #[cfg(any(target_os = "linux", target_os = "android"))]
         {
             if fd == libc::AT_FDCWD {
                 // special fd, which point to cwd
-                let guest_path = self.get_cwd();
+                let fs_r = self.fs.borrow();
+                let guest_path = fs_r.get_cwd();
                 Ok(match side {
-                    Side::Host => self.fs.translate_path(guest_path, false)?,
+                    // TODO: this can be optimized, because the `cwd` is already a canonical path
+                    Side::Host => self.fs.borrow().translate_path(guest_path, false)?,
                     Side::Guest => guest_path.into(),
                 })
             } else {
@@ -199,8 +189,11 @@ impl Tracee {
                 }
                 let host_path = maybe_path;
                 Ok(match side {
-                    Side::Guest => {
-                        self.fs.detranslate_path(&host_path, None)?.ok_or_else(|| {
+                    Side::Guest => self
+                        .fs
+                        .borrow()
+                        .detranslate_path(&host_path, None)?
+                        .ok_or_else(|| {
                             Error::errno_with_msg(
                                 EBADF,
                                 format!(
@@ -208,8 +201,7 @@ impl Tracee {
                                     host_path
                                 ),
                             )
-                        })?
-                    }
+                        })?,
                     Side::Host => host_path,
                 })
             }
@@ -228,7 +220,7 @@ mod tests {
 
     #[test]
     fn create_tracee() {
-        let tracee = Tracee::new(Pid::from_raw(42), FileSystem::new());
+        let tracee = Tracee::new(Pid::from_raw(42), Rc::new(RefCell::new(FileSystem::new())));
         assert_eq!(tracee.pid, Pid::from_raw(42));
     }
 

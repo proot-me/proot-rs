@@ -1,5 +1,8 @@
+use std::cell::RefCell;
 use std::ffi::CString;
+use std::path::Path;
 use std::process;
+use std::rc::Rc;
 use std::{collections::HashMap, convert::TryFrom};
 
 use libc::{c_int, c_void, pid_t, siginfo_t};
@@ -82,7 +85,7 @@ impl PRoot {
         match unsafe { unistd::fork() }.context("Failed to fork() when starting process")? {
             ForkResult::Parent { child } => {
                 // we create the first tracee
-                self.create_tracee(child, initial_fs);
+                self.create_tracee(child, Rc::new(RefCell::new(initial_fs)));
                 self.init_pid = Some(child);
             }
             ForkResult::Child => {
@@ -251,9 +254,7 @@ impl PRoot {
         Ok(())
     }
 
-    /******** Utilities *************** */
-
-    pub fn create_tracee(&mut self, pid: Pid, fs: FileSystem) -> Option<&Tracee> {
+    pub fn create_tracee(&mut self, pid: Pid, fs: Rc<RefCell<FileSystem>>) -> Option<&Tracee> {
         self.tracees.insert(pid, Tracee::new(pid, fs));
         self.register_alive_tracee(pid);
         self.tracees.get(&pid)
@@ -297,7 +298,7 @@ mod tests {
         }
 
         {
-            proot.create_tracee(Pid::from_raw(0), fs);
+            proot.create_tracee(Pid::from_raw(0), Rc::new(RefCell::new(fs)));
         }
 
         // tracee 0 should exist

@@ -20,7 +20,7 @@ pub fn enter(tracee: &mut Tracee) -> Result<()> {
         raw_path
     } else {
         let mut dir_guest_path = tracee.get_path_from_fd(dirfd, Side::Guest)?;
-        let dir_host_path = tracee.fs.translate_path(&dir_guest_path, true)?;
+        let dir_host_path = tracee.fs.borrow().translate_path(&dir_guest_path, true)?;
         if !dir_host_path
             .symlink_metadata()
             .errno(Errno::ENOTDIR)?
@@ -38,9 +38,9 @@ pub fn enter(tracee: &mut Tracee) -> Result<()> {
     let host_path = if flags.contains(OFlag::O_NOFOLLOW)
         || (flags.contains(OFlag::O_EXCL) && flags.contains(OFlag::O_CREAT))
     {
-        tracee.fs.translate_path(&guest_path, false)?
+        tracee.fs.borrow().translate_path(&guest_path, false)?
     } else {
-        tracee.fs.translate_path(&guest_path, true)?
+        tracee.fs.borrow().translate_path(&guest_path, true)?
     };
     tracee.regs.set_sysarg_path(
         SysArg2,

@@ -9,6 +9,8 @@ pub mod tests {
     use nix::sys::wait::WaitStatus::*;
     use nix::sys::{ptrace, wait::WaitPidFlag};
     use nix::unistd::{fork, getpid, ForkResult, Pid};
+    use std::cell::RefCell;
+    use std::rc::Rc;
     use std::{
         env,
         ffi::OsString,
@@ -48,8 +50,12 @@ pub mod tests {
             match unsafe { fork() }.expect("fork in test") {
                 ForkResult::Parent { child } => {
                     let mut info_bag = InfoBag::new();
-                    let mut tracee =
-                        Tracee::new(child, FileSystem::with_root(fs_root.as_ref()).unwrap());
+                    let mut tracee = Tracee::new(
+                        child,
+                        Rc::new(RefCell::new(
+                            FileSystem::with_root(fs_root.as_ref()).unwrap(),
+                        )),
+                    );
 
                     // the parent will wait for the child's signal before calling set_ptrace_options
                     assert_eq!(

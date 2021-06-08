@@ -22,7 +22,7 @@ pub fn translate(tracee: &mut Tracee, loader: &dyn LoaderFile) -> Result<()> {
     let raw_path = tracee.regs.get_sysarg_path(SysArg1)?;
     debug!("execve({:?})", raw_path);
     //TODO: return user path
-    let host_path = match shebang::expand(&tracee.fs, &raw_path) {
+    let host_path = match shebang::expand(&tracee.fs.borrow(), &raw_path) {
         Ok(path) => path,
         // The Linux kernel actually returns -EACCES when trying to execute a directory.
         Err(error) if error.get_errno() == Errno::EISDIR => return Err(Error::from(Errno::EACCES)),
@@ -38,7 +38,7 @@ pub fn translate(tracee: &mut Tracee, loader: &dyn LoaderFile) -> Result<()> {
     //	Remember the new value for "/proc/self/exe".  It points to
     //	a canonicalized guest path, hence detranslate_path()
     //	instead of using user_path directly.  */
-    if let Ok(maybe_path) = tracee.fs.detranslate_path(&host_path, None) {
+    if let Ok(maybe_path) = tracee.fs.borrow().detranslate_path(&host_path, None) {
         tracee.new_exe = Some(maybe_path.unwrap_or_else(|| host_path.clone()));
     } else {
         tracee.new_exe = None;
@@ -52,7 +52,7 @@ pub fn translate(tracee: &mut Tracee, loader: &dyn LoaderFile) -> Result<()> {
     //	}
 
     // parse LoadInfo from the binary file to be executed
-    let mut load_info = LoadInfo::from(&tracee.fs, &host_path)
+    let mut load_info = LoadInfo::from(&tracee.fs.borrow(), &host_path)
         .with_context(|| format!("Failed to parse LoadInfo for {:?}", host_path))?;
 
     load_info.raw_path = Some(raw_path.clone());

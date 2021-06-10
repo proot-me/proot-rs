@@ -5,12 +5,11 @@ use byteorder::NativeEndian;
 use byteorder::ReadBytesExt;
 use libc::c_void;
 use nix::sys::ptrace;
-use std::io::Cursor;
+
 use std::io::Read;
 use std::mem;
 use std::os::unix::ffi::OsStrExt;
 use std::path::Path;
-use std::ptr::null_mut;
 
 #[cfg(target_pointer_width = "32")]
 #[inline]

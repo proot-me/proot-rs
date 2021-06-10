@@ -12,9 +12,7 @@ use crate::kernel::execve::load_info::LoadStatementStart;
 use crate::kernel::exit::SyscallExitResult;
 use crate::process::tracee::Tracee;
 use crate::register::PtraceWriter;
-use crate::register::{
-    Current, PtraceMemoryAllocator, Registers, StackPointer, SysArg, SysArgIndex, SysResult, Word,
-};
+use crate::register::{Current, StackPointer, SysArg, SysArgIndex, SysResult, Word};
 
 pub fn translate(tracee: &mut Tracee) -> SyscallExitResult {
     let syscall_result = tracee.regs.get(Current, SysResult) as isize;

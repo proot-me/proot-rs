@@ -23,7 +23,6 @@ mod utils;
 use crate::errors::Result;
 use crate::process::proot::{show_info, stop_program, PRoot};
 use crate::process::sigactions;
-use std::process::exit;
 
 fn run() -> Result<()> {
     // step 1: CLI parsing

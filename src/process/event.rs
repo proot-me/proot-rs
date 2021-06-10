@@ -2,7 +2,6 @@ use crate::process::proot::InfoBag;
 use crate::process::tracee::{Tracee, TraceeRestartMethod, TraceeStatus};
 use crate::process::translation::SyscallTranslator;
 use nix::sys::ptrace::Event as PtraceEvent;
-use nix::sys::signal::Signal;
 
 pub trait EventHandler {
     fn handle_syscall_stop_event(&mut self, info_bag: &mut InfoBag);

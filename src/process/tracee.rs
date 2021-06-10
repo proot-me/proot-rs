@@ -1,5 +1,6 @@
 use std::cell::RefCell;
 use std::os::unix::io::RawFd;
+use std::path::Path;
 use std::path::PathBuf;
 use std::rc::Rc;
 
@@ -8,6 +9,7 @@ use nix::sys::signal::Signal;
 use nix::unistd::Pid;
 
 use crate::errors::*;
+use crate::filesystem::Substitutor;
 use crate::filesystem::Translator;
 use crate::filesystem::{binding::Side, FileSystem};
 use crate::kernel::execve::load_info::LoadInfo;
@@ -169,8 +171,8 @@ impl Tracee {
                 let fs_r = self.fs.borrow();
                 let guest_path = fs_r.get_cwd();
                 Ok(match side {
-                    // TODO: this can be optimized, because the `cwd` is already a canonical path
-                    Side::Host => self.fs.borrow().translate_path(guest_path, false)?,
+                    // the `cwd` is already a canonical path, so we can just substitute it.
+                    Side::Host => self.fs.borrow().substitute(guest_path, Side::Guest)?,
                     Side::Guest => guest_path.into(),
                 })
             } else {
@@ -208,6 +210,29 @@ impl Tracee {
         }
         // TODO: on some Unix which contains no /proc, use fcntl(fd, F_GETPATH,
         // pathbuf) instead.
+    }
+
+    /// This function is a wrapper for `Canonicalizer::canonicalize()` and
+    /// `Substitutor::substitute()`. It is the same as
+    /// `get_canonical_guest_path()`, but further converts it to a canonical
+    /// host path.
+    pub fn translate_path_at<P: AsRef<Path>>(
+        &self,
+        dirfd: RawFd,
+        guest_path: P,
+        deref_final: bool,
+    ) -> Result<PathBuf> {
+        if guest_path.as_ref().is_relative() {
+            let mut dir_path = self.get_path_from_fd(dirfd, Side::Guest)?;
+            dir_path.push(guest_path);
+            self.fs
+                .borrow()
+                .translate_absolute_path(dir_path, deref_final)
+        } else {
+            self.fs
+                .borrow()
+                .translate_absolute_path(guest_path, deref_final)
+        }
     }
 }
 

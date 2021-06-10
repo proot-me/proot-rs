@@ -8,8 +8,7 @@ pub fn enter(tracee: &mut Tracee) -> Result<()> {
     let raw_path = tracee.regs.get_sysarg_path(SysArg1)?;
 
     debug!("standard_syscall({:?})", raw_path);
-
-    let host_path = tracee.fs.borrow().translate_path(&raw_path, true)?;
+    let host_path = tracee.fs.borrow().translate_path(raw_path, true)?;
 
     tracee.regs.set_sysarg_path(
         SysArg1,

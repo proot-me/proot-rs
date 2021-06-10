@@ -1,11 +1,9 @@
 use crate::errors::Result;
 use crate::register::Word;
-use libc::{c_void, user_regs_struct};
+use libc::user_regs_struct;
 use nix::sys::ptrace;
 use nix::unistd::Pid;
 use std::fmt;
-use std::mem;
-use std::ptr::null_mut;
 
 const VOID: Word = Word::MAX;
 
@@ -135,7 +133,7 @@ impl Registers {
     pub fn fetch_regs(&mut self) -> Result<()> {
         // Notice the ? at the end, which is the equivalent of `try!`.
         // It will return the error if there is one.
-        let mut regs: user_regs_struct = ptrace::getregs(self.pid)?;
+        let regs: user_regs_struct = ptrace::getregs(self.pid)?;
 
         self.registers[Current as usize] = Some(regs);
         Ok(())

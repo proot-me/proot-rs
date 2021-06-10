@@ -12,14 +12,9 @@ pub fn enter(tracee: &mut Tracee) -> Result<()> {
     let flags = OFlag::from_bits_truncate(tracee.regs.get(Current, SysArg(SysArg2)) as _);
 
     debug!("open({:?}, {:?})", raw_path, flags);
-
-    let host_path = if flags.contains(OFlag::O_NOFOLLOW)
-        || (flags.contains(OFlag::O_EXCL) && flags.contains(OFlag::O_CREAT))
-    {
-        tracee.fs.borrow().translate_path(&raw_path, false)?
-    } else {
-        tracee.fs.borrow().translate_path(&raw_path, true)?
-    };
+    let deref_final = !(flags.contains(OFlag::O_NOFOLLOW)
+        || (flags.contains(OFlag::O_EXCL) && flags.contains(OFlag::O_CREAT)));
+    let host_path = tracee.fs.borrow().translate_path(raw_path, deref_final)?;
 
     tracee.regs.set_sysarg_path(
         SysArg1,
@@ -28,12 +23,4 @@ pub fn enter(tracee: &mut Tracee) -> Result<()> {
     )?;
 
     Ok(())
-
-    //                 flags = peek_reg(tracee, CURRENT, SYSARG_2);
-    //
-    //                 if (   ((flags & O_NOFOLLOW) != 0)
-    //                     || ((flags & O_EXCL) != 0 && (flags & O_CREAT) != 0))
-    //                 status = translate_sysarg(tracee, SYSARG_1, SYMLINK);
-    //                 else
-    //                 status = translate_sysarg(tracee, SYSARG_1, REGULAR);
 }

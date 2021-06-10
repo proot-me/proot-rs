@@ -1,9 +1,6 @@
-use std::path::PathBuf;
-
 use clap::{App, Arg};
 
 use crate::errors::*;
-use crate::filesystem::binding::Binding;
 use crate::filesystem::validation::{binding_validator, path_validator};
 use crate::filesystem::FileSystem;
 
@@ -56,13 +53,13 @@ pub fn parse_config() -> Result<(FileSystem, Vec<String>)> {
 
         for raw_binding_str in &raw_bindings_str {
             let parts: Vec<&str> = raw_binding_str.split_terminator(':').collect();
-            fs.add_binding(Binding::new(parts[0], parts[1], true));
+            fs.add_binding(parts[0], parts[1])?;
         }
     }
 
     // option -w
     let cwd: &str = matches.value_of("cwd").unwrap();
-    fs.set_cwd(cwd);
+    fs.set_cwd(cwd)?;
 
     // command
     let command: Vec<String> = match matches.values_of("command") {

@@ -46,7 +46,7 @@ pub struct PRoot {
     info_bag: InfoBag,
     tracees: HashMap<Pid, Tracee>,
     alive_tracees: Vec<Pid>,
-    init_pid: Option<Pid>,
+    pub init_pid: Option<Pid>,
     pub init_exit_code: Option<i32>,
 }
 

@@ -131,7 +131,6 @@ impl Canonicalizer for FileSystem {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::filesystem::binding::Binding;
     use crate::filesystem::FileSystem;
     use crate::utils::tests::get_test_rootfs_path;
     use nix::sys::stat::Mode;
@@ -140,11 +139,18 @@ mod tests {
     #[test]
     fn test_canonicalize_invalid_path() {
         let fs = FileSystem::with_root(get_test_rootfs_path()).unwrap();
-        let path = PathBuf::from("/impossible_path");
 
         assert_eq!(
-            fs.canonicalize(&path, false),
+            fs.canonicalize("/impossible_path", true),
             Err(Error::errno(Errno::ENOENT))
+        );
+        assert_eq!(
+            fs.canonicalize("/etc/impossible_path", true),
+            Err(Error::errno(Errno::ENOENT))
+        );
+        assert_eq!(
+            fs.canonicalize("/etc/impossible_path", false),
+            Ok("/etc/impossible_path".into())
         );
     }
 
@@ -155,46 +161,26 @@ mod tests {
         let path = PathBuf::from("/../impossible_path");
         // should be failed, because ${rootfs}/impossible_path does not exist on host
         assert_eq!(
-            fs.canonicalize(&path, false),
+            fs.canonicalize(&path, true),
             Err(Error::errno(Errno::ENOENT))
         );
-        // should be ok, because ${rootfs}/etc exists on host
+        // should be ok, because ${rootfs}/bin exists on host
         let path = PathBuf::from("/../bin");
         assert_eq!(fs.canonicalize(&path, false), Ok(PathBuf::from("/bin")));
     }
     #[test]
     fn test_canonicalize_normal_path() {
-        let mut rootfs_path = get_test_rootfs_path();
-        let mut fs = FileSystem::with_root(rootfs_path.as_path()).unwrap();
+        let rootfs_path = get_test_rootfs_path();
+        let fs = FileSystem::with_root(rootfs_path.as_path()).unwrap();
 
         assert_eq!(
-            fs.canonicalize(&PathBuf::from("/bin/./../bin//sleep"), false)
-                .unwrap(),
+            fs.canonicalize("/bin/./../bin//sleep", false).unwrap(),
             PathBuf::from("/bin/sleep")
         );
 
         assert_eq!(
-            fs.canonicalize(&PathBuf::from("/./../../.././../."), false)
-                .unwrap(),
+            fs.canonicalize("/./../../.././../.", false).unwrap(),
             PathBuf::from("/")
-        );
-
-        // change new root to ${rootfs}/etc
-        let mut new_rootfs_path = rootfs_path.clone();
-        new_rootfs_path.push("etc");
-        fs.set_root(new_rootfs_path).unwrap();
-
-        // add binding from ${rootfs}/bin to /bin
-        rootfs_path.push("bin");
-        fs.add_binding(Binding::new(rootfs_path, "/bin", true));
-
-        // necessary, because nor "/bin" nor "/home" exist in "${rootfs}/etc"
-        fs.set_glue_type(Mode::S_IRWXU | Mode::S_IRWXG | Mode::S_IRWXO);
-
-        assert_eq!(
-            fs.canonicalize(&PathBuf::from("/bin/../home"), false)
-                .unwrap(),
-            PathBuf::from("/home")
         );
     }
 

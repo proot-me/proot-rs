@@ -42,7 +42,10 @@ fn run() -> Result<()> {
     // step 4: Listen to and deal with tracees events
     proot.event_loop()?;
 
-    debug!("proot-rs exit with final status:\n{:#?}", proot);
+    debug!(
+        "first tracee exit with exit code: {}",
+        proot.init_exit_code.unwrap()
+    );
 
     std::process::exit(proot.init_exit_code.unwrap());
 }

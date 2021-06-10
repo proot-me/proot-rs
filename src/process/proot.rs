@@ -1,6 +1,6 @@
 use std::cell::RefCell;
 use std::ffi::CString;
-use std::path::Path;
+
 use std::process;
 use std::rc::Rc;
 use std::{collections::HashMap, convert::TryFrom};
@@ -71,8 +71,12 @@ impl PRoot {
     /// (heap, libraries...), so both of them will have their own (owned)
     /// version of the PRoot memory.
     pub fn launch_process(&mut self, initial_fs: FileSystem, command: Vec<String>) -> Result<()> {
+        debug!(
+            "launch_process with fs:\n{:#?}\ncommand: {:?}",
+            initial_fs, command
+        );
+
         // parse command
-        assert!(command.len() > 0); // TODO: remove this
         let args = command
             .iter()
             .map(|arg| {

@@ -1,12 +1,10 @@
 extern crate bstr;
 
-use self::bstr::BStr;
-use self::bstr::BString;
 use self::bstr::ByteSlice;
 use crate::errors::*;
 use crate::errors::{Error, Result};
 use crate::filesystem::{FileSystem, Translator};
-use std::io::{BufRead, BufReader};
+use std::io::BufReader;
 use std::path::{Path, PathBuf};
 use std::{fs::File, io::Read};
 
@@ -50,7 +48,7 @@ pub fn expand(fs: &FileSystem, user_path: &Path) -> Result<PathBuf> {
 
         // Translate this path (user -> host), then check it is executable.
         let host_path = fs.translate_path(&user_path, true)?;
-        fs.check_path_executable(&host_path)?;
+        FileSystem::check_host_path_executable(&host_path)?;
 
         let expanded_user_path = extract(&host_path)?;
 
@@ -62,7 +60,7 @@ pub fn expand(fs: &FileSystem, user_path: &Path) -> Result<PathBuf> {
 
         // Translate new path (user -> host), then check it is executable.
         let new_host_path = fs.translate_path(&expanded_user_path.unwrap(), true)?;
-        fs.check_path_executable(&new_host_path)?;
+        FileSystem::check_host_path_executable(&new_host_path)?;
 
         println!("new host path: {:?}", new_host_path);
     }

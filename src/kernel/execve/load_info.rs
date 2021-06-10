@@ -208,7 +208,7 @@ impl LoadInfo {
         //        }
 
         let host_path = fs.translate_path(&user_path, true)?;
-        fs.check_path_executable(&host_path)?;
+        FileSystem::check_host_path_executable(&host_path)?;
 
         let mut load_info = LoadInfo::from(fs, &host_path)?;
 

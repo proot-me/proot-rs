@@ -1,61 +1,48 @@
 use crate::errors::Result;
-use crate::filesystem::binding::Direction;
 use crate::filesystem::binding::Side::{Guest, Host};
 use crate::filesystem::canonicalization::Canonicalizer;
 use crate::filesystem::substitution::Substitutor;
 use crate::filesystem::FileSystem;
-use std::path::{Component, Path, PathBuf};
+use std::path::{Path, PathBuf};
 
 pub trait Translator {
-    fn translate_path(&self, guest_path: &Path, deref_final: bool) -> Result<PathBuf>;
-    fn detranslate_path(
+    fn translate_path<P: AsRef<Path>>(&self, guest_path: P, deref_final: bool) -> Result<PathBuf>;
+    fn translate_absolute_path<P: AsRef<Path>>(
         &self,
-        host_path: &Path,
+        guest_path: P,
+        deref_final: bool,
+    ) -> Result<PathBuf>;
+    fn detranslate_path<P: AsRef<Path>>(
+        &self,
+        host_path: P,
         referrer: Option<&Path>,
     ) -> Result<Option<PathBuf>>;
 }
 
 impl Translator for FileSystem {
-    /// Translates a path from `guest` to `host`. `guest_path` should be an
-    /// absolute paths.
-    fn translate_path(&self, guest_path: &Path, deref_final: bool) -> Result<PathBuf> {
-        let unchecked_guest_path = guest_path;
-        //TODO: dir_fd != AT_FDCWD
-        let mut guest_path = if unchecked_guest_path.is_relative() {
+    /// Translates a path from `guest` to `host`. Relative guest path are also
+    /// accepted.
+    fn translate_path<P: AsRef<Path>>(&self, guest_path: P, deref_final: bool) -> Result<PathBuf> {
+        if guest_path.as_ref().is_relative() {
             // It is relative to the current working directory.
-            self.get_cwd().to_path_buf()
+            let mut absolute_guest_path = PathBuf::from(self.get_cwd());
+            absolute_guest_path.push(guest_path);
+            self.translate_absolute_path(&absolute_guest_path, deref_final)
         } else {
-            PathBuf::new()
-        };
-        debug!(
-            "translate_path: {:?} + {:?}",
-            guest_path, unchecked_guest_path
-        );
-        guest_path.push(unchecked_guest_path);
+            self.translate_absolute_path(guest_path, deref_final)
+        }
+    }
 
-        //TODO: event GUEST_PATH for extensions
-        //    status = notify_extensions(tracee, GUEST_PATH, (intptr_t) result,
-        // (intptr_t) user_path);    if (status < 0)
-        //        return status;
-        //    if (status > 0)
-        //        goto skip;
-
-        let guest_path_canonicalized = self.canonicalize(&guest_path, deref_final)?;
-        debug!(
-            "canonicalize guest_path: {:?} -> {:?}",
-            guest_path, guest_path_canonicalized
-        );
-
-        // TODO: Maybe we should remove this self.substitute() call
-        let host_path = self.substitute(&guest_path_canonicalized, Guest)?;
-        debug!(
-            "substitute guest_path to host_path: {:?} -> {:?}",
-            guest_path_canonicalized, host_path
-        );
-
-        let result = host_path;
-
-        Ok(result)
+    /// Translates a path from `guest` to `host`. Relative guest path are also
+    /// accepted.
+    fn translate_absolute_path<P: AsRef<Path>>(
+        &self,
+        guest_path: P,
+        deref_final: bool,
+    ) -> Result<PathBuf> {
+        let guest_path_canonical = self.canonicalize(&guest_path, deref_final)?;
+        let host_path = self.substitute(&guest_path_canonical, Guest)?;
+        Ok(host_path)
     }
 
     /// Translates a path from `host` to `guest`.
@@ -67,11 +54,12 @@ impl Translator for FileSystem {
     /// * `Ok(None)` if no translation is required (ie. symmetric binding).
     /// * `Ok(PathBuf)` is the path was translated.
     /// * An error otherwise.
-    fn detranslate_path(
+    fn detranslate_path<P: AsRef<Path>>(
         &self,
-        host_path: &Path,
+        host_path: P,
         referrer: Option<&Path>,
     ) -> Result<Option<PathBuf>> {
+        let host_path = host_path.as_ref();
         // Don't try to detranslate relative paths (typically
         // the target of a relative symbolic link).
         if host_path.is_relative() {

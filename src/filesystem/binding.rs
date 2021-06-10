@@ -18,20 +18,16 @@ impl Side {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
-/// Indicates a translation's direction.
-///
-/// For instance:
-/// (Guest, Host) means the translation will move a path
-/// from the `guest` filesystem (in the sandbox)
-/// to the `host` filesystem (in the real filesystem).
-pub struct Direction(pub Side, pub Side);
-
 // TODO: Maybe we should canonicalize guest path during initialization
 #[derive(Debug)]
 pub struct Binding {
+    /// Host side path of this binding in canonical form.
     host: PathBuf,
+    /// Guest side path of this binding in canonical form.
     guest: PathBuf,
+    /// A binding is called `symetric binding` if `host` is equals to `guest`,
+    /// which means that the paths under this binding do not require path
+    /// substitution.
     need_substitution: bool,
     _must_exist: bool,
 }
@@ -41,13 +37,16 @@ impl Binding {
     // sanitize, canon..)
     pub fn new<P1, P2>(host: P1, guest: P2, must_exist: bool) -> Binding
     where
-        P1: AsRef<Path>,
-        P2: AsRef<Path>,
+        P1: Into<PathBuf>,
+        P2: Into<PathBuf>,
     {
+        let host = host.into();
+        let guest = guest.into();
+        let need_substitution = !host.eq(&guest);
         Binding {
-            host: PathBuf::from(host.as_ref()),
-            guest: PathBuf::from(guest.as_ref()),
-            need_substitution: !host.as_ref().eq(guest.as_ref()),
+            host: host,
+            guest: guest,
+            need_substitution: need_substitution,
             _must_exist: must_exist,
         }
     }

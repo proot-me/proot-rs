@@ -3,12 +3,14 @@ use crate::filesystem::substitution::Substitutor;
 use crate::filesystem::FileSystem;
 use std::path::{Component, Path, PathBuf};
 
+use super::binding::Side;
+
 pub trait Canonicalizer {
-    fn canonicalize(&self, path: &Path, deref_final: bool) -> Result<PathBuf>;
+    fn canonicalize<P: AsRef<Path>>(&self, path: P, deref_final: bool) -> Result<PathBuf>;
 }
 
 impl Canonicalizer for FileSystem {
-    /// Canonicalizes `user_path` relative to the guest root (see `man 3
+    /// Canonicalizes `guest_path` relative to the guest root (see `man 3
     /// realpath`).
     ///
     /// It removes ".." and "." from the paths and recursively dereferences
@@ -26,8 +28,9 @@ impl Canonicalizer for FileSystem {
     ///
     /// guest_path_new: the canonicalized user_path, which is a path in the view
     /// of Guest
-    fn canonicalize(&self, guest_path: &Path, deref_final: bool) -> Result<PathBuf> {
-        // The `user_path` must be absolute path
+    fn canonicalize<P: AsRef<Path>>(&self, guest_path: P, deref_final: bool) -> Result<PathBuf> {
+        let guest_path = guest_path.as_ref();
+        // The `guest_path` must be absolute path
         if guest_path.is_relative() {
             return Err(Error::errno_with_msg(
                 Errno::EINVAL,
@@ -64,16 +67,17 @@ impl Canonicalizer for FileSystem {
                     guest_path_new.push(path_part);
 
                     // Resolve bindings and add glue if necessary
-                    // TODO: currently we check and ensure that all the path exist on host, but
-                    // some syscall (e.g. mkdir, mknod) allow path not exist.
-                    let (host_path, maybe_file_type) =
-                        self.substitute_intermediary_and_glue(&guest_path_new)?;
+                    // TODO: replace with substitute_intermediary_and_glue() when glue is supported.
+                    let host_path = self.substitute(&guest_path_new, Side::Guest)?;
 
-                    //TODO: remove when glue is implemented
-                    if maybe_file_type.is_none() {
+                    let metadata = host_path.symlink_metadata();
+                    // `metadata` is error if we cannot access this file or file is not exist.
+                    // However we can accept this path if dereference final component is not
+                    // required. Because Some syscall (e.g. mkdir, mknod) allow path not exist.
+                    if metadata.is_err() && is_last_component && !deref_final {
                         continue;
                     }
-                    let file_type = maybe_file_type.unwrap();
+                    let file_type = metadata?.file_type();
 
                     // directory can always push
                     if file_type.is_dir() {

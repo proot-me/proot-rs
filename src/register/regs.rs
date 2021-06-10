@@ -315,7 +315,7 @@ mod tests {
     use crate::utils::tests::{fork_test, get_test_rootfs_path};
     use nix::unistd::{execvp, Pid};
     use sc::nr::{CLOCK_NANOSLEEP, NANOSLEEP};
-    use std::ffi::CString;
+    use std::{ffi::CString, mem};
 
     #[test]
     fn test_regs_where_changed() {

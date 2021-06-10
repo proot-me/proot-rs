@@ -119,7 +119,7 @@ impl Translator for FileSystem {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::filesystem::binding::Binding;
+
     use crate::filesystem::FileSystem;
     use crate::utils::tests::get_test_rootfs_path;
     use nix::sys::stat::Mode;
@@ -127,37 +127,33 @@ mod tests {
 
     #[test]
     fn test_translate_path_without_root() {
-        let rootfs_path = get_test_rootfs_path();
-
-        let mut fs = FileSystem::with_root(rootfs_path.as_path()).unwrap();
+        let mut fs = FileSystem::with_root("/").unwrap();
 
         assert_eq!(
-            fs.translate_path(&Path::new("/home/../etc/./../etc"), false),
-            Ok(PathBuf::from(rootfs_path).join("etc"))
+            fs.translate_path("/home/../etc/./../etc", false),
+            Ok("/etc".into())
         ); // simple canonicalization here
 
-        // "/etc/host" in the host, "/etc/guest" in the guest
-        fs.add_binding(Binding::new("/etc", "/home/test", true));
+        fs.add_binding("/etc", "/home").unwrap();
 
         assert_eq!(
-            fs.translate_path(&Path::new("/home/test/passwd"), false),
+            fs.translate_path(&Path::new("/home/passwd"), false),
             Ok(PathBuf::from("/etc/passwd"))
-        ); // "/home/test" -> "/usr/bin"
+        );
     }
 
     #[test]
     fn test_translate_path_with_root() {
         let rootfs_path = get_test_rootfs_path();
 
-        let mut fs = FileSystem::with_root(rootfs_path.clone().join("bin")).unwrap();
+        let mut fs = FileSystem::with_root(&rootfs_path).unwrap();
 
-        // "/sleep" -> "${rootfs}/bin/sleep"
         assert_eq!(
-            fs.translate_path(&Path::new("/sleep"), false),
+            fs.translate_path("/bin/sleep", false),
             Ok(rootfs_path.clone().join("bin/sleep"))
         );
 
-        fs.add_binding(Binding::new("/usr/bin", "/bin", true));
+        fs.add_binding("/usr/bin", "/bin").unwrap();
 
         fs.set_glue_type(Mode::S_IRWXU | Mode::S_IRWXG | Mode::S_IRWXO);
 
@@ -172,7 +168,7 @@ mod tests {
         // "/bin/../home" -> "${rootfs}/bin/home"
         assert_eq!(
             fs.translate_path(&Path::new("/bin/../home"), false),
-            Ok(PathBuf::from(&rootfs_path).join("bin/home"))
+            Ok(PathBuf::from(&rootfs_path).join("home"))
         );
     }
 
@@ -209,13 +205,12 @@ mod tests {
         // "${rootfs}" on the host, "/" on the guest
         let mut fs = FileSystem::with_root(rootfs_path).unwrap();
 
-        // "/etc/host" in the host, "/etc/guest" in the guest
-        fs.add_binding(Binding::new("/etc/host", "/etc/guest", true));
+        fs.add_binding("/etc", "/tmp").unwrap();
 
         assert_eq!(
-            fs.detranslate_path(&Path::new("/etc/host/something"), None),
-            Ok(Some(PathBuf::from("/etc/guest/something")))
-        ); // "/etc/host" -> "/etc/guest"
+            fs.detranslate_path(&Path::new("/etc/passwd"), None),
+            Ok(Some(PathBuf::from("/tmp/passwd")))
+        );
     }
 
     #[test]
@@ -223,11 +218,12 @@ mod tests {
         // "${rootfs}" on the host, "/" on the guest
         let mut fs = FileSystem::with_root(get_test_rootfs_path()).unwrap();
 
-        // "/etc/host" in the host, "/etc/guest" in the guest
-        fs.add_binding(Binding::new("/etc/guest", "/etc/guest", true));
+        fs.add_binding("/etc", "/etc").unwrap();
 
-        let pathbuf = PathBuf::from("/etc/guest/something");
-        assert_eq!(fs.detranslate_path(&pathbuf, None), Ok(Some(pathbuf))); // no change in path, because it's a symmetric binding
+        assert_eq!(
+            fs.detranslate_path("/etc/guest/something", None),
+            Ok(Some("/etc/guest/something".into()))
+        ); // no change in path, because it's a symmetric binding
 
         //TODO: detranslate symlink tests
     }

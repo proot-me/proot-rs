@@ -234,6 +234,19 @@ impl Tracee {
                 .translate_absolute_path(guest_path, deref_final)
         }
     }
+
+    /// Determine if the current syscall-stop is syscall-enter-stop or
+    /// syscall-exit-stop.
+    ///
+    /// Note that return value of this function is determined by tracee's
+    /// `status` field, so its value is only reliable reliable before
+    /// `translate_syscall()` is called.
+    pub fn syscall_is_enter(&self) -> bool {
+        match self.status {
+            TraceeStatus::SysEnter => true,
+            TraceeStatus::SysExit | TraceeStatus::Error(_) => false,
+        }
+    }
 }
 
 #[cfg(test)]

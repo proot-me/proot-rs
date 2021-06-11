@@ -354,7 +354,7 @@ mod tests {
             || {
                 // calling the sleep function, which should call the NANOSLEEP syscall
                 execvp(
-                    &CString::new("sleep").unwrap(),
+                    &CString::new("/bin/sleep").unwrap(),
                     &[CString::new(".").unwrap(), CString::new("0").unwrap()],
                 )
                 .expect("failed execvp sleep");
@@ -377,12 +377,13 @@ mod tests {
             |tracee, _| {
                 // we only stop when the NANOSLEEP syscall is detected
                 tracee.regs.get_sys_num(Current) == NANOSLEEP
+                    || tracee.regs.get_sys_num(Current) == CLOCK_NANOSLEEP
             },
             // child
             || {
                 // calling the sleep function, which should call the NANOSLEEP syscall
                 execvp(
-                    &CString::new("sleep").unwrap(),
+                    &CString::new("/bin/sleep").unwrap(),
                     &[CString::new(".").unwrap(), CString::new("0").unwrap()],
                 )
                 .expect("failed execvp sleep");
@@ -432,7 +433,7 @@ mod tests {
             || {
                 // calling the sleep function, which should call the NANOSLEEP syscall
                 execvp(
-                    &CString::new("sleep").unwrap(),
+                    &CString::new("/bin/sleep").unwrap(),
                     &[CString::new(".").unwrap(), CString::new("9999").unwrap()],
                 )
                 .expect("failed execvp sleep");

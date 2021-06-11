@@ -103,11 +103,11 @@ mod tests {
     use super::*;
     use crate::utils::tests::fork_test;
     use crate::{
-        register::{Current, PtraceReader},
+        register::{Current, Original, PtraceReader},
         utils::tests::get_test_rootfs_path,
     };
     use nix::unistd::execvp;
-    use sc::nr::{EXECVE, NANOSLEEP};
+    use sc::nr::{CLOCK_NANOSLEEP, EXECVE, NANOSLEEP};
     use std::ffi::CString;
 
     #[test]
@@ -121,6 +121,9 @@ mod tests {
             0,
             // parent
             |tracee, info_bag| {
+                if tracee.syscall_is_enter() {
+                    tracee.regs.save_current_regs(Original);
+                }
                 if tracee.regs.get_sys_num(Current) == EXECVE {
                     let dir_path = tracee.regs.get_sysarg_path(SysArg1).unwrap();
                     let file_exists = dir_path.exists();
@@ -131,7 +134,9 @@ mod tests {
                         at_least_one_translation_occured = true;
                     }
                     false
-                } else if tracee.regs.get_sys_num(Current) == NANOSLEEP {
+                } else if tracee.regs.get_sys_num(Current) == NANOSLEEP
+                    || tracee.regs.get_sys_num(Current) == CLOCK_NANOSLEEP
+                {
                     // we expect at least one successful translation to have occurred
                     assert!(at_least_one_translation_occured);
 
@@ -145,7 +150,7 @@ mod tests {
             || {
                 // calling the sleep function, which should call the NANOSLEEP syscall
                 execvp(
-                    &CString::new("sleep").unwrap(),
+                    &CString::new("/bin/sleep").unwrap(),
                     &[CString::new(".").unwrap(), CString::new("0").unwrap()],
                 )
                 .expect("failed execvp sleep");

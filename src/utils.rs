@@ -1,14 +1,5 @@
 #[cfg(test)]
 pub mod tests {
-    use crate::filesystem::FileSystem;
-    use crate::process::proot::InfoBag;
-    use crate::process::tracee::Tracee;
-    use nix::sys::signal::kill;
-    use nix::sys::signal::Signal::SIGSTOP;
-    use nix::sys::wait;
-    use nix::sys::wait::WaitStatus::*;
-    use nix::sys::{ptrace, wait::WaitPidFlag};
-    use nix::unistd::{fork, getpid, ForkResult, Pid};
     use std::cell::RefCell;
     use std::rc::Rc;
     use std::{
@@ -17,12 +8,42 @@ pub mod tests {
         path::{Path, PathBuf},
     };
 
+    use nix::sys::signal;
+    use nix::sys::signal::kill;
+    use nix::sys::signal::Signal::SIGSTOP;
+    use nix::sys::wait;
+    use nix::sys::wait::WaitStatus::*;
+    use nix::sys::{ptrace, wait::WaitPidFlag};
+    use nix::unistd;
+    use nix::unistd::{fork, getpid, ForkResult, Pid};
+    use signal::Signal;
+
+    use crate::errors::*;
+    use crate::filesystem::FileSystem;
+    use crate::process::proot::InfoBag;
+    use crate::process::proot::PRoot;
+    use crate::process::tracee::Tracee;
+
     /// Allow tests to fork and deal with child processes without mixing them.
-    fn test_in_subprocess<F: FnMut()>(mut func: F) {
+    ///
+    /// Since each rust unit tests is executed in a different thread, we'd
+    /// better to fork a child process to test the proot, otherwise the
+    /// calls to `waitpid(-1)` from different unit tests may affect each other
+    fn test_in_subprocess<F: FnOnce()>(func: F) {
         let pid = unsafe { fork() };
         match pid {
             Ok(ForkResult::Child) => {
+                // It seems that rust's unittest cannot capture the panic of the child process,
+                // We setup panic hook to panic to exit code error
+                let old_hook = std::panic::take_hook();
+                std::panic::set_hook(Box::new(move |panic_info| {
+                    print!("\n>>> A panic occurs in a child process <<<\n");
+                    old_hook(panic_info);
+                    print!("\n");
+                    std::process::exit(1);
+                }));
                 func();
+                std::process::exit(0);
             }
             Ok(ForkResult::Parent { child }) => {
                 assert_eq!(wait::waitpid(child, None), Ok(Exited(child, 0)))
@@ -39,12 +60,12 @@ pub mod tests {
     pub fn fork_test<
         P: AsRef<Path>,
         FuncParent: FnMut(&mut Tracee, &mut InfoBag) -> bool,
-        FuncChild: FnMut(),
+        FuncChild: FnOnce(),
     >(
         fs_root: P,
         expected_exit_signal: i8,
         mut func_parent: FuncParent,
-        mut func_child: FuncChild,
+        func_child: FuncChild,
     ) {
         test_in_subprocess(|| {
             match unsafe { fork() }.expect("fork in test") {
@@ -127,6 +148,59 @@ pub mod tests {
         }
     }
 
+    ///
+    pub fn test_with_proot<FuncSyscallHook: Fn(&Tracee, bool) + 'static, FuncTracee: FnOnce()>(
+        func_syscall_hook: FuncSyscallHook,
+        func_tracee: FuncTracee,
+    ) {
+        test_in_subprocess(|| {
+            let func = || -> Result<()> {
+                // setup FileSystem and PRoot
+                let root_path = get_test_rootfs_path();
+                let mut fs = FileSystem::with_root(root_path)?;
+                fs.set_cwd("/")?;
+                let mut proot: PRoot = PRoot::new();
+                proot.func_syscall_hook = Some(Box::new(func_syscall_hook));
+                // fork first sub process as tracee
+                match unsafe { unistd::fork() }.context("Failed to fork() when starting process")? {
+                    ForkResult::Parent { child } => {
+                        proot.create_tracee(child, Rc::new(RefCell::new(fs)));
+                        proot.init_pid = Some(child);
+                    }
+                    ForkResult::Child => {
+                        let init_child_func = || -> Result<()> {
+                            ptrace::traceme().context(
+                                "Failed to execute ptrace::traceme() in a child process",
+                            )?;
+                            signal::kill(unistd::getpid(), Signal::SIGSTOP).context(
+                                "Child process failed to synchronize with parent process",
+                            )?;
+                            func_tracee();
+                            std::process::exit(0);
+                        };
+                        if let Err(e) = init_child_func() {
+                            error!("Failed to initialize the child process: {}", e);
+                            std::process::exit(1);
+                        }
+                    }
+                }
+                // start up proot event loop
+                proot.event_loop()?;
+
+                assert_eq!(
+                    proot.init_exit_code,
+                    Some(0),
+                    "tracee exited with a bad exit code: {:?}",
+                    proot.init_exit_code
+                );
+                Ok(())
+            };
+            func().unwrap()
+        })
+    }
+
+    /// Get the path to the new root fs for the unit test, which is specified by
+    /// the environment variable `PROOT_TEST_ROOTFS`.
     pub fn get_test_rootfs_path() -> PathBuf {
         if let Some(val) = env::var_os("PROOT_TEST_ROOTFS") {
             if !val.is_empty() {
@@ -138,5 +212,64 @@ pub mod tests {
             }
         }
         panic!("Unknown guest rootfs path: Please set the environment variable PROOT_TEST_ROOTFS to the path of the guest rootfs")
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_test_in_subprocess_assert_false() {
+        test_in_subprocess(|| assert!(false));
+    }
+
+    #[test]
+    fn test_test_in_subprocess_assert_true() {
+        test_in_subprocess(|| assert!(true));
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_fork_test_assert_false() {
+        fork_test(
+            get_test_rootfs_path(),
+            0,
+            |_tracee, _info_bag| {
+                assert!(false);
+                true
+            },
+            || {
+                assert!(false);
+            },
+        );
+    }
+
+    #[test]
+    fn test_fork_test_assert_true() {
+        fork_test(
+            get_test_rootfs_path(),
+            0,
+            |_tracee, _info_bag| {
+                assert!(true);
+                true
+            },
+            || {
+                assert!(true);
+            },
+        );
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_test_with_proot_assert_false() {
+        test_with_proot(
+            |_tracee, _after_syscall_stop| assert!(false),
+            || assert!(false),
+        )
+    }
+
+    #[test]
+    fn test_test_with_proot_assert_true() {
+        test_with_proot(
+            |_tracee, _after_syscall_stop| assert!(true),
+            || assert!(true),
+        )
     }
 }

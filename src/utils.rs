@@ -33,6 +33,7 @@ pub mod tests {
         let pid = unsafe { fork() };
         match pid {
             Ok(ForkResult::Child) => {
+                env_logger::init();
                 // It seems that rust's unittest cannot capture the panic of the child process,
                 // so we use `std::panic::catch_unwind()` to catch the exception and set the
                 // exit code when panic occurs.

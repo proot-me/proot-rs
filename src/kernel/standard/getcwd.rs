@@ -28,7 +28,8 @@ pub fn exit(tracee: &mut Tracee) -> Result<()> {
     let _canonical_guest_path = tracee.fs.borrow().canonicalize(&guest_path, true)?;
 
     let bytes = guest_path.as_os_str().as_bytes();
-    if bytes.len() + 1 > size {
+    let real_size = bytes.len() + 1;
+    if real_size > size {
         return Err(Error::errno(Errno::ERANGE));
     }
 
@@ -36,9 +37,14 @@ pub fn exit(tracee: &mut Tracee) -> Result<()> {
         .regs
         .write_data(buf_addr as *mut c_void, bytes, true)?;
 
-    tracee
-        .regs
-        .set(SysResult, 0u64, "update return value in getcwd::exit()");
+    // Unlike the description in the getcwd() man page, in the Linux kernel, the
+    // getcwd() system call returns the length of the buffer filled.
+    // https://elixir.bootlin.com/linux/v5.10.43/source/fs/d_path.c#L412
+    tracee.regs.set(
+        SysResult,
+        real_size as u64,
+        "update return value in getcwd::exit()",
+    );
     tracee.regs.set_restore_original_regs(false);
 
     Ok(())

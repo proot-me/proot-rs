@@ -1,7 +1,6 @@
 use std::cell::RefCell;
 use std::ffi::CString;
 
-use std::marker::PhantomData;
 use std::process;
 use std::rc::Rc;
 use std::{collections::HashMap, convert::TryFrom};

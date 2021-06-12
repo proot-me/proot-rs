@@ -20,6 +20,7 @@ pub struct Error {
     source: Option<Box<dyn std::error::Error>>,
 }
 
+#[allow(dead_code)]
 impl Error {
     /// Create an Error with a unknown errno
     pub fn unknown() -> Self {
@@ -77,6 +78,7 @@ impl Error {
     }
 }
 
+#[allow(dead_code)]
 impl Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "Error with {}({})", self.errno, self.errno as i32)?;
@@ -91,6 +93,7 @@ impl Display for Error {
     }
 }
 
+#[allow(dead_code)]
 impl fmt::Debug for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut d = f.debug_struct("Error");
@@ -160,6 +163,7 @@ impl From<NixError> for Error {
 /// `Result<T,E>`, In addition, it also allows appending an `errno` value.
 ///
 /// [`anyhow::Context`]: https://docs.rs/anyhow/1.0.40/anyhow/trait.Context.html
+#[allow(dead_code)]
 pub trait WithContext<T> {
     fn errno(self, errno: Errno) -> Result<T>;
 
@@ -173,6 +177,7 @@ pub trait WithContext<T> {
         F: FnOnce() -> C;
 }
 
+#[allow(dead_code)]
 impl<T, E> WithContext<T> for result::Result<T, E>
 where
     Error: From<E>,

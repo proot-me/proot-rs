@@ -318,6 +318,8 @@ mod tests {
                 fcntl::open("/etc", OFlag::O_RDONLY, Mode::empty()).unwrap();
                 fcntl::open("/etc/passwd", OFlag::O_RDONLY, Mode::empty()).unwrap();
                 fcntl::open("/home/../../etc/passwd", OFlag::O_RDONLY, Mode::empty()).unwrap();
+                unistd::chdir("/etc").unwrap();
+                fcntl::open("passwd", OFlag::O_RDONLY, Mode::empty()).unwrap();
             },
         )
     }

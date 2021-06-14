@@ -8,5 +8,5 @@ RUN apk update && \
 WORKDIR /usr/src/proot-rs
 COPY . /usr/src/proot-rs
 
-CMD ["cargo" "build"]
+CMD ["cargo", "build"]
 

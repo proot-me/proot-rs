@@ -1,7 +1,6 @@
 use std::cell::RefCell;
 use std::os::unix::io::RawFd;
-use std::path::Path;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
 use nix::sys::ptrace::{self, Options};

@@ -5,7 +5,6 @@ pub mod tests {
     use std::rc::Rc;
     use std::{
         env,
-        ffi::OsString,
         path::{Path, PathBuf},
     };
 

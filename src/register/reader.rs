@@ -32,13 +32,24 @@ impl PtraceReader for Registers {
         let src_sysarg = self.get(Current, SysArg(sys_arg)) as *mut Word;
 
         if src_sysarg.is_null() {
+            trace!("{:?}({:x?}) => null", sys_arg, src_sysarg);
             // Check if the parameter is not NULL. Technically we should
             // not return an error for this special value since it is
             // allowed for some kernel, utimensat(2) for instance.
             Ok(PathBuf::new())
         } else {
             // Get the path from the tracee's memory space.
-            read_path(self.get_pid(), src_sysarg)
+            let path = read_path(self.get_pid(), src_sysarg);
+            match &path {
+                Ok(path) => trace!("{:?}({:x?}) => {:?}", sys_arg, src_sysarg, path),
+                Err(error) => trace!(
+                    "{:?}({:x?}) => {:?}",
+                    sys_arg,
+                    src_sysarg,
+                    error.get_errno()
+                ),
+            }
+            path
         }
     }
 }

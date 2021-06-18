@@ -36,7 +36,7 @@ pub trait PtraceWriter {
         data: &[u8],
         justification: &'static str,
         append_null: bool,
-    ) -> Result<()>;
+    ) -> Result<*const c_void>;
     fn write_data(&self, dest_tracee: *mut c_void, data: &[u8], append_null: bool) -> Result<()>;
 }
 
@@ -53,7 +53,17 @@ impl PtraceWriter for Registers {
         path: &Path,
         justification: &'static str,
     ) -> Result<()> {
-        self.set_sysarg_data(sys_arg, path.as_os_str().as_bytes(), justification, true)
+        let result =
+            self.set_sysarg_data(sys_arg, path.as_os_str().as_bytes(), justification, true);
+        match &result {
+            Ok(tracee_ptr) => {
+                trace!("{:?}({:x?}) <= {:?}", sys_arg, tracee_ptr, path)
+            }
+            Err(error) => {
+                trace!("{:?}({:x?}) <= {:?}", sys_arg, error.get_errno(), path)
+            }
+        }
+        result.map(|_| ())
     }
 
     /// Copy the `data` to tracee's memory space, and make the register
@@ -67,7 +77,7 @@ impl PtraceWriter for Registers {
         data: &[u8],
         justification: &'static str,
         append_null: bool,
-    ) -> Result<()> {
+    ) -> Result<*const c_void> {
         // Allocate space into the tracee's memory to host the new data.
         let tracee_ptr =
             self.alloc_mem_on_stack(data.len() as isize + if append_null { 1 } else { 0 })?;
@@ -78,7 +88,7 @@ impl PtraceWriter for Registers {
         // Make this argument point to the new data.
         self.set(SysArg(sys_arg), tracee_ptr, justification);
 
-        Ok(())
+        Ok(tracee_ptr as _)
     }
 
     /// Copy the `data` to tracee's memory space by ptrace(PTRACE_POKEDATA) and

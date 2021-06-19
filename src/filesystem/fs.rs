@@ -60,6 +60,13 @@ impl FileSystem {
         let canonical_host_path = std::fs::canonicalize(host_path)?;
         // TODO: allow path not existed when glue is implemented
         let canonical_guest_path = self.canonicalize(guest_path.as_ref(), true)?;
+        // We need to ensure that the target path for the binding exists.
+        // Skip the check for "/" because "/" always exists.
+        if canonical_guest_path != Path::new("/") {
+            self.substitute(&canonical_guest_path, Side::Guest)?
+                .metadata()?;
+        }
+
         // Add a binding at the beginning of the list, so that we get the most recent
         // one when going through them in the `get_binding` method.
         self.bindings.insert(
@@ -149,8 +156,8 @@ impl FileSystem {
             ));
         }
 
-        let guest_path_canonical = self.canonicalize(&guest_path, true)?;
-        let host_path = self.substitute(&guest_path_canonical, Side::Guest)?;
+        let canonical_guest_path = self.canonicalize(&guest_path, true)?;
+        let host_path = self.substitute(&canonical_guest_path, Side::Guest)?;
 
         // To change cwd to a dir, the tracee must have execute (`x`) permission to this
         // dir, FIXME: This may be wrong, because we need to check if tracee has
@@ -160,7 +167,7 @@ impl FileSystem {
         }
         nix::unistd::access(&host_path, AccessFlags::X_OK)?;
 
-        self.cwd = guest_path_canonical;
+        self.cwd = canonical_guest_path;
         Ok(())
     }
 
@@ -170,7 +177,8 @@ impl FileSystem {
     #[inline]
     pub fn set_root<P: AsRef<Path>>(&mut self, host_path: P) -> Result<()> {
         let raw_root = host_path.as_ref();
-        // the `root` is host path, we use host side canonicalize() to canonicalize it
+        // the `root` is host path, we use host side canonicalize() to canonicalize it.
+        // std::fs::canonicalize() also throws an error if the path does not exist.
         let canonical_root = std::fs::canonicalize(raw_root)?;
         self.root = canonical_root.clone();
         self.add_binding(canonical_root, "/")?;
@@ -367,6 +375,10 @@ mod tests {
 
         let root_path = get_test_rootfs_path();
         let mut fs = FileSystem::with_root(root_path)?;
+        // we currently cannot bind to a non-existing guest path.
+        fs.add_binding("/etc", "/bin/non_existing_path")
+            .unwrap_err();
+        fs.add_binding("/non_existing_path", "/bin").unwrap_err();
         fs.add_binding("/etc", "/usr")?;
         fs.add_binding("/etc/../tmp/", "/home/../home")?;
         fs.add_binding("home", "/home").unwrap_err();

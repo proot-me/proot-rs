@@ -17,7 +17,9 @@ impl Canonicalizer for FileSystem {
     /// symlinks. It checks that every path of the path exists.
     /// The result is a canonicalized path on the `Guest` side.
     ///
-    /// The final path is only deferenced if `deref_final` is true.
+    /// The final component can be a path that does not exist. The final
+    /// component is only deferenced if `deref_final` is true and path is
+    /// existing.
     ///
     /// # Paramters
     ///
@@ -28,6 +30,25 @@ impl Canonicalizer for FileSystem {
     ///
     /// guest_path_new: the canonicalized user_path, which is a path in the view
     /// of Guest
+    ///
+    /// # Note
+    ///
+    /// The current implementation performs a slight normalization on
+    /// `guest_path` in advance, which is caused by `Path::components()`
+    /// function. This means that `"/foo/bar/."` is equivalent to
+    /// `"/foo/bar/"` and also to `"/foo/bar"`.
+    ///
+    /// This means that the final component of `"/foo/bar/."` is `"bar"`, and we
+    /// will not check if `"/foo/bar/"` is a dir or not.
+    ///
+    /// # Error
+    ///
+    /// This function will return an error in the following situations:
+    ///
+    /// - The `guest_path` is a relative path.
+    /// - An error occurred while calling `Substitutor::substitute()` to convert
+    ///   to the host side path
+    /// - A non-final component in path is not a directory.
     fn canonicalize<P: AsRef<Path>>(&self, guest_path: P, deref_final: bool) -> Result<PathBuf> {
         let guest_path = guest_path.as_ref();
         // The `guest_path` must be absolute path
@@ -72,11 +93,17 @@ impl Canonicalizer for FileSystem {
 
                     let metadata = host_path.symlink_metadata();
                     // `metadata` is error if we cannot access this file or file is not exist.
-                    // However we can accept this path if dereference final component is not
-                    // required. Because Some syscall (e.g. mkdir, mknod) allow path not exist.
-                    if metadata.is_err() && is_last_component && !deref_final {
+                    // However we can accept this path because Some syscall (e.g. mkdir, mknod)
+                    // allow final component not exist.
+                    if is_last_component && metadata.is_err() {
                         continue;
                     }
+                    // We can continue if we are now on the last component and are explicitly asked
+                    // not to dereference 'user_path'.
+                    if is_last_component && !deref_final {
+                        continue;
+                    }
+
                     let file_type = metadata?.file_type();
 
                     // directory can always push
@@ -84,12 +111,6 @@ impl Canonicalizer for FileSystem {
                         continue;
                     }
                     if file_type.is_symlink() {
-                        // we can continue if current path is symlink and is last component and
-                        // if we explicitly ask to not dereference 'user_path', as required by
-                        // kernel like `lstat(2)`
-                        if is_last_component && !deref_final {
-                            continue;
-                        }
                         // we need to deref
                         // TODO: add test for this
                         let link_value = host_path.read_link()?;
@@ -140,17 +161,40 @@ mod tests {
     fn test_canonicalize_invalid_path() {
         let fs = FileSystem::with_root(get_test_rootfs_path()).unwrap();
 
+        // A path with non-existing final component is accepted.
         assert_eq!(
-            fs.canonicalize("/impossible_path", true),
+            fs.canonicalize("/non_existing_path", true),
+            Ok("/non_existing_path".into())
+        );
+        assert_eq!(
+            fs.canonicalize("/non_existing_path", false),
+            Ok("/non_existing_path".into())
+        );
+        assert_eq!(
+            fs.canonicalize("/etc/non_existing_path", true),
+            Ok("/etc/non_existing_path".into())
+        );
+        assert_eq!(
+            fs.canonicalize("/etc/non_existing_path", false),
+            Ok("/etc/non_existing_path".into())
+        );
+        // Any non-final component in path should exist
+        assert_eq!(
+            fs.canonicalize("/etc/non_existing_path/non_existing_path", true),
             Err(Error::errno(Errno::ENOENT))
         );
         assert_eq!(
-            fs.canonicalize("/etc/impossible_path", true),
+            fs.canonicalize("/etc/non_existing_path/non_existing_path", false),
             Err(Error::errno(Errno::ENOENT))
         );
+        // Any non-final component in path should be directory
         assert_eq!(
-            fs.canonicalize("/etc/impossible_path", false),
-            Ok("/etc/impossible_path".into())
+            fs.canonicalize("/etc/passwd/non_existing_path", true),
+            Err(Error::errno(Errno::ENOTDIR))
+        );
+        assert_eq!(
+            fs.canonicalize("/etc/passwd/non_existing_path", false),
+            Err(Error::errno(Errno::ENOTDIR))
         );
     }
 
@@ -158,15 +202,15 @@ mod tests {
     fn test_canonicalize_path_traversal() {
         let fs = FileSystem::with_root(get_test_rootfs_path()).unwrap();
 
-        let path = PathBuf::from("/../impossible_path");
-        // should be failed, because ${rootfs}/impossible_path does not exist on host
+        let path = PathBuf::from("/../non_existing_path");
+        // should be ok, because ${rootfs}/non_existing_path exists on host
         assert_eq!(
-            fs.canonicalize(&path, true),
-            Err(Error::errno(Errno::ENOENT))
+            fs.canonicalize(&path, false),
+            Ok("/non_existing_path".into())
         );
         // should be ok, because ${rootfs}/bin exists on host
         let path = PathBuf::from("/../bin");
-        assert_eq!(fs.canonicalize(&path, false), Ok(PathBuf::from("/bin")));
+        assert_eq!(fs.canonicalize(&path, false), Ok("/bin".into()));
     }
     #[test]
     fn test_canonicalize_normal_path() {

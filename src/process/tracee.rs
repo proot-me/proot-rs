@@ -348,10 +348,10 @@ mod tests {
                         assert_eq!(path, real_path);
 
                         // translate "/etc/impossible_path"
-                        // since this path is not exist, deref this will raise an error.
+                        // though the final component is not exist, deref this will be ok.
                         tracee
                             .translate_path_at(fd, "impossible_path", true)
-                            .unwrap_err();
+                            .unwrap();
                         // check the translated path is also canonical in host side
                         let path = tracee
                             .translate_path_at(fd, "impossible_path", false)

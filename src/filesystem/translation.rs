@@ -41,8 +41,8 @@ impl Translator for FileSystem {
         guest_path: P,
         deref_final: bool,
     ) -> Result<PathBuf> {
-        let guest_path_canonical = self.canonicalize(&guest_path, deref_final)?;
-        let host_path = self.substitute(&guest_path_canonical, Guest)?;
+        let canonical_guest_path = self.canonicalize(&guest_path, deref_final)?;
+        let host_path = self.substitute(&canonical_guest_path, Guest)?;
         Ok(host_path)
     }
 

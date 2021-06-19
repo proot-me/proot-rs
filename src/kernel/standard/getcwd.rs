@@ -4,6 +4,7 @@ use libc::c_void;
 
 use crate::errors::*;
 use crate::filesystem::Canonicalizer;
+use crate::filesystem::Translator;
 use crate::process::tracee::Tracee;
 use crate::register::PtraceWriter;
 use crate::register::{Original, SysArg, SysArg1, SysArg2, SysResult};
@@ -25,7 +26,11 @@ pub fn exit(tracee: &mut Tracee) -> Result<()> {
     let fs_r = tracee.fs.borrow();
     let guest_path = fs_r.get_cwd();
     // we need to ensure cwd still exists
-    let _canonical_guest_path = tracee.fs.borrow().canonicalize(&guest_path, true)?;
+    tracee
+        .fs
+        .borrow()
+        .translate_absolute_path(&guest_path, true)?
+        .metadata()?;
 
     let bytes = guest_path.as_os_str().as_bytes();
     let real_size = bytes.len() + 1;

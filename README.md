@@ -89,8 +89,7 @@ export PROOT_TEST_ROOTFS=/
 Start running tests:
 
 ```shell
-# Limit the number of threads running the test case to 1 to avoid deadlock problems caused by using fork in a multi-threaded environment
-cargo test -- --test-threads=1
+cargo test
 ```
 
 ## Contributing

@@ -1,6 +1,7 @@
 #[cfg(test)]
 pub mod tests {
     use std::cell::RefCell;
+    use std::panic::AssertUnwindSafe;
     use std::rc::Rc;
     use std::{
         env,
@@ -34,16 +35,12 @@ pub mod tests {
         match pid {
             Ok(ForkResult::Child) => {
                 // It seems that rust's unittest cannot capture the panic of the child process,
-                // We setup panic hook to panic to exit code error
-                let old_hook = std::panic::take_hook();
-                std::panic::set_hook(Box::new(move |panic_info| {
-                    print!("\n>>> A panic occurs in a child process <<<\n");
-                    old_hook(panic_info);
-                    print!("\n");
-                    std::process::exit(1);
-                }));
-                func();
-                std::process::exit(0);
+                // so we use `std::panic::catch_unwind()` to catch the exception and set the
+                // exit code when panic occurs.
+                match std::panic::catch_unwind(AssertUnwindSafe(|| func())) {
+                    Ok(_) => std::process::exit(0),
+                    Err(_) => std::process::exit(1),
+                }
             }
             Ok(ForkResult::Parent { child }) => {
                 assert_eq!(wait::waitpid(child, None), Ok(Exited(child, 0)))
@@ -118,7 +115,10 @@ pub mod tests {
                     // we use a SIGSTOP to synchronise both processes
                     kill(getpid(), SIGSTOP).expect("test child sigstop");
 
-                    func_child();
+                    match std::panic::catch_unwind(AssertUnwindSafe(|| func_child())) {
+                        Ok(_) => std::process::exit(0),
+                        Err(_) => std::process::exit(1),
+                    }
                 }
             }
         });
@@ -175,8 +175,10 @@ pub mod tests {
                             signal::kill(unistd::getpid(), Signal::SIGSTOP).context(
                                 "Child process failed to synchronize with parent process",
                             )?;
-                            func_tracee();
-                            std::process::exit(0);
+                            match std::panic::catch_unwind(AssertUnwindSafe(|| func_tracee())) {
+                                Ok(_) => std::process::exit(0),
+                                Err(_) => std::process::exit(1),
+                            }
                         };
                         if let Err(e) = init_child_func() {
                             error!("Failed to initialize the child process: {}", e);

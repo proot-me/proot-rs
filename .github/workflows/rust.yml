@@ -65,4 +65,4 @@ jobs:
         # Setup rootfs
         bash scripts/mkrootfs.sh
         # Run cargo test
-        PROOT_TEST_ROOTFS=./rootfs cargo test --verbose -- --test-threads=1 --nocapture
+        PROOT_TEST_ROOTFS=./rootfs cargo test --verbose -- --nocapture

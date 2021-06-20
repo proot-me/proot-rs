@@ -121,9 +121,7 @@ mod tests {
             0,
             // parent
             |tracee, info_bag| {
-                if tracee.syscall_is_enter() {
-                    tracee.regs.save_current_regs(Original);
-                }
+                tracee.regs.save_current_regs(Original);
                 if tracee.regs.get_sys_num(Current) == EXECVE {
                     let dir_path = tracee.regs.get_sysarg_path(SysArg1).unwrap();
                     let file_exists = dir_path.exists();

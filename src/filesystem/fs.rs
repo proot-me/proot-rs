@@ -1,3 +1,4 @@
+use std::os::unix::prelude::OsStrExt;
 use std::path::{Path, PathBuf};
 
 use nix::sys::{self, stat::Mode};
@@ -140,7 +141,7 @@ impl FileSystem {
             return Err(Error::errno_with_msg(
                 Errno::EINVAL,
                 format!(
-                    "current work directory should be a relative path: {:?}",
+                    "current work directory should at least not be a relative path: {:?}",
                     guest_path
                 ),
             ));
@@ -184,6 +185,41 @@ impl FileSystem {
     #[inline]
     pub fn set_glue_type(&mut self, mode: Mode) {
         self.glue_type = mode;
+    }
+
+    /// This function provides a way to check whether a path is canonical.
+    ///
+    /// NOTE: This check **is not a strict check**. This function do not
+    /// dereference the final component of `path`, to allow for the case
+    /// where the file does not exist but it's parent dir exists.
+    #[cfg(test)]
+    pub fn is_path_canonical<P: AsRef<Path>>(&self, path: P, side: Side) -> bool {
+        let path = path.as_ref();
+        if path.is_relative() {
+            return false;
+        }
+        match side {
+            Side::Host => {
+                if let Ok(canonical_path) = std::fs::canonicalize(path) {
+                    return canonical_path.as_os_str() == path.as_os_str();
+                }
+                // Since `std::fs::canonicalize()` may fail because `path` does not exist, we
+                // will check its parent directory again.
+                let parent_path = path.parent();
+                match parent_path {
+                    Some(parent_path) => {
+                        let canonical_path = std::fs::canonicalize(parent_path);
+                        canonical_path.is_ok()
+                            && canonical_path.unwrap().as_os_str() == parent_path.as_os_str()
+                    }
+                    None => true, // `path` is "/", so we just return true in this case
+                }
+            }
+            Side::Guest => {
+                let canonical_path = self.canonicalize(path, false);
+                canonical_path.is_ok() && canonical_path.unwrap().as_os_str() == path.as_os_str()
+            }
+        }
     }
 }
 
@@ -281,5 +317,73 @@ mod tests {
     fn test_fs_is_path_executable() {
         assert!(FileSystem::check_host_path_executable(&PathBuf::from("/bin/sleep")).is_ok());
         assert!(FileSystem::check_host_path_executable(&PathBuf::from("/../sleep")).is_err());
+    }
+
+    /// Unit test for `FileSystem::is_path_canonical()`
+    #[test]
+    fn test_fs_is_path_canonical() -> Result<()> {
+        let root_path = get_test_rootfs_path();
+        let mut fs = FileSystem::with_root(root_path)?;
+        fs.add_binding("/etc", "/bin")?;
+        fs.set_cwd("/")?;
+
+        assert_eq!(fs.is_path_canonical("", Side::Host), false);
+        assert_eq!(fs.is_path_canonical("etc", Side::Host), false);
+        assert_eq!(fs.is_path_canonical("/etc", Side::Host), true);
+        assert_eq!(fs.is_path_canonical("/etc/", Side::Host), false);
+
+        assert_eq!(fs.is_path_canonical("/etc/", Side::Guest), false);
+        // `/lib64` is a symlink, which is not canonical when it is in the middle of the
+        // path.
+        assert_eq!(fs.is_path_canonical("/lib64/libc.so.6", Side::Guest), false);
+        assert_eq!(fs.is_path_canonical("", Side::Guest), false);
+        assert_eq!(fs.is_path_canonical("etc", Side::Guest), false);
+        assert_eq!(fs.is_path_canonical("/etc/./", Side::Guest), false);
+        assert_eq!(fs.is_path_canonical("/etc/../home", Side::Guest), false);
+        assert_eq!(fs.is_path_canonical("../home", Side::Guest), false);
+
+        Ok(())
+    }
+
+    /// Unit test for initialization functions in `FileSystem`(e.g. `set_cwd()`,
+    /// `with_root()`, `add_binding()`)
+    #[test]
+    fn test_fs_init_functions() -> Result<()> {
+        // should be ok.
+        let fs = FileSystem::with_root("/etc/../")?;
+        assert!(fs.is_path_canonical(fs.get_root(), Side::Host));
+        assert_eq!(fs.get_root(), Path::new("/"));
+
+        // will failed, root path must exist.
+        FileSystem::with_root("/impossible_path").unwrap_err();
+
+        // should be ok, host side relative path is accepted as input.
+        let fs = FileSystem::with_root(".")?;
+        assert!(fs.is_path_canonical(fs.get_root(), Side::Host));
+
+        let root_path = get_test_rootfs_path();
+        let mut fs = FileSystem::with_root(root_path)?;
+        fs.add_binding("/etc", "/bin")?;
+        fs.add_binding("/etc/../tmp/", "/home/../home")?;
+        fs.add_binding("home", "/home").unwrap_err();
+        // should be failed since `guest_path` is not absolute path
+        fs.add_binding("/dev", "tmp").unwrap_err();
+
+        // path in binding should be canonical
+        for binding in &fs.bindings {
+            assert!(fs.is_path_canonical(binding.get_path(Side::Guest), Side::Guest));
+            assert!(fs.is_path_canonical(binding.get_path(Side::Host), Side::Host));
+        }
+
+        // should be failed since `guest_path` is not absolute path
+        fs.set_cwd(".").unwrap_err();
+        fs.set_cwd("/")?;
+        assert_eq!(&fs.cwd, Path::new("/"));
+        fs.set_cwd("/../")?;
+        assert_eq!(&fs.cwd, Path::new("/"));
+        fs.set_cwd("/../etc/")?;
+        assert_eq!(&fs.cwd, Path::new("/etc"));
+
+        Ok(())
     }
 }

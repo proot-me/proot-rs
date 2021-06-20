@@ -162,7 +162,9 @@ impl Tracee {
         std::mem::size_of::<Word>()
     }
 
-    /// Get file path from file descriptor
+    /// Get file path from file descriptor,
+    ///
+    /// The returned path is always canonical.
     pub fn get_path_from_fd(&self, fd: RawFd, side: Side) -> Result<PathBuf> {
         #[cfg(any(target_os = "linux", target_os = "android"))]
         {
@@ -212,10 +214,11 @@ impl Tracee {
         // pathbuf) instead.
     }
 
-    /// This function is a wrapper for `Canonicalizer::canonicalize()` and
-    /// `Substitutor::substitute()`. It is the same as
-    /// `get_canonical_guest_path()`, but further converts it to a canonical
-    /// host path.
+    /// This function is similar to `Translator::translate_path()`, which has a
+    /// relationship similar to `openat()` and `open()`, except that it accepts
+    /// a `dirfd` argument.
+    ///
+    /// The returned path is always canonical.
     pub fn translate_path_at<P: AsRef<Path>>(
         &self,
         dirfd: RawFd,
@@ -234,26 +237,19 @@ impl Tracee {
                 .translate_absolute_path(guest_path, deref_final)
         }
     }
-
-    /// Determine if the current syscall-stop is syscall-enter-stop or
-    /// syscall-exit-stop.
-    ///
-    /// Note that return value of this function is determined by tracee's
-    /// `status` field, so its value is only reliable reliable before
-    /// `translate_syscall()` is called.
-    pub fn syscall_is_enter(&self) -> bool {
-        match self.status {
-            TraceeStatus::SysEnter => true,
-            TraceeStatus::SysExit | TraceeStatus::Error(_) => false,
-        }
-    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::register::SysResult;
+    use crate::register::{Current, Original};
     use crate::utils::tests::fork_test;
     use crate::{filesystem::FileSystem, utils::tests::get_test_rootfs_path};
+    use nix::fcntl;
+    use nix::fcntl::OFlag;
+    use nix::sys::stat::Mode;
+    use nix::unistd;
     use nix::unistd::Pid;
 
     #[test]
@@ -284,5 +280,94 @@ mod tests {
             // child
             || {},
         );
+    }
+
+    use crate::utils::tests::test_with_proot;
+
+    #[test]
+    fn test_get_path_from_fd() {
+        test_with_proot(
+            |tracee, is_sysenter, before_translation| {
+                if !is_sysenter
+                    && !before_translation
+                    && (tracee.regs.get_sys_num(Original) == sc::nr::OPEN
+                        || tracee.regs.get_sys_num(Original) == sc::nr::OPENAT)
+                {
+                    let fd = tracee.regs.get(Current, SysResult) as i32;
+                    if fd >= 0 {
+                        // open() returns with no error occurs
+
+                        // Tracee::get_path_from_fd() should always return a canonical path.
+                        let guest_path = tracee.get_path_from_fd(fd, Side::Guest);
+                        guest_path.as_ref().unwrap();
+                        assert!(tracee
+                            .fs
+                            .borrow()
+                            .is_path_canonical(guest_path.as_ref().unwrap(), Side::Guest));
+
+                        let host_path = tracee.get_path_from_fd(fd, Side::Host);
+                        host_path.as_ref().unwrap();
+                        assert!(tracee
+                            .fs
+                            .borrow()
+                            .is_path_canonical(host_path.as_ref().unwrap(), Side::Host));
+                    }
+                }
+            },
+            || {
+                fcntl::open("/", OFlag::O_RDONLY, Mode::empty()).unwrap();
+                fcntl::open("/etc", OFlag::O_RDONLY, Mode::empty()).unwrap();
+                fcntl::open("/etc/passwd", OFlag::O_RDONLY, Mode::empty()).unwrap();
+                fcntl::open("/home/../../etc/passwd", OFlag::O_RDONLY, Mode::empty()).unwrap();
+            },
+        )
+    }
+
+    #[test]
+    fn test_translate_path_at_custom_dirfd() {
+        test_with_proot(
+            |tracee, is_sysenter, before_translation| {
+                if !is_sysenter
+                    && !before_translation
+                    && (tracee.regs.get_sys_num(Original) == sc::nr::OPEN
+                        || tracee.regs.get_sys_num(Original) == sc::nr::OPENAT)
+                {
+                    let fd = tracee.regs.get(Current, SysResult) as i32;
+                    if fd >= 0 {
+                        // this fd is point to '/etc'
+
+                        // translate "/etc/passwd"
+                        let path = tracee.translate_path_at(fd, "passwd", true).unwrap();
+                        // check the translated path is also canonical in host side
+                        assert!(tracee.fs.borrow().is_path_canonical(&path, Side::Host));
+                        // check the path translate result is correct
+                        let mut real_path = tracee.fs.borrow().get_root().to_path_buf();
+                        real_path.push("etc");
+                        real_path.push("passwd");
+                        assert_eq!(path, real_path);
+
+                        // translate "/etc/impossible_path"
+                        // since this path is not exist, deref this will raise an error.
+                        tracee
+                            .translate_path_at(fd, "impossible_path", true)
+                            .unwrap_err();
+                        // check the translated path is also canonical in host side
+                        let path = tracee
+                            .translate_path_at(fd, "impossible_path", false)
+                            .unwrap();
+                        assert!(tracee.fs.borrow().is_path_canonical(&path, Side::Host));
+
+                        // check the path translate result is correct
+                        let mut real_path = tracee.fs.borrow().get_root().to_path_buf();
+                        real_path.push("etc");
+                        real_path.push("impossible_path");
+                        assert_eq!(path, real_path);
+                    }
+                }
+            },
+            || {
+                fcntl::open("/etc", OFlag::O_RDONLY, Mode::empty()).unwrap();
+            },
+        )
     }
 }

@@ -20,7 +20,7 @@ pub trait Translator {
 }
 
 impl Translator for FileSystem {
-    /// Translates a path from `guest` to `host`. Relative guest path are also
+    /// Translates a path from `guest` to `host`. Relative guest path is also
     /// accepted.
     fn translate_path<P: AsRef<Path>>(&self, guest_path: P, deref_final: bool) -> Result<PathBuf> {
         if guest_path.as_ref().is_relative() {
@@ -33,7 +33,7 @@ impl Translator for FileSystem {
         }
     }
 
-    /// Translates a path from `guest` to `host`. Relative guest path are also
+    /// Translates a path from `guest` to `host`. Only absolute guest path is
     /// accepted.
     fn translate_absolute_path<P: AsRef<Path>>(
         &self,

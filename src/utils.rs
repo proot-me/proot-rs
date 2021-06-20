@@ -148,8 +148,29 @@ pub mod tests {
         }
     }
 
+    /// This helper function is used to test `proot-rs`, which runs the main
+    /// part of the `proo-rs` code and takes a function as tracee.
+    /// `syscall-stop` hook function is also provided to check the status
+    /// inside `proot-rs`.
     ///
-    pub fn test_with_proot<FuncSyscallHook: Fn(&Tracee, bool) + 'static, FuncTracee: FnOnce()>(
+    /// `func_syscall_hook` is a callback function which will be called when a
+    /// `syscall-stop` arrives. The signature of the callback function is
+    /// `Fn(&Tracee, bool, bool)`.
+    /// The description of the parameters is as follows:
+    /// - `tracee`: The tracee which received a `syscall-stop`, which is
+    ///   immutable.
+    /// - `is_sysenter`: `true` if it is a `syscall-enter-stop`, otherwise it is
+    ///   a `syscall-exit-stop`.
+    /// - `before_translation`: `true` if syscall translation has not yet
+    ///   started, and `false` if the syscall translation has finished.
+    ///
+    /// `func_tracee` is a callback function which will run in the child
+    /// process as a `tracee`. The child process will exit immediately after
+    /// this `func_tracee` returns.
+    pub fn test_with_proot<
+        FuncSyscallHook: Fn(&Tracee, bool, bool) + 'static,
+        FuncTracee: FnOnce(),
+    >(
         func_syscall_hook: FuncSyscallHook,
         func_tracee: FuncTracee,
     ) {
@@ -262,7 +283,7 @@ pub mod tests {
     #[should_panic]
     fn test_test_with_proot_assert_false() {
         test_with_proot(
-            |_tracee, _after_syscall_stop| assert!(false),
+            |_tracee, _is_sysenter, _before_translation| assert!(false),
             || assert!(false),
         )
     }
@@ -270,7 +291,7 @@ pub mod tests {
     #[test]
     fn test_test_with_proot_assert_true() {
         test_with_proot(
-            |_tracee, _after_syscall_stop| assert!(true),
+            |_tracee, _is_sysenter, _before_translation| assert!(true),
             || assert!(true),
         )
     }

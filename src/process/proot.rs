@@ -48,7 +48,7 @@ pub struct PRoot {
     pub init_pid: Option<Pid>,
     pub init_exit_code: Option<i32>,
     #[cfg(test)]
-    pub func_syscall_hook: Option<Box<dyn Fn(&Tracee, bool)>>,
+    pub func_syscall_hook: Option<Box<dyn Fn(&Tracee, bool, bool)>>,
 }
 
 impl PRoot {
@@ -170,6 +170,7 @@ impl PRoot {
                         stop_signal,
                         stop_signal as c_int
                     );
+
                     let tracee = self.tracees.get_mut(&pid).expect("get stopped tracee");
                     tracee.reset_restart_how();
                     match stop_signal {
@@ -177,15 +178,7 @@ impl PRoot {
                             // When the first child process starts, it sends a SIGSTOP to itself.
                             // And we need to set ptrace options at this point.
                             tracee.check_and_set_ptrace_options(&mut self.info_bag)?;
-                            #[cfg(test)]
-                            self.func_syscall_hook
-                                .as_ref()
-                                .map(|func| func(tracee, false));
                             tracee.handle_sigstop_event();
-                            #[cfg(test)]
-                            self.func_syscall_hook
-                                .as_ref()
-                                .map(|func| func(tracee, true));
                         }
                         Signal::SIGTRAP => {
                             // Since PTRACE_O_TRACESYSGOOD is not supported on older versions of
@@ -198,7 +191,11 @@ impl PRoot {
                                 if siginfo.si_code == Signal::SIGTRAP as i32
                                     || siginfo.si_code == (Signal::SIGTRAP as i32 | 0x80)
                                 {
-                                    tracee.handle_syscall_stop_event(&mut self.info_bag);
+                                    tracee.handle_syscall_stop_event(
+                                        &mut self.info_bag,
+                                        #[cfg(test)]
+                                        &self.func_syscall_hook,
+                                    );
                                 }
                             }
                         }
@@ -253,15 +250,11 @@ impl PRoot {
                     trace!("-- {}, Syscall", pid);
                     let tracee = self.tracees.get_mut(&pid).expect("get stopped tracee");
                     tracee.reset_restart_how();
+                    tracee.handle_syscall_stop_event(
+                        &mut self.info_bag,
                     #[cfg(test)]
-                    self.func_syscall_hook
-                        .as_ref()
-                        .map(|func| func(tracee, false));
-                    tracee.handle_syscall_stop_event(&mut self.info_bag);
-                    #[cfg(test)]
-                    self.func_syscall_hook
-                        .as_ref()
-                        .map(|func| func(tracee, true));
+                        &self.func_syscall_hook,
+                    );
                     tracee.restart(None);
                 }
                 Continued(pid) => {

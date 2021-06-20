@@ -4,7 +4,11 @@ use crate::process::translation::SyscallTranslator;
 use nix::sys::ptrace::Event as PtraceEvent;
 
 pub trait EventHandler {
-    fn handle_syscall_stop_event(&mut self, info_bag: &mut InfoBag);
+    fn handle_syscall_stop_event(
+        &mut self,
+        info_bag: &mut InfoBag,
+        #[cfg(test)] func_syscall_hook: &Option<Box<dyn Fn(&Tracee, bool, bool)>>,
+    );
     fn handle_sigstop_event(&mut self);
     fn handle_seccomp_event(&mut self, info_bag: &mut InfoBag, event: PtraceEvent);
     fn handle_exec_vfork_event(&mut self);
@@ -14,7 +18,11 @@ pub trait EventHandler {
 impl EventHandler for Tracee {
     /// Standard handling of syscall-stop: translate the system call's
     /// parameters and restart it
-    fn handle_syscall_stop_event(&mut self, info_bag: &mut InfoBag) {
+    fn handle_syscall_stop_event(
+        &mut self,
+        info_bag: &mut InfoBag,
+        #[cfg(test)] func_syscall_hook: &Option<Box<dyn Fn(&Tracee, bool, bool)>>,
+    ) {
         /* This tracee got signaled then freed during the
         sysenter stage but the kernel reports the sysexit
         stage; just discard this spurious tracee/event. */
@@ -37,7 +45,11 @@ impl EventHandler for Tracee {
                 }
             }
         }
-        self.translate_syscall(info_bag);
+        self.translate_syscall(
+            info_bag,
+            #[cfg(test)]
+            func_syscall_hook,
+        );
     }
 
     fn handle_sigstop_event(&mut self) {

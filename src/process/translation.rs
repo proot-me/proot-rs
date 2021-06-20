@@ -4,7 +4,11 @@ use crate::process::tracee::{Tracee, TraceeRestartMethod, TraceeStatus};
 use crate::register::{Modified, Original, StackPointer, SysResult, Word};
 
 pub trait SyscallTranslator {
-    fn translate_syscall(&mut self, info_bag: &InfoBag);
+    fn translate_syscall(
+        &mut self,
+        info_bag: &InfoBag,
+        #[cfg(test)] func_syscall_hook: &Option<Box<dyn Fn(&Tracee, bool, bool)>>,
+    );
     fn translate_syscall_enter(&mut self, info_bag: &InfoBag);
     fn translate_syscall_exit(&mut self);
 }
@@ -13,20 +17,43 @@ impl SyscallTranslator for Tracee {
     /// Retrieves the registers,
     /// handles either the enter or exit stage of the system call,
     /// and pushes the registers.
-    fn translate_syscall(&mut self, info_bag: &InfoBag) {
+    fn translate_syscall(
+        &mut self,
+        info_bag: &InfoBag,
+        #[cfg(test)] func_syscall_hook: &Option<Box<dyn Fn(&Tracee, bool, bool)>>,
+    ) {
         if let Err(error) = self.regs.fetch_regs() {
-            eprintln!("proot error: Error while fetching regs: {}", error);
+            error!("proot error: Error while fetching regs: {}", error);
             return;
         }
 
-        match self.status {
-            TraceeStatus::SysEnter => self.translate_syscall_enter(info_bag),
-            TraceeStatus::SysExit | TraceeStatus::Error(_) => self.translate_syscall_exit(),
+        let is_sysenter = match self.status {
+            TraceeStatus::SysEnter => {
+                #[cfg(test)]
+                func_syscall_hook
+                    .as_ref()
+                    .map(|func| func(self, true, true));
+                self.translate_syscall_enter(info_bag);
+                true
+            }
+            TraceeStatus::SysExit | TraceeStatus::Error(_) => {
+                #[cfg(test)]
+                func_syscall_hook
+                    .as_ref()
+                    .map(|func| func(self, false, true));
+                self.translate_syscall_exit();
+                false
+            }
         };
 
         if let Err(error) = self.regs.push_regs() {
-            eprintln!("proot error: Error while pushing regs: {}", error);
+            error!("proot error: Error while pushing regs: {}", error);
         }
+
+        #[cfg(test)]
+        func_syscall_hook
+            .as_ref()
+            .map(|func| func(self, is_sysenter, false));
     }
 
     fn translate_syscall_enter(&mut self, info_bag: &InfoBag) {

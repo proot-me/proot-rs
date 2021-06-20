@@ -189,7 +189,7 @@ impl FileSystem {
 
     /// This function provides a way to check whether a path is canonical.
     ///
-    /// NOTE: This check **is not a strict check**. This function do not
+    /// NOTE: This check **is not a strict check**. This function does not
     /// dereference the final component of `path`, to allow for the case
     /// where the file does not exist but it's parent dir exists.
     #[cfg(test)]

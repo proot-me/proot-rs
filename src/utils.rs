@@ -27,8 +27,8 @@ pub mod tests {
 
     /// Allow tests to fork and deal with child processes without mixing them.
     ///
-    /// Since each rust unit tests is executed in a different thread, we'd
-    /// better to fork a child process to test the proot, otherwise the
+    /// Since each rust unit tests is executed in a different thread, we
+    /// should fork a child process to test the proot, otherwise the
     /// calls to `waitpid(-1)` from different unit tests may affect each other
     fn test_in_subprocess<F: FnOnce()>(func: F) {
         let pid = unsafe { fork() };

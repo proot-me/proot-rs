@@ -1,6 +1,7 @@
 use std::cell::RefCell;
 use std::ffi::CString;
 
+use std::marker::PhantomData;
 use std::process;
 use std::rc::Rc;
 use std::{collections::HashMap, convert::TryFrom};
@@ -252,7 +253,7 @@ impl PRoot {
                     tracee.reset_restart_how();
                     tracee.handle_syscall_stop_event(
                         &mut self.info_bag,
-                    #[cfg(test)]
+                        #[cfg(test)]
                         &self.func_syscall_hook,
                     );
                     tracee.restart(None);

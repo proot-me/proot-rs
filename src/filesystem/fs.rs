@@ -133,8 +133,10 @@ impl FileSystem {
     }
 
     /// Set current work directory (cwd) for this FileSystem instance.
-    /// `guest_path` should be an absolute path and will be checked for access
-    /// permissions.
+    /// `guest_path` should be an absolute path, because passing a relative path
+    /// to `set_cwd()` can be very odd, especially when initializing proot-rs
+    /// (when there is no cwd yet). In addition, the path must be a directory
+    /// and have execute permissions.
     pub fn set_cwd<P: AsRef<Path>>(&mut self, guest_path: P) -> Result<()> {
         let guest_path = guest_path.as_ref();
         if guest_path.is_relative() {
@@ -153,6 +155,9 @@ impl FileSystem {
         // To change cwd to a dir, the tracee must have execute (`x`) permission to this
         // dir, FIXME: This may be wrong, because we need to check if tracee has
         // permission
+        if !host_path.metadata()?.is_dir() {
+            return Err(Error::errno(Errno::ENOTDIR));
+        }
         nix::unistd::access(&host_path, AccessFlags::X_OK)?;
 
         self.cwd = guest_path_canonical;
@@ -227,7 +232,6 @@ impl FileSystem {
 mod tests {
     use super::*;
     use crate::filesystem::binding::Side::{Guest, Host};
-    use crate::utils;
     use crate::utils::tests::get_test_rootfs_path;
     use std::path::{Path, PathBuf};
 
@@ -363,7 +367,7 @@ mod tests {
 
         let root_path = get_test_rootfs_path();
         let mut fs = FileSystem::with_root(root_path)?;
-        fs.add_binding("/etc", "/bin")?;
+        fs.add_binding("/etc", "/usr")?;
         fs.add_binding("/etc/../tmp/", "/home/../home")?;
         fs.add_binding("home", "/home").unwrap_err();
         // should be failed since `guest_path` is not absolute path
@@ -383,6 +387,9 @@ mod tests {
         assert_eq!(&fs.cwd, Path::new("/"));
         fs.set_cwd("/../etc/")?;
         assert_eq!(&fs.cwd, Path::new("/etc"));
+        // should be failed since "/bin/ls" is not a dir
+        fs.set_cwd("/bin/ls").unwrap_err();
+        fs.set_cwd("/etc/passwd").unwrap_err();
 
         Ok(())
     }

@@ -51,7 +51,7 @@ pub fn syscall_group_from_sysnum(sysnum: usize) -> SyscallGroup {
         ACCEPT | ACCEPT4                            => SyscallGroup::Accept,
         GETSOCKNAME | GETPEERNAME                   => SyscallGroup::GetSockOrPeerName,
         /* SOCKETCALL => SyscallGroup::SocketCall, */
-        // int syscall(const char *pathname, ...)
+        // int syscall(const char *pathname, ...) follow symlink
         ACCESS | ACCT | CHMOD | CHOWN /*| CHOWN32*/
             | CHROOT | GETXATTR | LISTXATTR | MKNOD
             | /*OLDSTAT |*/ CREAT | REMOVEXATTR
@@ -66,6 +66,7 @@ pub fn syscall_group_from_sysnum(sysnum: usize) -> SyscallGroup {
         // int syscall(int dirfd, const char *pathname, ...)
         FCHMODAT | FACCESSAT | FUTIMESAT | MKNODAT  => SyscallGroup::ChmodAccessMkNodAt,
         INOTIFY_ADD_WATCH                           => SyscallGroup::InotifyAddWatch,
+        // int syscall(const char *pathname, ...) not follow symlink
         LCHOWN /*| LCHOWN32*/ | LGETXATTR
             | LLISTXATTR | LREMOVEXATTR | LSETXATTR
             | LSTAT /*| LSTATE64*/ /*| OLDLSTAT*/

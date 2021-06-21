@@ -40,7 +40,7 @@ pub fn translate(info_bag: &InfoBag, tracee: &mut Tracee) -> Result<()> {
         StandardSyscall => standard_syscall::enter(tracee),
         StatAt => stat_at::enter(tracee),
         SymLink => sym_link::enter(tracee),
-        SymLinkAt => sym_link_at::enter(),
+        SymLinkAt => sym_link_at::enter(tracee),
         Wait => wait::enter(),
         UnlinkMkdirAt => unlink_mkdir_at::enter(),
         _ => Ok(()),

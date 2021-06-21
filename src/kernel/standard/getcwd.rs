@@ -3,7 +3,7 @@ use std::os::unix::prelude::OsStrExt;
 use libc::c_void;
 
 use crate::errors::*;
-use crate::filesystem::Canonicalizer;
+
 use crate::filesystem::Translator;
 use crate::process::tracee::Tracee;
 use crate::register::PtraceWriter;

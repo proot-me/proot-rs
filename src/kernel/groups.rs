@@ -51,15 +51,19 @@ pub fn syscall_group_from_sysnum(sysnum: usize) -> SyscallGroup {
         ACCEPT | ACCEPT4                            => SyscallGroup::Accept,
         GETSOCKNAME | GETPEERNAME                   => SyscallGroup::GetSockOrPeerName,
         /* SOCKETCALL => SyscallGroup::SocketCall, */
+        // int syscall(const char *pathname, ...)
         ACCESS | ACCT | CHMOD | CHOWN /*| CHOWN32*/
             | CHROOT | GETXATTR | LISTXATTR | MKNOD
             | /*OLDSTAT |*/ CREAT | REMOVEXATTR
             | SETXATTR | STAT /*| STAT64*/ /*| STATSFS64*/
             | SWAPOFF | SWAPON | TRUNCATE /*| TRUNCATE64*/ /*| UMOUNT*/
             | UMOUNT2 | USELIB | UTIME | UTIMES     => SyscallGroup::StandardSyscall,
+        // int syscall(const char *pathname, int flags, ...)
         OPEN                                        => SyscallGroup::Open,
+        // int syscall(int dirfd, const char *pathname, ... , int flags, ...)
         FCHOWNAT /*| FSTATAT64*/ | NEWFSTATAT
-            | UTIMENSAT | NAME_TO_HANDLE_AT         => SyscallGroup::StatAt,
+            | UTIMENSAT | NAME_TO_HANDLE_AT | STATX => SyscallGroup::StatAt,
+        // int syscall(int dirfd, const char *pathname, ...)
         FCHMODAT | FACCESSAT | FUTIMESAT | MKNODAT  => SyscallGroup::ChmodAccessMkNodAt,
         INOTIFY_ADD_WATCH                           => SyscallGroup::InotifyAddWatch,
         LCHOWN /*| LCHOWN32*/ | LGETXATTR

@@ -16,5 +16,8 @@ bstr = "0.2.15"
 log = "0.4.14"
 env_logger = "0.8.3"
 
+[dev-dependencies]
+nc = "0.6.2"
+
 [build-dependencies]
 gcc = { git = "https://github.com/vincenthage/gcc-rs", branch = "master" }

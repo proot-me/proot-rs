@@ -1,4 +1,3 @@
-use std::os::unix::prelude::OsStrExt;
 use std::path::{Path, PathBuf};
 
 use nix::sys::{self, stat::Mode};

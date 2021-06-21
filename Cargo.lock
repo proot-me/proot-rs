@@ -142,6 +142,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0ee1c47aaa256ecabcaea351eae4a9b01ef39ed810004e298d2511ed284b1525"
 
 [[package]]
+name = "nc"
+version = "0.6.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "513aaa1a95469f86db3b008b53f718bbe93ee80584ef725abe63f4f4173089f0"
+dependencies = [
+ "cc",
+]
+
+[[package]]
 name = "nix"
 version = "0.20.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -165,6 +174,7 @@ dependencies = [
  "lazy_static",
  "libc",
  "log",
+ "nc",
  "nix",
  "sc",
 ]

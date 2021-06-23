@@ -33,7 +33,7 @@ pub fn translate(info_bag: &InfoBag, tracee: &mut Tracee) -> Result<()> {
         PivotRoot => pivot_root::enter(),
         Ptrace => ptrace::enter(),
         ReadLink => dir_link_attr::enter(tracee),
-        ReadLinkAt => readlink_at::enter(),
+        ReadLinkAt => unlink_mkdir_at::enter(),
         Rename => link_rename::enter(),
         RenameAt => rename_at::enter(),
         SocketCall => socketcall::enter(),

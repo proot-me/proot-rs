@@ -1,8 +1,9 @@
 use crate::errors::Result;
 
-use crate::kernel::standard::unlink_mkdir_at;
-
 pub fn exit() -> Result<()> {
+    // TODO: Find out why we need to call detranslate_path() on the result of
+    // readlinkat() here.
+
     //    char referee[PATH_MAX];
     //    char referer[PATH_MAX];
     //    size_t old_size;

@@ -2,10 +2,6 @@ use crate::errors::Result;
 
 use crate::kernel::standard::unlink_mkdir_at;
 
-pub fn enter() -> Result<()> {
-    unlink_mkdir_at::enter()
-}
-
 pub fn exit() -> Result<()> {
     //    char referee[PATH_MAX];
     //    char referer[PATH_MAX];

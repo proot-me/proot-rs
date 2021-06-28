@@ -26,7 +26,7 @@ pub fn translate(info_bag: &InfoBag, tracee: &mut Tracee) -> Result<()> {
         GetSockOrPeerName => get_sockorpeer_name::enter(),
         InotifyAddWatch => inotify_add_watch::enter(),
         Link => link_rename::enter(),
-        LinkAt => link_at::enter(),
+        LinkAt => link_at::enter(tracee),
         Mount => mount::enter(),
         Open => open::enter(tracee),
         OpenAt => open_at::enter(tracee),

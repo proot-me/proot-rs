@@ -18,8 +18,8 @@ pub fn translate(tracee: &mut Tracee) {
         SyscallGroup::GetSockOrPeerName => get_sockorpeer_name::exit(),
         SyscallGroup::SocketCall => socketcall::exit(),
         SyscallGroup::Chdir => chdir::exit(tracee),
-        SyscallGroup::Rename => link_rename::exit(),
-        SyscallGroup::RenameAt => rename_at::exit(),
+        SyscallGroup::Rename => link_rename::exit(tracee),
+        SyscallGroup::RenameAt => rename_at::exit(tracee),
         SyscallGroup::ReadLinkAt => readlink_at::exit(),
         #[cfg(all(target_os = "linux", target_arch = "x86_64"))]
         SyscallGroup::Uname => uname::exit(),

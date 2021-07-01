@@ -45,7 +45,7 @@ mod tests {
                 let linkpath = "/tmp/link_for_test_dir_link_attr";
 
                 let result = std::panic::catch_unwind(|| {
-                    // create a regular file and a directory, and a symbolic link file with pointing
+                    // create a regular file and a directory, and a symbolic link file pointing
                     // to the previous regular file.
                     File::create(filepath).unwrap();
                     nc::symlink(filepath, linkpath).unwrap();

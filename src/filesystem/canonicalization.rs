@@ -93,7 +93,7 @@ impl Canonicalizer for FileSystem {
 
                     let metadata = host_path.symlink_metadata();
                     // `metadata` is error if we cannot access this file or file is not exist.
-                    // However we can accept this path because Some syscall (e.g. mkdir, mknod)
+                    // However, we can accept this path because some syscall (e.g. mkdir, mknod)
                     // allow final component not exist.
                     if is_last_component && metadata.is_err() {
                         continue;

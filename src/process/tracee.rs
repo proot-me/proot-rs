@@ -348,7 +348,7 @@ mod tests {
                         assert_eq!(path, real_path);
 
                         // translate "/etc/impossible_path"
-                        // though the final component is not exist, deref this will be ok.
+                        // even though the final component does not exist, deref this will be ok.
                         tracee
                             .translate_path_at(fd, "impossible_path", true)
                             .unwrap();

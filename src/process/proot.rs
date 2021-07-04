@@ -11,10 +11,11 @@ use nix::sys::signal::{self, Signal};
 use nix::sys::wait::{self, WaitPidFlag, WaitStatus::*};
 use nix::unistd::{self, ForkResult, Pid};
 
+use crate::kernel::execve::loader::LoaderFile;
 use crate::process::event::EventHandler;
-use crate::process::tracee::Tracee;
+use crate::process::tracee::{SigStopStatus, Tracee};
 use crate::{
-    errors::{Result, WithContext},
+    errors::*,
     filesystem::{temp::TempFile, FileSystem},
 };
 
@@ -22,7 +23,7 @@ use crate::{
 /// `Configuration`?
 #[derive(Debug)]
 pub struct InfoBag {
-    /// Used to know if the ptrace options is already set
+    /// Used to know if the ptrace options is already set.
     pub options_already_set: bool,
     /// Binary loader, used by `execve`.
     /// The content of the binary is actually inlined in `proot-rs`
@@ -45,8 +46,16 @@ pub struct PRoot {
     info_bag: InfoBag,
     tracees: HashMap<Pid, Tracee>,
     alive_tracees: Vec<Pid>,
+    /// The `pid` of init process (i.e. the first tracee)
     pub init_pid: Option<Pid>,
+    /// The exit code of the init process (i.e. the first tracee)
     pub init_exit_code: Option<i32>,
+    /// A pointer to a function used to check the running status of Proot.
+    /// For each syscall-stop, it will be called four times (at the beginning
+    /// and end of both syscall-enter-stop and syscall-exit-stop).
+    ///
+    /// Note: Since its purpose is to check, it should not produce any effect on
+    /// the running of Proot.
     #[cfg(test)]
     pub func_syscall_hook: Option<Box<dyn Fn(&Tracee, bool, bool)>>,
 }
@@ -62,6 +71,17 @@ impl PRoot {
             #[cfg(test)]
             func_syscall_hook: None,
         }
+    }
+
+    /// Some initialization is required before proot can generate tracee, and it
+    /// only needs to be initialized once
+    pub fn init(&mut self) -> Result<()> {
+        // we need to prepare the loader here
+        self.info_bag
+            .loader
+            .prepare_loader()
+            .context("Error while prepare loader file")?;
+        Ok(())
     }
 
     /// Main process where proot splits into two threads:
@@ -91,8 +111,12 @@ impl PRoot {
         let filename = &args[0];
         match unsafe { unistd::fork() }.context("Failed to fork() when starting process")? {
             ForkResult::Parent { child } => {
-                // we create the first tracee
-                self.create_tracee(child, Rc::new(RefCell::new(initial_fs)));
+                // create the first tracee
+                self.create_tracee(
+                    child,
+                    Rc::new(RefCell::new(initial_fs)),
+                    SigStopStatus::EventloopSync,
+                );
                 self.init_pid = Some(child);
             }
             ForkResult::Child => {
@@ -269,8 +293,15 @@ impl PRoot {
         Ok(())
     }
 
-    pub fn create_tracee(&mut self, pid: Pid, fs: Rc<RefCell<FileSystem>>) -> Option<&Tracee> {
-        self.tracees.insert(pid, Tracee::new(pid, fs));
+    pub fn create_tracee(
+        &mut self,
+        pid: Pid,
+        fs: Rc<RefCell<FileSystem>>,
+        sigstop_status: SigStopStatus,
+    ) -> Option<&Tracee> {
+        let mut tracee = Tracee::new(pid, fs);
+        tracee.sigstop_status = sigstop_status;
+        self.tracees.insert(pid, tracee);
         self.register_alive_tracee(pid);
         self.tracees.get(&pid)
     }
@@ -313,7 +344,11 @@ mod tests {
         }
 
         {
-            proot.create_tracee(Pid::from_raw(0), Rc::new(RefCell::new(fs)));
+            proot.create_tracee(
+                Pid::from_raw(0),
+                Rc::new(RefCell::new(fs)),
+                SigStopStatus::AllowDelivery,
+            );
         }
 
         // tracee 0 should exist

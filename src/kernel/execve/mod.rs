@@ -4,7 +4,7 @@ mod elf;
 pub mod enter;
 pub mod exit;
 pub mod load_info;
-mod loader;
+pub mod loader;
 mod shebang;
 
 use crate::errors::Result;

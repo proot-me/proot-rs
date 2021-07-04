@@ -22,7 +22,7 @@ pub mod tests {
     use crate::filesystem::FileSystem;
     use crate::process::proot::InfoBag;
     use crate::process::proot::PRoot;
-    use crate::process::tracee::Tracee;
+    use crate::process::tracee::{SigStopStatus, Tracee};
 
     /// Allow tests to fork and deal with child processes without mixing them.
     ///
@@ -181,11 +181,16 @@ pub mod tests {
                 let mut fs = FileSystem::with_root(root_path)?;
                 fs.set_cwd("/")?;
                 let mut proot: PRoot = PRoot::new();
+                proot.init()?;
                 proot.func_syscall_hook = Some(Box::new(func_syscall_hook));
-                // fork first sub process as tracee
+                // fork first child process as tracee
                 match unsafe { unistd::fork() }.context("Failed to fork() when starting process")? {
                     ForkResult::Parent { child } => {
-                        proot.create_tracee(child, Rc::new(RefCell::new(fs)));
+                        proot.create_tracee(
+                            child,
+                            Rc::new(RefCell::new(fs)),
+                            SigStopStatus::EventloopSync,
+                        );
                         proot.init_pid = Some(child);
                     }
                     ForkResult::Child => {

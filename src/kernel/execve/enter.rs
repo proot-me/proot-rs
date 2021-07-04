@@ -78,8 +78,6 @@ pub fn translate(tracee: &mut Tracee, loader: &dyn LoaderFile) -> Result<()> {
     load_info.compute_load_addresses(false)?;
 
     tracee.load_info = Some(load_info);
-    // Execute the loader instead of the program
-    loader.prepare_loader()?;
 
     // Save the loader path in the register, so that the loader will be executed
     // instead. TODO: uncomment this when execve::exit is ready

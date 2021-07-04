@@ -47,11 +47,9 @@ pub fn enter(tracee: &mut Tracee) -> Result<()> {
 
 pub fn exit(tracee: &mut Tracee) -> Result<()> {
     // This syscall is fully emulated, see method `enter()` above.
-
     tracee
         .regs
         .set(SysResult, 0u64, "update return value in chdir::exit()");
-    tracee.regs.set_restore_original_regs(false);
     Ok(())
 }
 

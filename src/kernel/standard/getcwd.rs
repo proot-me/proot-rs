@@ -50,7 +50,5 @@ pub fn exit(tracee: &mut Tracee) -> Result<()> {
         real_size as u64,
         "update return value in getcwd::exit()",
     );
-    tracee.regs.set_restore_original_regs(false);
-
     Ok(())
 }

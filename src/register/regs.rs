@@ -36,6 +36,33 @@ pub enum Register {
 }
 use self::Register::*;
 
+/// This struct is used to store registers information of tracee. It is designed
+/// to be able to store three versions of values, one active and two snapshot
+/// versions, each version is able to store a set of register values.
+/// - [`Current`]: This version is the only active version that is allowed to
+///   set specific register values directly.
+/// - [`Original`]: This version stores the original register value, whose value
+///   is usually taken from ptrace(PTRACE_GETREGS)
+/// - [`Modified`]: A snapshot of the modified register value. The register
+///   values are usually modified during the syscall-enter-stop phase, and a
+///   snapshot is generated for them
+///
+/// Some main operations on these registers are also provided:
+/// - `fetch_regs()`: Use ptrace(PTRACE_GETREGS) to fetch the current register
+///   value of the tracee process, and save it to the [`Current`] version.
+/// - `save_current_regs()`: Copy the register value of the [`Current`] version
+///   to the other slot of the specified version
+/// - `push_regs()`: Decide whether to overwrite the [`Current`] version of the
+///   value with the [`Original`] version based on the `regs_were_changed` and
+///   `restore_original_regs` fields (Note that syscall return value will not be
+///   overwrite). Then the [`Current`] version of the register value will be
+///   pushed to the tracee process.
+/// - `get()`: Get the value of a specific register in the specified version.
+/// - `set()`: Set the value of a specific register for the [`Current`] version.
+///
+/// [`Current`]: RegVersion::Current
+/// [`Original`]: RegVersion::Original
+/// [`Modified`]: RegVersion::Modified
 #[derive(Debug)]
 pub struct Registers {
     /// Pid of the tracee that it was generated from
@@ -125,6 +152,9 @@ impl Registers {
             let current_regs = *self.get_regs(Current);
 
             self.registers[version as usize] = Some(current_regs);
+        }
+        if version == Original {
+            self.regs_were_changed = false;
         }
     }
 

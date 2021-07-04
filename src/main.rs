@@ -30,7 +30,8 @@ fn run() -> Result<()> {
 
     let mut proot: PRoot = PRoot::new();
 
-    // step 2: Start the first tracee
+    // step 2: initialize Proot and start the first tracee
+    proot.init()?;
     proot.launch_process(fs, command)?;
 
     // what follows (event loop) is only for the main thread,

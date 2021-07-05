@@ -52,6 +52,23 @@ pub enum TraceeRestartMethod {
     None,
 }
 
+/// In the `ptrace()` environment, the `SIGSTOP` signal received by tracee
+/// sometimes has a special meaning, and it is necessary to record the `SIGSTOP`
+/// status for tracee to tell `Proot` how to handle the next incoming `SIGSTOP`
+/// signal correctly.
+#[derive(Debug, PartialEq)]
+pub enum SigStopStatus {
+    /// Allow SIGSTOP to be passed to tracee, which is the most common case.
+    AllowDelivery,
+    /// The current process is a new process and the next SIGSTOP signal is
+    /// caused by automatically start tracing the new child process.
+    /// See the description of PTRACE_O_TRACE(FORK|VFORK|CLONE) in ptrace(2).
+    RaisedByTraceClone,
+    /// The next SIGSTOP signal is used to synchronize with Proot process, and
+    /// is only used during creating the first tracee.
+    EventloopSync,
+}
+
 #[derive(Debug)]
 pub struct Tracee {
     /// Process identifier.
@@ -70,12 +87,16 @@ pub struct Tracee {
     /// Ensure the sysexit stage is always hit under seccomp.
     pub sysexit_pending: bool,
     /// Path to the executable, à la /proc/self/exe. Used in `execve` enter.
-    pub new_exe: Option<PathBuf>,
+    /// Shared with parent until the tracee makes a call to execve().
+    pub new_exe: Option<Rc<RefCell<PathBuf>>>,
     /// Path to the executable, à la /proc/self/exe. Used in `execve` exit.
-    pub exe: Option<PathBuf>,
+    /// Shared with parent until the tracee makes a call to execve().
+    pub exe: Option<Rc<RefCell<PathBuf>>>,
     /// An instance of LoadInfo to record information about current `execve`
     /// system call
     pub load_info: Option<LoadInfo>,
+    /// State for the special handling of SIGSTOP.
+    pub sigstop_status: SigStopStatus,
 }
 
 impl Tracee {
@@ -91,6 +112,7 @@ impl Tracee {
             new_exe: None,
             exe: None,
             load_info: None,
+            sigstop_status: SigStopStatus::AllowDelivery,
         }
     }
 

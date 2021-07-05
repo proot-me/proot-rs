@@ -1,3 +1,6 @@
+use std::cell::RefCell;
+use std::rc::Rc;
+
 use crate::errors::*;
 use crate::filesystem::Translator;
 use crate::kernel::execve::load_info::LoadInfo;
@@ -39,7 +42,9 @@ pub fn translate(tracee: &mut Tracee, loader: &dyn LoaderFile) -> Result<()> {
     //	a canonicalized guest path, hence detranslate_path()
     //	instead of using user_path directly.  */
     if let Ok(maybe_path) = tracee.fs.borrow().detranslate_path(&host_path, None) {
-        tracee.new_exe = Some(maybe_path.unwrap_or_else(|| host_path.clone()));
+        tracee.new_exe = Some(Rc::new(RefCell::new(
+            maybe_path.unwrap_or_else(|| host_path.clone()),
+        )));
     } else {
         tracee.new_exe = None;
     }

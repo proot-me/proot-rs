@@ -19,7 +19,7 @@ impl Side {
 }
 
 // TODO: Maybe we should canonicalize guest path during initialization
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Binding {
     /// Host side path of this binding in canonical form.
     host: PathBuf,

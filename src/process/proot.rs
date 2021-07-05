@@ -195,13 +195,24 @@ impl PRoot {
                         stop_signal as c_int
                     );
 
+                    let mut signal_to_delivery = Some(stop_signal);
+
                     let tracee = self.tracees.get_mut(&pid).expect("get stopped tracee");
                     tracee.reset_restart_how();
                     match stop_signal {
                         Signal::SIGSTOP => {
-                            // When the first child process starts, it sends a SIGSTOP to itself.
-                            // And we need to set ptrace options at this point.
-                            tracee.check_and_set_ptrace_options(&mut self.info_bag)?;
+                            if tracee.sigstop_status == SigStopStatus::EventloopSync {
+                                // When the first child process starts, it sends a SIGSTOP to
+                                // itself. And we need to set ptrace
+                                // options at this point.
+                                tracee.check_and_set_ptrace_options(&mut self.info_bag)?;
+                                signal_to_delivery = None;
+                                tracee.sigstop_status = SigStopStatus::AllowDelivery;
+                            } else if tracee.sigstop_status == SigStopStatus::RaisedByTraceClone {
+                                signal_to_delivery = None;
+                                tracee.sigstop_status = SigStopStatus::AllowDelivery;
+                            }
+
                             tracee.handle_sigstop_event();
                         }
                         Signal::SIGTRAP => {
@@ -230,41 +241,75 @@ impl PRoot {
                     // the tracee in the next ptrace restart request.
                     // TODO: we should deliver this signal(sig) with ptrace(PTRACE_restart, pid, 0,
                     // sig)
-                    tracee.restart(Some(stop_signal));
+                    tracee.restart(signal_to_delivery);
                 }
                 // The tracee was stopped by a SIGTRAP with additional status (PTRACE_EVENT stops).
                 PtraceEvent(pid, signal, status_additional) => {
-                    trace!(
-                        "-- {}, Ptrace event, {:?}, {:?}",
-                        pid,
-                        signal,
-                        status_additional
-                    );
+                    let maybe_event = match status_additional {
+                        x if x == PtraceEvent::PTRACE_EVENT_FORK as i32 => {
+                            Some(PtraceEvent::PTRACE_EVENT_FORK)
+                        }
+                        x if x == PtraceEvent::PTRACE_EVENT_VFORK as i32 => {
+                            Some(PtraceEvent::PTRACE_EVENT_VFORK)
+                        }
+                        x if x == PtraceEvent::PTRACE_EVENT_CLONE as i32 => {
+                            Some(PtraceEvent::PTRACE_EVENT_CLONE)
+                        }
+                        x if x == PtraceEvent::PTRACE_EVENT_EXEC as i32 => {
+                            Some(PtraceEvent::PTRACE_EVENT_EXEC)
+                        }
+                        x if x == PtraceEvent::PTRACE_EVENT_VFORK_DONE as i32 => {
+                            Some(PtraceEvent::PTRACE_EVENT_VFORK_DONE)
+                        }
+                        x if x == PtraceEvent::PTRACE_EVENT_EXIT as i32 => {
+                            Some(PtraceEvent::PTRACE_EVENT_EXIT)
+                        }
+                        x if x == PtraceEvent::PTRACE_EVENT_SECCOMP as i32 => {
+                            Some(PtraceEvent::PTRACE_EVENT_SECCOMP)
+                        }
+                        _ => None,
+                    };
+
+                    trace!("-- {}, Ptrace event, {:?}, {:?}", pid, signal, maybe_event);
                     let tracee = self.tracees.get_mut(&pid).expect("get stopped tracee");
                     tracee.reset_restart_how();
 
-                    // handle_new_child_event
-                    if status_additional == PtraceEvent::PTRACE_EVENT_VFORK as i32 {
-                        tracee.handle_new_child_event(PtraceEvent::PTRACE_EVENT_VFORK);
-                    } else if status_additional == PtraceEvent::PTRACE_EVENT_FORK as i32 {
-                        tracee.handle_new_child_event(PtraceEvent::PTRACE_EVENT_FORK);
-                    } else if status_additional == PtraceEvent::PTRACE_EVENT_CLONE as i32 {
-                        tracee.handle_new_child_event(PtraceEvent::PTRACE_EVENT_CLONE);
-                    }
-                    // handle_exec_vfork_event
-                    if status_additional == PtraceEvent::PTRACE_EVENT_EXEC as i32
-                        || status_additional == PtraceEvent::PTRACE_EVENT_VFORK_DONE as i32
-                    {
-                        tracee.handle_exec_vfork_event();
-                    }
-                    // handle_seccomp_event
-                    if status_additional == PtraceEvent::PTRACE_EVENT_SECCOMP as i32 {
-                        // TODO: consider PTRACE_EVENT_SECCOMP2
-                        tracee.handle_seccomp_event(
-                            &mut self.info_bag,
-                            PtraceEvent::PTRACE_EVENT_SECCOMP,
-                        )
-                    }
+                    match maybe_event {
+                        // handle_new_child_event
+                        Some(PtraceEvent::PTRACE_EVENT_FORK)
+                        | Some(PtraceEvent::PTRACE_EVENT_VFORK)
+                        | Some(PtraceEvent::PTRACE_EVENT_CLONE) => {
+                            match tracee.handle_new_child_event() {
+                                Ok(child_tracee) => {
+                                    info!("-- {}, new process with pid {}", pid, child_tracee.pid);
+                                    self.insert_new_tracee(child_tracee)
+                                }
+                                Err(error) => {
+                                    error!(
+                                    "Error while handling new child process event for pid {}. {}",
+                                    tracee.pid, error
+                                );
+                                }
+                            }
+                        }
+                        // handle_exec_vfork_event
+                        Some(PtraceEvent::PTRACE_EVENT_EXEC)
+                        | Some(PtraceEvent::PTRACE_EVENT_VFORK_DONE) => {
+                            tracee.handle_exec_vfork_event();
+                        }
+                        // handle_seccomp_event
+                        Some(PtraceEvent::PTRACE_EVENT_SECCOMP) => {
+                            // TODO: consider PTRACE_EVENT_SECCOMP2
+                            tracee.handle_seccomp_event(
+                                &mut self.info_bag,
+                                PtraceEvent::PTRACE_EVENT_SECCOMP,
+                            )
+                        }
+                        Some(_) | None => {}
+                    };
+                    // Re-acquire tracee as we cannot borrow `*self` as mutable more than once at a
+                    // time in rust.
+                    let tracee = self.tracees.get_mut(&pid).expect("get stopped tracee");
                     tracee.restart(None);
                 }
                 // The tracee was stopped by execution of a system call (syscall-stop), and
@@ -304,6 +349,12 @@ impl PRoot {
         self.tracees.insert(pid, tracee);
         self.register_alive_tracee(pid);
         self.tracees.get(&pid)
+    }
+
+    pub fn insert_new_tracee(&mut self, tracee: Tracee) {
+        let pid = tracee.pid;
+        self.tracees.insert(pid, tracee);
+        self.register_alive_tracee(pid);
     }
 
     fn register_alive_tracee(&mut self, pid: Pid) {

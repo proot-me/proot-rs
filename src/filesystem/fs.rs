@@ -11,14 +11,17 @@ use super::{Canonicalizer, Substitutor};
 
 /// The file-system information associated with one or more tracee, which
 /// corresponds to the [`fs_struct`] structure in the kernel. If clone() is
-/// called with `CLONE_FS` set, then both tracee will share this structure,
-/// otherwise a copy will be created.
+/// called with `CLONE_FS` set, then both parent tracee and child tracee will
+/// share this structure, otherwise a copy will be created.
 ///
 /// [`fs_struct`]: https://elixir.bootlin.com/linux/latest/source/include/linux/fs_struct.h
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct FileSystem {
     /// List of bindings used to replicate `mount` and `bind`.
     /// It will also contain the root binding (to replicate `chroot`).
+    ///
+    /// FIXME: Actually, bindings should not be part of the `fs_struct`, it
+    /// should be shared globally
     bindings: Vec<Binding>,
     /// Working directory in guestfs, e.g., `/proc/self/cwd`, is always absolute
     /// and canonical path.

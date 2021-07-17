@@ -1,4 +1,4 @@
-name: Rust
+name: Tests
 
 on: [push, pull_request]
 
@@ -6,11 +6,9 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  build:
-
+  lints:
     runs-on: ubuntu-latest
     timeout-minutes: 10
-
     steps:
     - uses: actions/checkout@v2
       with:
@@ -57,12 +55,27 @@ jobs:
 
         # Run clippy check
         cargo clippy
+
+  tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+    - uses: actions/checkout@v2
     - name: Build
       run: cargo build --verbose
-    - name: Run tests
+    - name: Setup rootfs
       shell: bash
       run: |
-        # Setup rootfs
         bash scripts/mkrootfs.sh
-        # Run cargo test
+    - name: Run unit tests
+      shell: bash
+      run: |
         PROOT_TEST_ROOTFS=./rootfs cargo test --verbose -- --nocapture
+    - name: Setup bats-core
+      uses: mig4/setup-bats@v1
+      with:
+        bats-version: 1.3.0
+    - name: Run integration tests
+      shell: bash
+      run: |
+        PROOT_TEST_ROOTFS=./rootfs bats -r tests

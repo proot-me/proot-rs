@@ -38,6 +38,12 @@ pub enum SyscallGroup {
     UnlinkMkdirAt,
 }
 
+// TODO: We also need to consider the unshare() system call. For example,
+// the `CLONE_FS` flag may cause errors in our simulation of tracee's `cwd`
+// field.
+
+// TODO: modify the result of getdents64() so that we can handle binded entries.
+
 #[cfg(all(target_os = "linux", target_arch = "x86_64"))]
 pub fn syscall_group_from_sysnum(sysnum: usize) -> SyscallGroup {
     match sysnum {

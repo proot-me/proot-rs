@@ -55,5 +55,6 @@ fn main() {
     env_logger::init();
     if let Err(err) = run() {
         error!("Exited with error: {}", err);
+        std::process::exit(1);
     }
 }

@@ -1,6 +1,6 @@
 # proot-rs
 
-[![](https://github.com/proot-me/proot-rs/workflows/Rust/badge.svg)](https://github.com/proot-me/proot-rs/actions)
+[![Tests](https://github.com/proot-me/proot-rs/actions/workflows/tests.yml/badge.svg)](https://github.com/proot-me/proot-rs/actions/workflows/tests.yml)
 
 _Rust implementation of PRoot, a ptrace-based sandbox._
 
@@ -65,6 +65,8 @@ cargo build --release
 
 ## Tests
 
+### Setup new rootfs for testing
+
 Typically, we need to specify a new rootfs path for testing proot-rs.
 
 This script provided below can be used to create one:
@@ -86,11 +88,19 @@ If you want to use the same rootfs as the host, just set it to `/`:
 export PROOT_TEST_ROOTFS=/
 ```
 
+### Unit testing
+
+> Note: When running unit tests, it is required that `PROOT_TEST_ROOTFS` must be set
+
 Start running tests:
 
 ```shell
 cargo test
 ```
+
+### Integration testing
+
+For the section on running integration tests, please read the [Integration Testing documentation](./tests/README.md)
 
 ## Contributing
 

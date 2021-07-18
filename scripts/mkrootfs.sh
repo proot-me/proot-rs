@@ -41,7 +41,7 @@ trap 'rm -f "${rootfs_archive}"' EXIT
 
 rootfs_archive="$(mktemp)" || { echo "Failed to create temp file"; exit 1; }
 
-curl -o "${rootfs_archive}" -L -C - "https://github.com/docker-library/busybox/raw/dist-${arch}/stable/glibc/busybox.tar.xz" || { echo "Failed to download busybox archive"; exit 1; }
+wget -O "${rootfs_archive}" "https://github.com/docker-library/busybox/raw/dist-${arch}/stable/glibc/busybox.tar.xz" || { echo "Failed to download busybox archive"; exit 1; }
 
 tar -C "${PROOT_TEST_ROOTFS}" -xf "${rootfs_archive}" || { echo "Failed to unpack busybox tarball. Maybe the file is broken"; exit 1; }
 

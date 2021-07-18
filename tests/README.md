@@ -40,7 +40,19 @@ Before you start, make sure you are in the root directory of this project.
 
 ### Run in Docker
 
-TODO
+We provide [Dockerfile](./Dockerfile) for running integration tests in docker.
+
+First go to the root of the project, and build docker image from Dockerfile
+
+```shell
+docker build -f tests/Dockerfile -t proot-rs-test .
+```
+
+Then, start a container to run the test
+
+```shell
+docker run --rm -it proot-rs-test
+```
 
 ### Run in CI
 

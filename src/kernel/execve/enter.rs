@@ -65,12 +65,7 @@ pub fn translate(tracee: &mut Tracee, loader: &dyn LoaderFile) -> Result<()> {
     load_info.user_path = Some(raw_path);
     load_info.host_path = Some(host_path);
 
-    if load_info.interp.is_none() {
-        return Err(Error::errno_with_msg(
-            EINVAL,
-            "When translating enter execve, interp is none",
-        ));
-    }
+    // An interpreter should not depend on another interpreter
     if let Some(ref interp) = load_info.interp {
         if interp.interp.is_some() {
             return Err(Error::errno_with_msg(

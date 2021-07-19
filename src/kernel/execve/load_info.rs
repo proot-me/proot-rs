@@ -131,16 +131,27 @@ impl LoadInfo {
             fd: None, // unknown yet
             offset: offset & *PAGE_MASK,
             addr: start_address,
+            // TODO: This can be optimized.
+            // The calculation of the `length` may be wrong. The field `length` should not be
+            // calculated using the paged-aligned `end_address`. It will cause more content in the
+            // target file to be mapped into the memory area. Due to `clear_length`, the
+            // over-mapped area is later cleared by `clear_length`. However, according to the man
+            // page of mmap(2), the remaining bytes of a file mapping will be zeroed automatically.
+            // So the best way is to correct the calculation of `length` and remove `clear_length`
+            // field.
             length: end_address - start_address,
             flags: MapFlags::MAP_PRIVATE | MapFlags::MAP_FIXED,
             prot: prot,
             clear_length: 0,
         };
 
+        // According to the description in man page elf(5), `p_filesz` may not be larger
+        // than the `p_memsz`.
+
         // "If the segment's memory size p_memsz is larger than the
         // file size p_filesz, the "extra" bytes are defined to hold
         // the value 0 and to follow the segment's initialized area."
-        // -- man 7 elf.
+        // -- man 5 elf.
         if memsz > filesz {
             // How many extra bytes in the current page?
             mapping.clear_length = end_address - vaddr - filesz;
@@ -287,10 +298,16 @@ pub struct LoadStatementOpen {
 #[repr(C)]
 #[derive(Debug)]
 pub struct LoadStatementMmap {
+    /// The starting address for the new mapping.
     pub addr: libc::c_ulong,
+    /// The length of the mapping.
     pub length: libc::c_ulong,
+    /// The desired memory protection of the mapping.
     pub prot: libc::c_ulong,
+    /// The offset in the file which the mapping will start at.
     pub offset: libc::c_ulong,
+    /// The byte size of the memory area to be zeroed forward at the end of the
+    /// page in this memory mapping.
     pub clear_length: libc::c_ulong,
 }
 

@@ -66,7 +66,7 @@ impl FileSystem {
         // Skip the check for "/" because "/" always exists.
         if canonical_guest_path != Path::new("/") {
             self.substitute(&canonical_guest_path, Side::Guest)?
-                .metadata()?;
+                .metadata()?; // call .metadata() to check if the path exist
         }
 
         // Add a binding at the beginning of the list, so that we get the most recent

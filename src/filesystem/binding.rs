@@ -78,7 +78,16 @@ impl Binding {
         })?;
 
         // and then add what remains of the path when removing the old prefix
-        new_path.push(stripped_path);
+        if !stripped_path.is_empty() {
+            // If the `stripped_path` is empty, we will not call `.push("")`, to avoid
+            // adding the extra "/" at the end of the path.
+            //
+            // Note: As mentioned in the document of `std::path::PathBuf::components()`, "A
+            // trailing slash is normalized away" in a path. And it means `foo/bar` is the
+            // same as `foo/bar/` . However, many Linux system call are sensitive to
+            // trailing slash, and they assume a path with a trailing slash as a directory.
+            new_path.push(stripped_path);
+        }
 
         if new_path.len() >= PATH_MAX as usize {
             return Err(Error::errno_with_msg(

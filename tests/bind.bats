@@ -16,16 +16,16 @@ load helper
 
 
 @test "test bind dir to file" {
-    # bind /bin to /etc/passwd
+    # bind /home to /etc/passwd
     # this may seem odd, but it is allowed
-    proot-rs --bind "/bin:/etc/passwd" -- /bin/sh -c "/bin/diff /bin /etc/passwd"
+    proot-rs --bind "/home:/etc/passwd" -- /bin/sh -c "/bin/diff /home /etc/passwd"
 }
 
 
 @test "test bind file to dir" {
-    # bind /etc/passwd to /bin
+    # bind /etc/passwd to /home
     # this may seem odd, but it is allowed
-    proot-rs --bind "/etc/passwd:/bin" -- /bin/sh -c "/bin/diff /etc/passwd /bin"
+    proot-rs --bind "/etc/passwd:/home" -- /bin/sh -c "/bin/diff /etc/passwd /home"
 }
 
 

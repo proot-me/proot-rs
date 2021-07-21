@@ -1,10 +1,17 @@
 version: "3"
 services:
-  proot-rs:
-    container_name: proot-rs
-    hostname: proot-rs
+  proot-rs-sdk:
+    container_name: proot-rs-sdk
+    hostname: proot-rs-sdk
     build: .
-    image: proot/proot-rs:latest
+    image: proot/proot-rs-sdk:latest
+    volumes:
+      - ~/src/proot-rs/:/usr/src/proot-rs
+  proot-rs-test:
+    container_name: proot-rs-test
+    hostname: proot-rs-tests
+    build: ./tests
+    image: proot/proot-rs-test:latest
     volumes:
       - ~/src/proot-rs/:/usr/src/proot-rs
 

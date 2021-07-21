@@ -9,7 +9,7 @@ services:
       - ~/src/proot-rs/:/usr/src/proot-rs
   proot-rs-test:
     container_name: proot-rs-test
-    hostname: proot-rs-tests
+    hostname: proot-rs-test
     build: ./tests
     image: proot/proot-rs-test:latest
     volumes:

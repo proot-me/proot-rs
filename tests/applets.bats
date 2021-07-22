@@ -350,3 +350,31 @@ function script_test_proot_rs_path_with_railing_slash {
 @test "test proot-rs path with railing slash" {
     proot-rs --rootfs "$ROOTFS" -- /bin/sh -e -x -c "$(declare -f script_test_proot_rs_path_with_railing_slash); script_test_proot_rs_path_with_railing_slash"
 }
+
+
+function script_test_should_not_follow {
+    PATH=/bin
+
+    cd /tmp/test_should_not_follow
+
+    ln -s should_not_be_created link
+
+    [[ "$(mkdir link 2>&1)" == *"File exists"* ]]
+    [ ! -e should_not_be_created ]
+
+    [[ "$(mkdir link/ 2>&1)" == *"File exists"* ]]
+    [ ! -e should_not_be_created ]
+
+    [[ "$(mkdir link/. 2>&1)" == *"File exists"* ]]
+    [ ! -e should_not_be_created ]
+
+}
+
+@test "test should not follow" {
+    local test_dir="$ROOTFS/tmp/test_should_not_follow"
+    mkdir "$test_dir"
+    runp proot-rs --rootfs "$ROOTFS" -- /bin/sh -e -x -c "$(declare -f script_test_should_not_follow); script_test_should_not_follow"
+    rm -rf "$test_dir"
+    [ "$status" -eq 0 ]
+
+}

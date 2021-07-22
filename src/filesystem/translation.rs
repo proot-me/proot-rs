@@ -6,6 +6,8 @@ use crate::filesystem::substitution::Substitutor;
 use crate::filesystem::FileSystem;
 use std::path::{Path, PathBuf};
 
+use super::ext::{PathBufExt, PathExt};
+
 pub trait Translator {
     fn translate_path<P: AsRef<Path>>(&self, guest_path: P, deref_final: bool) -> Result<PathBuf>;
     fn translate_absolute_path<P: AsRef<Path>>(
@@ -41,8 +43,14 @@ impl Translator for FileSystem {
         guest_path: P,
         deref_final: bool,
     ) -> Result<PathBuf> {
+        let trailing_slash = guest_path.with_trailing_slash();
         let canonical_guest_path = self.canonicalize(&guest_path, deref_final)?;
-        let host_path = self.substitute(&canonical_guest_path, Guest)?;
+        let mut host_path = self.substitute(&canonical_guest_path, Guest)?;
+
+        if trailing_slash {
+            // recover the trailing slash
+            host_path.try_add_trailing_slash();
+        }
         Ok(host_path)
     }
 

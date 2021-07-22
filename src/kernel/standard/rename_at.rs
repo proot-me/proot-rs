@@ -1,6 +1,7 @@
 use std::os::unix::prelude::RawFd;
 
 use crate::errors::*;
+use crate::filesystem::ext::PathExt;
 use crate::kernel::standard::link_rename;
 use crate::process::tracee::Tracee;
 use crate::register::PtraceWriter;
@@ -12,7 +13,9 @@ pub fn enter(tracee: &mut Tracee) -> Result<()> {
     let old_path = tracee.regs.get_sysarg_path(SysArg2)?;
     let new_path = tracee.regs.get_sysarg_path(SysArg4)?;
 
-    let old_host_path = tracee.translate_path_at(olddirfd, old_path, false)?;
+    let deref_final = old_path.with_trailing_slash();
+
+    let old_host_path = tracee.translate_path_at(olddirfd, old_path, deref_final)?;
     let new_host_path = tracee.translate_path_at(newdirfd, new_path, false)?;
 
     tracee.regs.set_sysarg_path(

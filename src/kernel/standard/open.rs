@@ -43,10 +43,34 @@ mod tests {
                     // init symlink
                     std::os::unix::fs::symlink(filepath, linkpath).unwrap();
 
-                    // test open()
+                    // Test open(linkpath + "/") with `O_CREAT` and `O_EXCL`, and this will get a
+                    // EISDIR, and symlink follow didn't not happen.
+                    assert_eq!(
+                        nc::open(
+                            format!("{}/", linkpath).as_str(),
+                            nc::O_RDONLY | nc::O_CREAT | nc::O_EXCL,
+                            0o755
+                        ),
+                        Err(nc::EISDIR)
+                    );
 
-                    // test open() with `O_CREAT` and `O_EXCL`
-                    // this will create a regular file at `filepath`
+                    // Test open(linkpath) with `O_CREAT` and `O_EXCL`, and this will get a EEXIST,
+                    // because symlink follow didn't not happen.
+                    assert_eq!(
+                        nc::open(linkpath, nc::O_RDONLY | nc::O_CREAT | nc::O_EXCL, 0o755),
+                        Err(nc::EEXIST)
+                    );
+
+                    // Test open(linkpath) with `O_CREAT`, and this will create a regular file at
+                    // `filepath`, because symlink follow happened.
+                    let file_fd = nc::open(linkpath, nc::O_RDONLY | nc::O_CREAT, 0o755).unwrap();
+                    let mut stat = nc::stat_t::default();
+                    nc::fstat(file_fd, &mut stat).unwrap();
+                    assert_eq!((stat.st_mode & nc::S_IFMT), nc::S_IFREG);
+                    nc::unlink(filepath).unwrap();
+
+                    // Test open(filepath) with `O_CREAT` and `O_EXCL`, and this will create a
+                    // regular file at `filepath`.
                     let file_fd =
                         nc::open(filepath, nc::O_RDONLY | nc::O_CREAT | nc::O_EXCL, 0o755).unwrap();
                     let mut stat = nc::stat_t::default();
@@ -68,8 +92,8 @@ mod tests {
                     assert_eq!((stat.st_mode & nc::S_IFMT), nc::S_IFREG);
                     nc::close(file_fd).unwrap();
                 });
-                std::fs::remove_file(linkpath).unwrap();
-                std::fs::remove_file(filepath).unwrap();
+                let _ = std::fs::remove_file(linkpath);
+                let _ = std::fs::remove_file(filepath);
                 if let Err(err) = result {
                     std::panic::resume_unwind(err);
                 }

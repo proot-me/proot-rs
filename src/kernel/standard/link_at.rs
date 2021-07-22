@@ -3,6 +3,7 @@ use std::os::unix::prelude::RawFd;
 use nix::fcntl::AtFlags;
 
 use crate::errors::*;
+use crate::filesystem::ext::PathExt;
 use crate::process::tracee::Tracee;
 use crate::register::PtraceWriter;
 use crate::register::{Current, PtraceReader, SysArg, SysArg1, SysArg2, SysArg3, SysArg4, SysArg5};
@@ -14,7 +15,7 @@ pub fn enter(tracee: &mut Tracee) -> Result<()> {
     let new_path = tracee.regs.get_sysarg_path(SysArg4)?;
 
     let flags = AtFlags::from_bits_truncate(tracee.regs.get(Current, SysArg(SysArg5)) as _);
-    let deref_final = flags.contains(AtFlags::AT_SYMLINK_FOLLOW);
+    let deref_final = flags.contains(AtFlags::AT_SYMLINK_FOLLOW) || old_path.with_trailing_slash();
 
     let old_host_path = tracee.translate_path_at(olddirfd, old_path, deref_final)?;
     let new_host_path = tracee.translate_path_at(newdirfd, new_path, false)?;
@@ -85,6 +86,13 @@ mod tests {
                     let mut old_filestat = nc::stat_t::default();
                     nc::lstat(oldfilepath, &mut old_filestat).unwrap();
                     assert_eq!(new_filestat.st_ino, old_filestat.st_ino);
+
+                    // If the oldfilename end with a trailing slash, symlink
+                    // follow will also happen.
+                    assert_eq!(
+                        nc::linkat(fd, format!("{}/", oldlinkname).as_str(), fd, newfilename, 0),
+                        Err(nc::ENOTDIR)
+                    );
                 });
                 std::fs::remove_file(oldfilepath).unwrap();
                 std::fs::remove_file(oldlinkpath).unwrap();

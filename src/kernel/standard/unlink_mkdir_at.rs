@@ -1,15 +1,22 @@
 use std::os::unix::prelude::RawFd;
 
 use crate::errors::*;
+use crate::filesystem::ext::PathExt;
 use crate::process::tracee::Tracee;
 use crate::register::PtraceWriter;
 use crate::register::{Current, PtraceReader, SysArg, SysArg1, SysArg2};
 
 pub fn enter(tracee: &mut Tracee) -> Result<()> {
+    let sys_num = tracee.regs.get_sys_num(Current);
     let dirfd = tracee.regs.get(Current, SysArg(SysArg1)) as RawFd;
     let raw_path = tracee.regs.get_sysarg_path(SysArg2)?;
 
-    let host_path = tracee.translate_path_at(dirfd, raw_path, false)?;
+    let deref_final = match sys_num {
+        sc::nr::UNLINKAT | sc::nr::MKDIRAT => false,
+        _ => raw_path.with_trailing_slash(),
+    };
+
+    let host_path = tracee.translate_path_at(dirfd, raw_path, deref_final)?;
 
     tracee.regs.set_sysarg_path(
         SysArg2,

@@ -1,9 +1,9 @@
-use crate::errors::*;
-use crate::filesystem::substitution::Substitutor;
-use crate::filesystem::FileSystem;
 use std::path::{Component, Path, PathBuf};
 
-use super::binding::Side;
+use crate::errors::*;
+use crate::filesystem::binding::Side;
+use crate::filesystem::substitution::Substitutor;
+use crate::filesystem::FileSystem;
 
 pub trait Canonicalizer {
     fn canonicalize<P: AsRef<Path>>(&self, path: P, deref_final: bool) -> Result<PathBuf>;
@@ -92,16 +92,20 @@ impl Canonicalizer for FileSystem {
                     let host_path = self.substitute(&guest_path_new, Side::Guest)?;
 
                     let metadata = host_path.symlink_metadata();
-                    // `metadata` is error if we cannot access this file or file is not exist.
-                    // However, we can accept this path because some syscall (e.g. mkdir, mknod)
-                    // allow final component not exist.
-                    if is_last_component && metadata.is_err() {
-                        continue;
-                    }
-                    // We can continue if we are now on the last component and are explicitly asked
-                    // not to dereference 'user_path'.
-                    if is_last_component && !deref_final {
-                        continue;
+
+                    if is_last_component {
+                        // `metadata` is error if we cannot access this file or file is not exist.
+                        // However, we can accept this path because some syscall (e.g. mkdir, mknod)
+                        // allow final component not exist.
+                        if metadata.is_err() {
+                            continue;
+                        }
+
+                        // We can continue if we are now on the last component and are explicitly
+                        // asked not to dereference 'user_path'.
+                        if !deref_final {
+                            continue;
+                        }
                     }
 
                     let file_type = metadata?.file_type();
@@ -129,7 +133,7 @@ impl Canonicalizer for FileSystem {
                         if let Some(comp) = next_comp {
                             new_user_path.push(comp);
                         }
-                        it.for_each(|comp| new_user_path.push(comp));
+                        new_user_path.push(it);
                         // use new_user_path to call this function again and return
                         // TODO: Can be optimized by replacing `it`
                         return self.canonicalize(&new_user_path, deref_final);
@@ -151,11 +155,14 @@ impl Canonicalizer for FileSystem {
 
 #[cfg(test)]
 mod tests {
+    use std::path::PathBuf;
+
+    use nix::sys::stat::Mode;
+
     use super::*;
+    use crate::filesystem::ext::PathExt;
     use crate::filesystem::FileSystem;
     use crate::utils::tests::get_test_rootfs_path;
-    use nix::sys::stat::Mode;
-    use std::path::PathBuf;
 
     #[test]
     fn test_canonicalize_invalid_path() {
@@ -263,5 +270,22 @@ mod tests {
             fs.canonicalize(&PathBuf::from("/lib64"), true).unwrap(),
             PathBuf::from("/lib")
         );
+    }
+
+    #[test]
+    fn test_canonicalize_trailing_slash() {
+        let fs = FileSystem::with_root(get_test_rootfs_path()).unwrap();
+
+        let path = fs.canonicalize(&PathBuf::from("/lib64"), true).unwrap();
+        assert!(!path.with_trailing_slash());
+
+        let path = fs.canonicalize(&PathBuf::from("/lib64/"), true).unwrap();
+        assert!(!path.with_trailing_slash());
+
+        let path = fs.canonicalize(&PathBuf::from("/lib64"), false).unwrap();
+        assert!(!path.with_trailing_slash());
+
+        let path = fs.canonicalize(&PathBuf::from("/lib64/"), false).unwrap();
+        assert!(!path.with_trailing_slash());
     }
 }

@@ -3,6 +3,7 @@ use std::os::unix::prelude::RawFd;
 use nix::fcntl::AtFlags;
 
 use crate::errors::*;
+use crate::filesystem::ext::PathExt;
 use crate::kernel::syscall;
 use crate::register::PtraceWriter;
 use crate::register::{Current, PtraceReader, SysArg, SysArg1, SysArg2, SysArg3, SysArg4, SysArg5};
@@ -37,9 +38,11 @@ pub fn enter(tracee: &mut Tracee) -> Result<()> {
     // Some system calls will dereference the path by default, while others do not,
     // which can also be controlled by `flags`.
     let deref_final = match sys_num {
-        sc::nr::NAME_TO_HANDLE_AT => flags.contains(AtFlags::AT_SYMLINK_FOLLOW),
+        sc::nr::NAME_TO_HANDLE_AT => {
+            flags.contains(AtFlags::AT_SYMLINK_FOLLOW) || raw_path.with_trailing_slash()
+        }
         sc::nr::STATX | sc::nr::NEWFSTATAT | sc::nr::UTIMENSAT | sc::nr::FCHOWNAT => {
-            !flags.contains(AtFlags::AT_SYMLINK_NOFOLLOW)
+            !flags.contains(AtFlags::AT_SYMLINK_NOFOLLOW) || raw_path.with_trailing_slash()
         }
         _ => true,
     };

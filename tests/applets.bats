@@ -330,3 +330,23 @@ function script_test_run_applets_common_tools {
     proot-rs --rootfs "$ROOTFS" -- /bin/wget http://1.1.1.1 -O -
 }
 
+
+function script_test_proot_rs_path_with_railing_slash {
+    PATH=/bin
+    [[ "$(stat -c "%F" /lib64)" == *"symbolic link"* ]]
+    [[ "$(stat -c "%F" /lib64/)" == *"directory"* ]]
+    [[ "$(stat -c "%F" /lib64/.)" == *"directory"* ]]
+
+    [[ "$(stat -c "%i %F" /lib64/)" == "$(stat -L -c "%i %F" /lib64)" ]]
+
+    [[ "$(stat -c "%F" /etc/passwd)" == *"regular file"* ]]
+    [[ "$(stat -L -c "%F" /etc/passwd)" == *"regular file"* ]]
+
+    [[ "$(stat -c "%F" /etc/passwd/ 2>&1)" == *"Not a directory"* ]]
+    [[ "$(stat -c "%F" /etc/passwd/. 2>&1)" == *"Not a directory"* ]]
+
+}
+
+@test "test proot-rs path with railing slash" {
+    proot-rs --rootfs "$ROOTFS" -- /bin/sh -e -x -c "$(declare -f script_test_proot_rs_path_with_railing_slash); script_test_proot_rs_path_with_railing_slash"
+}

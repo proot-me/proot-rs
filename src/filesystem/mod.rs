@@ -1,5 +1,6 @@
 pub mod binding;
 pub mod canonicalization;
+pub mod ext;
 mod fs;
 pub mod readers;
 pub mod substitution;

@@ -9,6 +9,7 @@ pub fn enter(tracee: &mut Tracee) -> Result<()> {
     let dirfd = tracee.regs.get(Current, SysArg(SysArg2)) as RawFd;
     let raw_path = tracee.regs.get_sysarg_path(SysArg3)?;
 
+    // create/delete/rename related system calls cannot follow final component.
     let host_path = tracee.translate_path_at(dirfd, raw_path, false)?;
 
     tracee.regs.set_sysarg_path(

@@ -1,14 +1,30 @@
 use crate::errors::*;
 
+use crate::filesystem::ext::PathExt;
 use crate::filesystem::Translator;
 use crate::process::tracee::Tracee;
 use crate::register::PtraceWriter;
-use crate::register::{PtraceReader, SysArg1};
+use crate::register::{Current, PtraceReader, SysArg1};
 
 pub fn enter(tracee: &mut Tracee) -> Result<()> {
+    let sys_num = tracee.regs.get_sys_num(Current);
     let raw_path = tracee.regs.get_sysarg_path(SysArg1)?;
 
-    let host_path = tracee.fs.borrow().translate_path(raw_path, false)?;
+    let deref_final = match sys_num {
+        // First, create/delete/rename related system calls cannot follow final component.
+        sc::nr::UNLINK | sc::nr::RMDIR | sc::nr::MKDIR => false,
+        _ => {
+            // Second, since there is no flags here, skip check for LOOKUP_FOLLOW.
+            // Third, follow if the pathname has trailing slashes.
+            if raw_path.with_trailing_slash() {
+                true
+            } else {
+                // Default value for those syscalls
+                false
+            }
+        }
+    };
+    let host_path = tracee.fs.borrow().translate_path(raw_path, deref_final)?;
 
     tracee.regs.set_sysarg_path(
         SysArg1,

@@ -1,4 +1,5 @@
 use crate::errors::*;
+use crate::filesystem::ext::PathExt;
 use crate::filesystem::Translator;
 use crate::process::tracee::Tracee;
 use crate::register::PtraceWriter;
@@ -8,8 +9,9 @@ use crate::register::{PtraceReader, SysArg1, SysArg2};
 pub fn enter(tracee: &mut Tracee) -> Result<()> {
     let old_path = tracee.regs.get_sysarg_path(SysArg1)?;
     let new_path = tracee.regs.get_sysarg_path(SysArg2)?;
+    let deref_final = old_path.with_trailing_slash();
 
-    let old_host_path = tracee.fs.borrow().translate_path(old_path, false)?;
+    let old_host_path = tracee.fs.borrow().translate_path(old_path, deref_final)?;
     let new_host_path = tracee.fs.borrow().translate_path(new_path, false)?;
 
     tracee.regs.set_sysarg_path(

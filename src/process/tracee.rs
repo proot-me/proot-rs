@@ -172,6 +172,7 @@ impl Tracee {
             | Options::PTRACE_O_TRACEVFORKDONE
             | Options::PTRACE_O_TRACEEXEC
             | Options::PTRACE_O_TRACECLONE
+            | Options::PTRACE_O_EXITKILL
             | Options::PTRACE_O_TRACEEXIT;
 
         //TODO: seccomp

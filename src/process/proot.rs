@@ -197,7 +197,38 @@ impl PRoot {
 
                     let mut signal_to_delivery = Some(stop_signal);
 
-                    let tracee = self.tracees.get_mut(&pid).expect("get stopped tracee");
+                    let maybe_tracee = self.tracees.get_mut(&pid);
+
+                    let tracee = if maybe_tracee.is_none() {
+                        if stop_signal == Signal::SIGSTOP {
+                            debug!("-- {}, SIGSTOP arrives before ptrace event but tracee is not initialized, so create a placeholder to record this.", pid);
+                            // Get tracee instance of init process, note that at this point
+                            // `init_pid` must not be none, so we can unwrap() it safely.
+                            let init_tracee = self.tracees.get(&self.init_pid.unwrap()).unwrap();
+                            // Create a new tracee instance as placeholder, only for record the pid
+                            // and sigstop status of this newly created process.
+                            // Since the `fs` field cannot be none value, we'll temporarily use the
+                            // value of the init process's fs field in its place, even though it
+                            // should be actually derived from the parent process. But please
+                            // remember that the `fs` field should not be used until the tracee is
+                            // fully initialized in the ptrace event handler function.
+                            let mut tracee = Tracee::new(pid, init_tracee.fs.clone());
+                            // We are waiting for a ptrace event to initialize this tracee.
+                            tracee.sigstop_status = SigStopStatus::WaitForEventClone;
+                            self.insert_new_tracee(tracee);
+                            signal_to_delivery = None;
+                            self.tracees.get_mut(&pid).unwrap()
+                        } else {
+                            error!("-- {}, Received a signal from an unknown tracee.", pid);
+                            // Deliver this SIGSTOP signal to this unknown tracee
+                            ptrace::syscall(pid, Some(stop_signal))
+                                .expect("deliver stop signal to unknown tracee");
+                            // continue the event loop
+                            continue;
+                        }
+                    } else {
+                        maybe_tracee.unwrap()
+                    };
                     tracee.reset_restart_how();
                     match stop_signal {
                         Signal::SIGSTOP => {
@@ -208,7 +239,7 @@ impl PRoot {
                                 tracee.check_and_set_ptrace_options(&mut self.info_bag)?;
                                 signal_to_delivery = None;
                                 tracee.sigstop_status = SigStopStatus::AllowDelivery;
-                            } else if tracee.sigstop_status == SigStopStatus::RaisedByTraceClone {
+                            } else if tracee.sigstop_status == SigStopStatus::WaitForSigStopClone {
                                 signal_to_delivery = None;
                                 tracee.sigstop_status = SigStopStatus::AllowDelivery;
                             }
@@ -280,8 +311,20 @@ impl PRoot {
                         | Some(PtraceEvent::PTRACE_EVENT_VFORK)
                         | Some(PtraceEvent::PTRACE_EVENT_CLONE) => {
                             match tracee.handle_new_child_event() {
-                                Ok(child_tracee) => {
+                                Ok(mut child_tracee) => {
                                     info!("-- {}, new process with pid {}", pid, child_tracee.pid);
+                                    // If a placeholder exists, replace it with fully initialized
+                                    // tracee.
+                                    if let Some(tracee_placeholder) =
+                                        self.tracees.get(&child_tracee.pid)
+                                    {
+                                        if tracee_placeholder.sigstop_status
+                                            == SigStopStatus::WaitForEventClone
+                                        {
+                                            child_tracee.sigstop_status =
+                                                SigStopStatus::AllowDelivery;
+                                        }
+                                    }
                                     self.insert_new_tracee(child_tracee)
                                 }
                                 Err(error) => {

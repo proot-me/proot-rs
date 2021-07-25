@@ -60,13 +60,23 @@ pub enum TraceeRestartMethod {
 pub enum SigStopStatus {
     /// Allow SIGSTOP to be passed to tracee, which is the most common case.
     AllowDelivery,
-    /// The current process is a new process and the next SIGSTOP signal is
-    /// caused by automatically start tracing the new child process.
-    /// See the description of PTRACE_O_TRACE(FORK|VFORK|CLONE) in ptrace(2).
-    RaisedByTraceClone,
     /// The next SIGSTOP signal is used to synchronize with Proot process, and
     /// is only used during creating the first tracee.
     EventloopSync,
+    /// The current process is a new process created by
+    /// `fork()`/`vfork()`/`clone()`, and one of the ptrace events
+    /// `PTRACE_EVENT_(FORK|VFORK|CLONE)` has been received. So we are waiting
+    /// to eliminate the next associated SIGSTOP signal.
+    /// See the description of PTRACE_O_TRACE(FORK|VFORK|CLONE) in ptrace(2).
+    WaitForSigStopClone,
+    /// The current process is a new process created by
+    /// `fork()`/`vfork()`/`clone()`, and the SIGSTOP signal arrives before the
+    /// ptrace events. In this case, initialization of this tracee object is not
+    /// completed, because we have no way to known the parent id of this tracee.
+    /// So that we are waiting for one of the ptrace events
+    /// `PTRACE_EVENT_(FORK|VFORK|CLONE)` to arrive.
+    /// See the description of PTRACE_O_TRACE(FORK|VFORK|CLONE) in ptrace(2).
+    WaitForEventClone,
 }
 
 #[derive(Debug)]

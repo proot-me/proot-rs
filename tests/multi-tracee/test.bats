@@ -28,3 +28,16 @@ load ../helper
     [ "${lines[2]}" = "/" ]
     [ "${#lines[@]}" -eq 3 ]
 }
+
+
+@test "test nested calls between fork() / vfork() / clone()" {
+    # compile test case
+    compile_c_dynamic "$ROOTFS/bin/nested_fork_vfork_clone" "$BATS_TEST_DIRNAME/nested_fork_vfork_clone.c"
+    runp proot-rs --rootfs "$ROOTFS" --cwd / -- /bin/nested_fork_vfork_clone
+    # remember to delete the binary file
+    rm "$ROOTFS/bin/nested_fork_vfork_clone"
+    [ "$status" -eq 0 ]
+    [ "${lines[0]}" = "111 211 311 121 221 321 131 231 331 112 212 312 122 222 322 132 232 332 113 213 313 123 223 323 133 233 333 " ]
+    [ "${#lines[@]}" -eq 1 ]
+}
+

@@ -196,7 +196,7 @@ impl EventHandler for Tracee {
         //         (void) restart_tracee(child, 0);
         // }
 
-        child_tracee.sigstop_status = SigStopStatus::RaisedByTraceClone;
+        child_tracee.sigstop_status = SigStopStatus::WaitForSigStopClone;
 
         Ok(child_tracee)
     }

@@ -34,7 +34,7 @@ mod tests {
     use crate::utils::tests::test_with_proot;
 
     /// Unit test for the following syscalls:
-    /// - linkat
+    /// - openat
     #[test]
     fn test_open_at() {
         test_with_proot(

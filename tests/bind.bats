@@ -37,6 +37,7 @@ load helper
 
 
 @test "test --bind with getdents64() results" {
+    skip "this is an enhancement, see https://github.com/proot-me/proot-rs/issues/43"
     mkdir "$ROOTFS/tmp/test_bind_with_getdents64"
     echo "first" > "$ROOTFS/tmp/test_bind_with_getdents64/file1"
     echo "second" > "$ROOTFS/tmp/test_bind_with_getdents64/file2"

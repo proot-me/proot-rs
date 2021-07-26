@@ -22,23 +22,23 @@ function script_test_run_applets_file_ops {
     [ "$(/bin/pwd -L)" = "/tmp/test_applets_file_ops" ]
 
     # ls
-    [ "$(ls)" = $'dir1\nfile1' ]
+    [ "$(ls | sort)" = $'dir1\nfile1' ]
 
     # touch
     /bin/touch file2
-    [ "$(ls)" = $'dir1\nfile1\nfile2' ]
+    [ "$(ls | sort)" = $'dir1\nfile1\nfile2' ]
 
     # cp
     /bin/echo "test" > file2
     cp file2 file3
-    [ "$(ls)" = $'dir1\nfile1\nfile2\nfile3' ]
+    [ "$(ls | sort)" = $'dir1\nfile1\nfile2\nfile3' ]
 
     # mv
     mv file3 dir1/file4
-    [ "$(ls)" = $'dir1\nfile1\nfile2' ]
+    [ "$(ls | sort)" = $'dir1\nfile1\nfile2' ]
 
     # find
-    [ "$(find .)" = $'.\n./dir1\n./dir1/file4\n./file1\n./file2' ]
+    [ "$(find . | sort)" = $'.\n./dir1\n./dir1/file4\n./file1\n./file2' ]
 
     # cat
     [ "$(cat file2)" = "test" ]
@@ -137,7 +137,7 @@ function script_test_run_applets_common_tools {
     [ "$(cat file1)" = "test tee" ]
 
     # du
-    [ "$(du -h file1)" = "4.0K    file1" ]
+    du -h file1 | grep '4\.0K\s*file1'
 
     # base64
     [ "$(echo 'base64' | base64)" = "YmFzZTY0Cg==" ]
@@ -172,7 +172,7 @@ function script_test_run_applets_common_tools {
 
     # split
     echo "0123456789" | split -b 4 - test_split.
-    [ "$(ls test_split.*)" = $'test_split.aa\ntest_split.ab\ntest_split.ac' ]
+    [ "$(ls test_split.* | sort)" = $'test_split.aa\ntest_split.ab\ntest_split.ac' ]
 
     # date
     [ "$(date -d @0)" = "Thu Jan  1 00:00:00 UTC 1970" ]
@@ -183,8 +183,9 @@ function script_test_run_applets_common_tools {
     # tr
     [ "$(echo "hello WORLD" | tr "[:upper:]" "[:lower:]")" = "hello world" ]
 
-    # args
-    [ "$(echo "echo 'hello world'" | xargs)" = "hello world" ]
+    # xargs
+    [ "$(echo "'echo hello world'" | xargs sh -c)" = "hello world" ]
+    [ "$(echo "hello        world" | xargs echo)" = "hello world" ]
 
     # which
     [ "$(which sh)" = "/bin/sh" ]
@@ -220,7 +221,7 @@ function script_test_run_applets_common_tools {
     [ -f file1 ]
 
     # unzip
-    echo "UEsDBC0AAAAAAB1G8VItOwiv//////////8BABQALQEAEAAMAAAAAAAAAAwAAAAAAAAAaGVsbG8gd29ybGQKUEsBAh4DLQAAAAAAHUbxUi07CK8MAAAADAAAAAEAAAAAAAAAAQAAAIARAAAAAC1QSwYGLAAAAAAAAAAeAy0AAAAAAAAAAAABAAAAAAAAAAEAAAAAAAAALwAAAAAAAAA/AAAAAAAAAFBLBgcAAAAAbgAAAAAAAAABAAAAUEsFBgAAAAABAAEALwAAAD8AAAAAAA==" | base64 -d > archive.zip
+    echo "UEsDBAoAAAAAABtG+lItOwivDAAAAAwAAAAEABwAZmlsZVVUCQADdQb+YIcG/mB1eAsAAQToAwAABOgDAABoZWxsbyB3b3JsZApQSwECHgMKAAAAAAAbRvpSLTsIrwwAAAAMAAAABAAYAAAAAAABAAAApIEAAAAAZmlsZVVUBQADdQb+YHV4CwABBOgDAAAE6AMAAFBLBQYAAAAAAQABAEoAAABKAAAAAAA=" | base64 -d > archive.zip
     [ "$(unzip -p archive.zip)" = "hello world" ]
 
     # dd
@@ -327,7 +328,22 @@ function script_test_run_applets_common_tools {
 
 
 @test "test proot-rs run wget" {
-    proot-rs --rootfs "$ROOTFS" -- /bin/wget http://1.1.1.1 -O -
+    resolv_conf_exists=true
+    if [ ! -f "$ROOTFS/etc/resolv.conf" ]; then
+        touch "$ROOTFS/etc/resolv.conf"
+        resolv_conf_exists=false
+    fi
+
+    # bind /etc/resolv.conf so that wget can read dns server address from it
+    runp proot-rs --rootfs "$ROOTFS" --bind "/etc/resolv.conf:/etc/resolv.conf" -- /bin/sh -e -x -c '
+        [[ "$(/bin/wget http://example.com/ -O -)" == *"Example Domain"* ]]
+    '
+
+    if [ "$resolv_conf_exists" == false ]; then
+        rm "$ROOTFS/etc/resolv.conf"
+    fi
+
+    [ "$status" -eq 0 ]    
 }
 
 

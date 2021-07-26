@@ -6,6 +6,7 @@ use std::rc::Rc;
 use nix::sys::ptrace::{self, Options};
 use nix::sys::signal::Signal;
 use nix::unistd::Pid;
+use nix::NixPath;
 
 use crate::errors::*;
 use crate::filesystem::Substitutor;
@@ -259,7 +260,10 @@ impl Tracee {
     ) -> Result<PathBuf> {
         if guest_path.as_ref().is_relative() {
             let mut dir_path = self.get_path_from_fd(dirfd, Side::Guest)?;
-            dir_path.push(guest_path);
+            // Check if guest_path is empty to avoid side effects of .push()
+            if !guest_path.as_ref().is_empty() {
+                dir_path.push(guest_path);
+            }
             self.fs
                 .borrow()
                 .translate_absolute_path(dir_path, deref_final)

@@ -198,6 +198,26 @@ where
         C: Display + Send + Sync + 'static,
         F: FnOnce() -> C,
     {
-        self.map_err(|error| Into::<Error>::into(error).with_msg(f()))
+        match self {
+            Ok(t) => Ok(t),
+            Err(e) => Err(e).context(f()),
+        }
+    }
+}
+
+#[allow(dead_code)]
+impl<T> WithContext<T> for result::Result<T, Error> {
+    fn context<C>(self, context: C) -> Result<T>
+    where
+        C: Display + Send + Sync + 'static,
+    {
+        self.map_err(|error| {
+            if let Some(ref msg) = error.msg {
+                let new_msg = format!("{}: {}", context, msg);
+                error.with_msg(new_msg)
+            } else {
+                error.with_msg(context)
+            }
+        })
     }
 }

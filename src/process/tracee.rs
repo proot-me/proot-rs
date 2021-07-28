@@ -251,13 +251,14 @@ impl Tracee {
     /// relationship similar to `openat()` and `open()`, except that it accepts
     /// a `dirfd` argument.
     ///
-    /// The returned path is always canonical.
+    /// For the definition of the return value, please refer to
+    /// [`Translator::translate_absolute_path()`]
     pub fn translate_path_at<P: AsRef<Path>>(
         &self,
         dirfd: RawFd,
         guest_path: P,
         deref_final: bool,
-    ) -> Result<PathBuf> {
+    ) -> Result<(PathBuf, PathBuf)> {
         if guest_path.as_ref().is_relative() {
             let mut dir_path = self.get_path_from_fd(dirfd, Side::Guest)?;
             // Check if guest_path is empty to avoid side effects of .push()
@@ -375,7 +376,7 @@ mod tests {
                         // this fd is point to '/etc'
 
                         // translate "/etc/passwd"
-                        let path = tracee.translate_path_at(fd, "passwd", true).unwrap();
+                        let path = tracee.translate_path_at(fd, "passwd", true).unwrap().1;
                         // check the translated path is also canonical in host side
                         assert!(tracee.fs.borrow().is_path_canonical(&path, Side::Host));
                         // check the path translate result is correct
@@ -388,11 +389,13 @@ mod tests {
                         // even though the final component does not exist, deref this will be ok.
                         tracee
                             .translate_path_at(fd, "impossible_path", true)
-                            .unwrap();
+                            .unwrap()
+                            .1;
                         // check the translated path is also canonical in host side
                         let path = tracee
                             .translate_path_at(fd, "impossible_path", false)
-                            .unwrap();
+                            .unwrap()
+                            .1;
                         assert!(tracee.fs.borrow().is_path_canonical(&path, Side::Host));
 
                         // check the path translate result is correct

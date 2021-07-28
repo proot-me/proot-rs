@@ -9,12 +9,16 @@ use std::path::{Path, PathBuf};
 use super::ext::{PathBufExt, PathExt};
 
 pub trait Translator {
-    fn translate_path<P: AsRef<Path>>(&self, guest_path: P, deref_final: bool) -> Result<PathBuf>;
+    fn translate_path<P: AsRef<Path>>(
+        &self,
+        guest_path: P,
+        deref_final: bool,
+    ) -> Result<(PathBuf, PathBuf)>;
     fn translate_absolute_path<P: AsRef<Path>>(
         &self,
         guest_path: P,
         deref_final: bool,
-    ) -> Result<PathBuf>;
+    ) -> Result<(PathBuf, PathBuf)>;
     fn detranslate_path<P: AsRef<Path>>(
         &self,
         host_path: P,
@@ -25,7 +29,14 @@ pub trait Translator {
 impl Translator for FileSystem {
     /// Translates a path from `guest` to `host`. Relative guest path is also
     /// accepted.
-    fn translate_path<P: AsRef<Path>>(&self, guest_path: P, deref_final: bool) -> Result<PathBuf> {
+    ///
+    /// For the definition of the return value, please refer to
+    /// [`Translator::translate_absolute_path()`]
+    fn translate_path<P: AsRef<Path>>(
+        &self,
+        guest_path: P,
+        deref_final: bool,
+    ) -> Result<(PathBuf, PathBuf)> {
         if guest_path.as_ref().is_relative() {
             // It is relative to the current working directory.
             let mut absolute_guest_path = PathBuf::from(self.get_cwd());
@@ -38,11 +49,16 @@ impl Translator for FileSystem {
 
     /// Translates a path from `guest` to `host`. Only absolute guest path is
     /// accepted.
+    ///
+    /// The return value is a tuple `(canonical_guest_path, host_path)`,
+    /// representing two paths. The `canonical_guest_path` is the path on the
+    /// guest side and the `host_path` is the path on the host side. Both
+    /// paths are canonical.
     fn translate_absolute_path<P: AsRef<Path>>(
         &self,
         guest_path: P,
         deref_final: bool,
-    ) -> Result<PathBuf> {
+    ) -> Result<(PathBuf, PathBuf)> {
         let trailing_slash = guest_path.with_trailing_slash();
         let canonical_guest_path = self.canonicalize(&guest_path, deref_final)?;
         let mut host_path = self.substitute(&canonical_guest_path, Guest)?;
@@ -51,7 +67,7 @@ impl Translator for FileSystem {
             // recover the trailing slash
             host_path.try_add_trailing_slash();
         }
-        Ok(host_path)
+        Ok((canonical_guest_path, host_path))
     }
 
     /// Translates a path from `host` to `guest`.
@@ -140,14 +156,14 @@ mod tests {
 
         assert_eq!(
             fs.translate_path("/home/../etc/./../etc", false),
-            Ok("/etc".into())
+            Ok(("/etc".into(), "/etc".into()))
         ); // simple canonicalization here
 
         fs.add_binding("/etc", "/home").unwrap();
 
         assert_eq!(
             fs.translate_path(&Path::new("/home/passwd"), false),
-            Ok(PathBuf::from("/etc/passwd"))
+            Ok((PathBuf::from("/home/passwd"), PathBuf::from("/etc/passwd")))
         );
     }
 
@@ -159,7 +175,10 @@ mod tests {
 
         assert_eq!(
             fs.translate_path("/bin/sleep", false),
-            Ok(rootfs_path.clone().join("bin/sleep"))
+            Ok((
+                PathBuf::from("/bin/sleep"),
+                rootfs_path.clone().join("bin/sleep")
+            ))
         );
 
         fs.add_binding("/usr/bin", "/bin").unwrap();
@@ -169,7 +188,7 @@ mod tests {
         // "/bin/true" -> "/usr/bin/true"
         assert_eq!(
             fs.translate_path(&Path::new("/bin/true"), false),
-            Ok(PathBuf::from("/usr/bin/true"))
+            Ok((PathBuf::from("/bin/true"), PathBuf::from("/usr/bin/true")))
         );
 
         // checking that the substitution only happens at the end ("/" is translated,
@@ -177,7 +196,10 @@ mod tests {
         // "/bin/../home" -> "${rootfs}/bin/home"
         assert_eq!(
             fs.translate_path(&Path::new("/bin/../home"), false),
-            Ok(PathBuf::from(&rootfs_path).join("home"))
+            Ok((
+                PathBuf::from("/home"),
+                PathBuf::from(&rootfs_path).join("home")
+            ))
         );
     }
 

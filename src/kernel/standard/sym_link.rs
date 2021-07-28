@@ -8,7 +8,7 @@ use crate::register::{PtraceReader, SysArg2};
 pub fn enter(tracee: &mut Tracee) -> Result<()> {
     let raw_path = tracee.regs.get_sysarg_path(SysArg2)?;
     // create/delete/rename related system calls cannot follow final component.
-    let host_path = tracee.fs.borrow().translate_path(raw_path, false)?;
+    let host_path = tracee.fs.borrow().translate_path(raw_path, false)?.1;
 
     tracee.regs.set_sysarg_path(
         SysArg2,

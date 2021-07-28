@@ -15,7 +15,7 @@ pub fn enter(tracee: &mut Tracee) -> Result<()> {
     let deref_final = !(flags.contains(OFlag::O_NOFOLLOW)
         || (flags.contains(OFlag::O_EXCL) && flags.contains(OFlag::O_CREAT)));
 
-    let host_path = tracee.translate_path_at(dirfd, raw_path, deref_final)?;
+    let host_path = tracee.translate_path_at(dirfd, raw_path, deref_final)?.1;
 
     tracee.regs.set_sysarg_path(
         SysArg2,

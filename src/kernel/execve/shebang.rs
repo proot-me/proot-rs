@@ -47,7 +47,7 @@ pub fn expand(fs: &FileSystem, user_path: &Path) -> Result<PathBuf> {
         loop_iterations += 1;
 
         // Translate this path (user -> host), then check it is executable.
-        let host_path = fs.translate_path(&user_path, true)?;
+        let host_path = fs.translate_path(&user_path, true)?.1;
         FileSystem::check_host_path_executable(&host_path)?;
 
         let expanded_user_path = extract(&host_path)?;
@@ -59,7 +59,7 @@ pub fn expand(fs: &FileSystem, user_path: &Path) -> Result<PathBuf> {
         has_shebang = true;
 
         // Translate new path (user -> host), then check it is executable.
-        let new_host_path = fs.translate_path(&expanded_user_path.unwrap(), true)?;
+        let new_host_path = fs.translate_path(&expanded_user_path.unwrap(), true)?.1;
         FileSystem::check_host_path_executable(&new_host_path)?;
 
         println!("new host path: {:?}", new_host_path);

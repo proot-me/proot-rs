@@ -394,3 +394,30 @@ function script_test_should_not_follow {
     [ "$status" -eq 0 ]
 
 }
+
+
+
+function script_test_trailing_slash_in_symlink {
+    PATH=/bin
+
+    cd /tmp/test_trailing_slash_in_symlink
+
+    echo "hello world" > file
+    ln -s file link1
+    ln -s file/ link2
+    ln -s file/. link3
+
+    [[ "$(stat -L -c "%F" link1 2>&1)" == *"regular file"* ]]
+    [[ "$(stat -L -c "%F" link2 2>&1)" == *"Not a directory"* ]]
+    [[ "$(stat -L -c "%F" link3 2>&1)" == *"Not a directory"* ]]
+
+}
+
+@test "test trailing slash in symlink" {
+    local test_dir="$ROOTFS/tmp/test_trailing_slash_in_symlink"
+    mkdir "$test_dir"
+    runp proot-rs --rootfs "$ROOTFS" -- /bin/sh -e -x -c "$(declare -f script_test_trailing_slash_in_symlink); script_test_trailing_slash_in_symlink"
+    rm -rf "$test_dir"
+    [ "$status" -eq 0 ]
+
+}

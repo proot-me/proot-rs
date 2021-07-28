@@ -5,6 +5,8 @@ use crate::filesystem::binding::Side;
 use crate::filesystem::substitution::Substitutor;
 use crate::filesystem::FileSystem;
 
+use super::ext::{PathBufExt, PathExt};
+
 pub trait Canonicalizer {
     fn canonicalize<P: AsRef<Path>>(&self, path: P, deref_final: bool) -> Result<PathBuf>;
 }
@@ -58,6 +60,8 @@ impl Canonicalizer for FileSystem {
                 format!("Cannot canonicalizing a relative path: {:?}", guest_path),
             ));
         }
+
+        let trailing_slash = guest_path.with_trailing_slash();
 
         // build guest_path_new from user_path
         let mut guest_path_new = PathBuf::new();
@@ -133,13 +137,22 @@ impl Canonicalizer for FileSystem {
                         if let Some(comp) = next_comp {
                             new_user_path.push(comp);
                         }
-                        new_user_path.push(it);
+                        it.for_each(|comp| new_user_path.push(comp));
+                        if trailing_slash {
+                            // recover the trailing slash
+                            new_user_path.try_add_trailing_slash();
+                        }
                         // use new_user_path to call this function again and return
                         // TODO: Can be optimized by replacing `it`
                         return self.canonicalize(&new_user_path, deref_final);
                     }
                     // we cannot go through a path which is neither a directory nor a symlink
-                    if !is_last_component {
+                    if !is_last_component
+                        || (is_last_component
+                            && !file_type.is_dir()
+                            && !file_type.is_symlink()
+                            && trailing_slash)
+                    {
                         return Err(Error::errno_with_msg(
                             Errno::ENOTDIR,
                             "when canonicalizing an intermediate path",

@@ -7,7 +7,7 @@ use crate::errors::*;
 use crate::filesystem::binding::Side::Host;
 use crate::filesystem::binding::{Binding, Side};
 
-use super::{Canonicalizer, Substitutor};
+use super::{Canonicalizer, Substitutor, Translator};
 
 /// The file-system information associated with one or more tracee, which
 /// corresponds to the [`fs_struct`] structure in the kernel. If clone() is
@@ -158,8 +158,7 @@ impl FileSystem {
             ));
         }
 
-        let canonical_guest_path = self.canonicalize(&guest_path, true)?;
-        let host_path = self.substitute(&canonical_guest_path, Side::Guest)?;
+        let (canonical_guest_path, host_path) = self.translate_absolute_path(guest_path, true)?;
 
         // To change cwd to a dir, the tracee must have execute (`x`) permission to this
         // dir, FIXME: This may be wrong, because we need to check if tracee has

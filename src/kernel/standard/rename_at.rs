@@ -15,8 +15,8 @@ pub fn enter(tracee: &mut Tracee) -> Result<()> {
 
     let deref_final = old_path.with_trailing_slash();
 
-    let old_host_path = tracee.translate_path_at(olddirfd, old_path, deref_final)?;
-    let new_host_path = tracee.translate_path_at(newdirfd, new_path, false)?;
+    let old_host_path = tracee.translate_path_at(olddirfd, old_path, deref_final)?.1;
+    let new_host_path = tracee.translate_path_at(newdirfd, new_path, false)?.1;
 
     tracee.regs.set_sysarg_path(
         SysArg2,

@@ -218,7 +218,7 @@ impl LoadInfo {
         //                return -ENOMEM;
         //        }
 
-        let host_path = fs.translate_path(&user_path, true)?;
+        let host_path = fs.translate_path(&user_path, true)?.1;
         FileSystem::check_host_path_executable(&host_path)?;
 
         let mut load_info = LoadInfo::from(fs, &host_path)?;

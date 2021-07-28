@@ -16,7 +16,7 @@ pub fn enter(tracee: &mut Tracee) -> Result<()> {
         _ => true,
     };
 
-    let host_path = tracee.translate_path_at(dirfd, raw_path, deref_final)?;
+    let host_path = tracee.translate_path_at(dirfd, raw_path, deref_final)?.1;
 
     tracee.regs.set_sysarg_path(
         SysArg2,

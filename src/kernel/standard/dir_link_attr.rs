@@ -24,7 +24,7 @@ pub fn enter(tracee: &mut Tracee) -> Result<()> {
             }
         }
     };
-    let host_path = tracee.fs.borrow().translate_path(raw_path, deref_final)?;
+    let host_path = tracee.fs.borrow().translate_path(raw_path, deref_final)?.1;
 
     tracee.regs.set_sysarg_path(
         SysArg1,

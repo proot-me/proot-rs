@@ -30,6 +30,7 @@ pub fn exit(tracee: &mut Tracee) -> Result<()> {
         .fs
         .borrow()
         .translate_absolute_path(&guest_path, true)?
+        .1
         .metadata()?;
 
     let bytes = guest_path.as_os_str().as_bytes();

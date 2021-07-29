@@ -2,13 +2,12 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use crate::errors::*;
-use crate::filesystem::Translator;
-use crate::kernel::execve::load_info::LoadInfo;
+use crate::kernel::execve::binfmt;
 use crate::kernel::execve::loader::LoaderFile;
-use crate::kernel::execve::shebang;
+use crate::kernel::execve::params::{self, ExecveParameters};
 use crate::process::tracee::Tracee;
 use crate::register::PtraceWriter;
-use crate::register::{PtraceReader, SysArg1};
+use crate::register::{Current, PtraceReader, SysArg, SysArg1, SysArg2};
 
 pub fn translate(tracee: &mut Tracee, loader: &dyn LoaderFile) -> Result<()> {
     //TODO: implement this part for ptrace translation
@@ -22,32 +21,10 @@ pub fn translate(tracee: &mut Tracee, loader: &dyn LoaderFile) -> Result<()> {
     //		return 0;
     //	}
 
-    let raw_path = tracee.regs.get_sysarg_path(SysArg1)?;
-    debug!("execve({:?})", raw_path);
-    //TODO: return user path
-    let host_path = match shebang::expand(&tracee.fs.borrow(), &raw_path) {
-        Ok(path) => path,
-        // The Linux kernel actually returns -EACCES when trying to execute a directory.
-        Err(error) if error.get_errno() == Errno::EISDIR => return Err(Error::from(Errno::EACCES)),
-        Err(error) => return Err(error),
-    };
-
-    //TODO: clear this when raw_path and user_path's implementations are done
-    //	/* user_path is modified only if there's an interpreter
-    // 	 * (ie. for a script or with qemu).  */
-    //	if (status == 0 && tracee->qemu == NULL)
-    //		TALLOC_FREE(raw_path);
-
-    //	Remember the new value for "/proc/self/exe".  It points to
-    //	a canonicalized guest path, hence detranslate_path()
-    //	instead of using user_path directly.  */
-    if let Ok(maybe_path) = tracee.fs.borrow().detranslate_path(&host_path, None) {
-        tracee.new_exe = Some(Rc::new(RefCell::new(
-            maybe_path.unwrap_or_else(|| host_path.clone()),
-        )));
-    } else {
-        tracee.new_exe = None;
-    }
+    // Read required values from tracee
+    let raw_guest_path = tracee.regs.get_sysarg_path(SysArg1)?;
+    let argv_addr = tracee.regs.get(Current, SysArg(SysArg2));
+    let argv = params::read_argv(tracee.pid, argv_addr as _)?;
 
     //TODO: implement runner for qemu
     //	if (tracee->qemu != NULL) {
@@ -56,36 +33,38 @@ pub fn translate(tracee: &mut Tracee, loader: &dyn LoaderFile) -> Result<()> {
     //			return status;
     //	}
 
-    // parse LoadInfo from the binary file to be executed
-    let mut load_info = LoadInfo::from(&tracee.fs.borrow(), &host_path)
-        .with_context(|| format!("Failed to parse LoadInfo for {:?}", host_path))?;
+    let mut parameters = ExecveParameters {
+        raw_guest_path: raw_guest_path.clone(),
+        canonical_guest_path: Default::default(),
+        host_path: Default::default(),
+        argv: argv,
+    };
 
-    load_info.raw_path = Some(raw_path.clone());
-    //TODO: use user_path when implemented
-    load_info.user_path = Some(raw_path);
-    load_info.host_path = Some(host_path);
+    // Try to parse and load this executable
+    let load_info = binfmt::load(&tracee.fs.borrow(), &mut parameters)
+        .with_context(|| format!("failed to load file {:?}", raw_guest_path))?;
 
-    // An interpreter should not depend on another interpreter
-    if let Some(ref interp) = load_info.interp {
-        if interp.interp.is_some() {
-            return Err(Error::errno_with_msg(
-                EINVAL,
-                "When translating enter execve, an ELF interpreter is supposed to be standalone.",
-            ));
-        }
-    }
-
-    load_info.compute_load_addresses(false)?;
-
+    tracee.new_exe = Some(Rc::new(RefCell::new(parameters.host_path)));
     tracee.load_info = Some(load_info);
 
     // Save the loader path in the register, so that the loader will be executed
-    // instead. TODO: uncomment this when execve::exit is ready
+    // instead.
     tracee.regs.set_sysarg_path(
         SysArg1,
         loader.get_loader_path(),
         "during enter execve translation, setting new loader path",
     )?;
+    // Update argv of `execve()`
+    params::write_argv(tracee, &parameters.argv)
+        .map(|addr| {
+            tracee.regs.set(
+                SysArg(SysArg2),
+                addr as _,
+                "during enter execve translation, setting new argv",
+            )
+        })
+        .errno(EFAULT)
+        .context("failed to write new argv into tracee's memory space")?;
 
     //TODO: implemented ptracee translation
     //	/* Mask to its ptracer kernel performed by the loader.  */

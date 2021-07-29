@@ -1,3 +1,18 @@
+pub trait AsU8Slice {
+    fn as_u8_slice(&self) -> &[u8];
+}
+
+impl<T> AsU8Slice for [T] {
+    fn as_u8_slice(&self) -> &[u8] {
+        unsafe {
+            std::slice::from_raw_parts(
+                self.as_ptr() as *const u8,
+                self.len() * std::mem::size_of::<T>(),
+            )
+        }
+    }
+}
+
 #[cfg(test)]
 pub mod tests {
     use std::cell::RefCell;

@@ -3,6 +3,7 @@ use crate::errors::{Error, Result};
 use crate::filesystem::FileSystem;
 use crate::kernel::execve::params::{Arg, ExecveParameters};
 use std::ffi::CString;
+use std::io::ErrorKind;
 use std::os::unix::prelude::OsStrExt;
 use std::path::{Path, PathBuf};
 use std::{fs::File, io::Read};
@@ -86,7 +87,14 @@ pub(super) fn load_script(
 fn extract(host_path: &Path) -> Result<ExtractResult> {
     let mut file = File::open(host_path)?;
     let mut buffer = [0u8; BINPRM_BUF_SIZE];
-    file.read(&mut buffer)?;
+
+    // Read bytes from the beginning of the file, allowing the file length to be
+    // smaller than the buffer length.
+    if let Err(error) = file.read_exact(&mut buffer) {
+        if error.kind() != ErrorKind::UnexpectedEof {
+            Err(error)?
+        }
+    }
 
     // refuse to execute this if not start with #!
     match (buffer[0], buffer[1]) {

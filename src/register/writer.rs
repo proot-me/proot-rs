@@ -37,6 +37,7 @@ pub trait PtraceWriter {
         justification: &'static str,
         append_null: bool,
     ) -> Result<*const c_void>;
+    fn allocate_and_write(&mut self, data: &[u8], append_null: bool) -> Result<*mut c_void>;
     fn write_data(&self, dest_tracee: *mut c_void, data: &[u8], append_null: bool) -> Result<()>;
 }
 
@@ -66,8 +67,8 @@ impl PtraceWriter for Registers {
         result.map(|_| ())
     }
 
-    /// Copy the `data` to tracee's memory space, and make the register
-    /// `sys_arg` point to it.
+    /// Allocate a memory area on stack of tracee, then copy the `data` to
+    /// there. and make the register `sys_arg` point to it.
     ///
     /// Note that this will "allocate" a block of memory on stack, which means
     /// the value of the stack pointer register will be implicitly modified.
@@ -78,16 +79,26 @@ impl PtraceWriter for Registers {
         justification: &'static str,
         append_null: bool,
     ) -> Result<*const c_void> {
+        let tracee_ptr = self.allocate_and_write(data, append_null)?;
+
+        // Make this argument point to the new data.
+        self.set(SysArg(sys_arg), tracee_ptr as _, justification);
+
+        Ok(tracee_ptr as _)
+    }
+
+    /// Allocate a memory area on stack of tracee, then copy the `data` to
+    /// there.
+    ///
+    /// Note that this will "allocate" a block of memory on stack, which means
+    /// the value of the stack pointer register will be implicitly modified.
+    fn allocate_and_write(&mut self, data: &[u8], append_null: bool) -> Result<*mut c_void> {
         // Allocate space into the tracee's memory to host the new data.
         let tracee_ptr =
             self.alloc_mem_on_stack(data.len() as isize + if append_null { 1 } else { 0 })?;
 
         // Copy the new data into the previously allocated space.
         self.write_data(tracee_ptr as *mut c_void, data, append_null)?;
-
-        // Make this argument point to the new data.
-        self.set(SysArg(sys_arg), tracee_ptr, justification);
-
         Ok(tracee_ptr as _)
     }
 

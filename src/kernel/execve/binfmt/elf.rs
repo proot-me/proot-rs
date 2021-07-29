@@ -1,8 +1,13 @@
 use crate::errors::*;
 use crate::filesystem::readers::ExtraReader;
+use crate::filesystem::FileSystem;
+use crate::kernel::execve::load_info::LoadInfo;
+use crate::kernel::execve::params::ExecveParameters;
 use std::fs::File;
 use std::io::{Read, Seek, SeekFrom};
 use std::mem;
+
+use super::LoadResult;
 
 const EI_NIDENT: usize = 16;
 const ET_REL: u16 = 1;
@@ -229,6 +234,30 @@ impl ElfHeader {
             ElfHeader::ElfHeader64(ref mut elf_header) => func64(elf_header),
         }
     }
+}
+
+/// The loader function for regular elf executable file.
+pub(super) fn load_elf(fs: &FileSystem, parameters: &mut ExecveParameters) -> Result<LoadResult> {
+    // parse LoadInfo from the binary file to be executed
+    let mut load_info = LoadInfo::from(fs, &parameters.host_path)
+        .with_context(|| format!("Failed to parse elf file: {:?}", parameters.host_path))?;
+
+    load_info.raw_path = Some(parameters.raw_guest_path.clone());
+    load_info.user_path = Some(parameters.canonical_guest_path.clone());
+    load_info.host_path = Some(parameters.host_path.clone());
+
+    // An interpreter should not depend on another interpreter
+    if let Some(ref interp) = load_info.interp {
+        if interp.interp.is_some() {
+            return Err(Error::errno_with_msg(
+                EINVAL,
+                "When translating enter execve, interpreter of ELF is supposed to be statically linked.",
+            ));
+        }
+    }
+
+    load_info.compute_load_addresses(false)?;
+    Ok(LoadResult::Finished(load_info))
 }
 
 #[cfg(test)]

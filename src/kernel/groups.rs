@@ -1,5 +1,3 @@
-use sc::nr::*;
-
 /// Used to organise system call numbers into an easily-matchable enumeration.
 /// It's easier and cleaner to use cfg conditions here rather than in the huge
 /// match in `translate_syscall_enter` and `translate_syscall_exit`.
@@ -44,52 +42,102 @@ pub enum SyscallGroup {
 
 // TODO: modify the result of getdents64() so that we can handle binded entries.
 
-#[cfg(all(target_os = "linux", target_arch = "x86_64"))]
+#[cfg(any(target_os = "linux", target_os = "android"))]
 pub fn syscall_group_from_sysnum(sysnum: usize) -> SyscallGroup {
     match sysnum {
-        EXECVE                                      => SyscallGroup::Execve,
-        PTRACE                                      => SyscallGroup::Ptrace,
-        WAIT4 /*| WAITPID*/                         => SyscallGroup::Wait,
-        BRK                                         => SyscallGroup::Brk,
-        GETCWD                                      => SyscallGroup::GetCwd,
-        FCHDIR | CHDIR                              => SyscallGroup::Chdir,
-        BIND | CONNECT                              => SyscallGroup::BindConnect,
-        ACCEPT | ACCEPT4                            => SyscallGroup::Accept,
-        GETSOCKNAME | GETPEERNAME                   => SyscallGroup::GetSockOrPeerName,
-        /* SOCKETCALL => SyscallGroup::SocketCall, */
+        sc::nr::EXECVE => SyscallGroup::Execve,
+        sc::nr::PTRACE => SyscallGroup::Ptrace,
+        sc::nr::WAIT4 => SyscallGroup::Wait,
+        #[cfg(any(target_arch = "x86"))]
+        sc::nr::WAITPID => SyscallGroup::Wait,
+        sc::nr::BRK => SyscallGroup::Brk,
+        sc::nr::GETCWD => SyscallGroup::GetCwd,
+        sc::nr::FCHDIR | sc::nr::CHDIR => SyscallGroup::Chdir,
+        sc::nr::BIND | sc::nr::CONNECT => SyscallGroup::BindConnect,
+        sc::nr::ACCEPT | sc::nr::ACCEPT4 => SyscallGroup::Accept,
+        sc::nr::GETSOCKNAME | sc::nr::GETPEERNAME => SyscallGroup::GetSockOrPeerName,
+        #[cfg(any(target_arch = "x86"))]
+        sc::nr::SOCKETCALL => SyscallGroup::SocketCall,
+
         // int syscall(const char *pathname, ...) follow symlink
-        ACCESS | ACCT | CHMOD | CHOWN /*| CHOWN32*/
-            | CHROOT | GETXATTR | LISTXATTR | MKNOD
-            | /*OLDSTAT |*/ CREAT | REMOVEXATTR
-            | SETXATTR | STAT /*| STAT64*/ /*| STATSFS64*/
-            | SWAPOFF | SWAPON | TRUNCATE /*| TRUNCATE64*/ /*| UMOUNT*/
-            | UMOUNT2 | USELIB | UTIME | UTIMES     => SyscallGroup::StandardSyscall,
+        sc::nr::ACCT
+        | sc::nr::CHROOT
+        | sc::nr::GETXATTR
+        | sc::nr::LISTXATTR
+        | sc::nr::REMOVEXATTR
+        | sc::nr::SETXATTR
+        | sc::nr::SWAPOFF
+        | sc::nr::SWAPON
+        | sc::nr::TRUNCATE
+        | sc::nr::UMOUNT2 => SyscallGroup::StandardSyscall,
+        #[cfg(any(target_arch = "x86"))]
+        sc::nr::OLDSTAT | sc::nr::UMOUNT => SyscallGroup::StandardSyscall,
+        #[cfg(any(target_arch = "x86", target_arch = "arm"))]
+        sc::nr::CHOWN32 | sc::nr::STAT64 | sc::nr::STATFS64 | sc::nr::TRUNCATE64 => {
+            SyscallGroup::StandardSyscall
+        }
+        #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+        sc::nr::UTIME => SyscallGroup::StandardSyscall,
+        #[cfg(any(target_arch = "x86", target_arch = "x86_64", target_arch = "arm"))]
+        sc::nr::ACCESS
+        | sc::nr::CHMOD
+        | sc::nr::CHOWN
+        | sc::nr::MKNOD
+        | sc::nr::CREAT
+        | sc::nr::STAT
+        | sc::nr::USELIB
+        | sc::nr::UTIMES => SyscallGroup::StandardSyscall,
+
         // int syscall(const char *pathname, int flags, ...)
-        OPEN                                        => SyscallGroup::Open,
+        #[cfg(any(target_arch = "x86", target_arch = "x86_64", target_arch = "arm"))]
+        sc::nr::OPEN => SyscallGroup::Open,
+
         // int syscall(int dirfd, const char *pathname, ... , int flags, ...)
-        FCHOWNAT /*| FSTATAT64*/ | NEWFSTATAT
-            | UTIMENSAT | NAME_TO_HANDLE_AT | STATX => SyscallGroup::StatAt,
+        sc::nr::FCHOWNAT
+        | sc::nr::NEWFSTATAT
+        | sc::nr::UTIMENSAT
+        | sc::nr::NAME_TO_HANDLE_AT
+        | sc::nr::STATX => SyscallGroup::StatAt,
+        #[cfg(any(target_arch = "x86", target_arch = "arm"))]
+        sc::nr::FSTATAT64 => SyscallGroup::StatAt,
+
         // int syscall(int dirfd, const char *pathname, ...)
-        FCHMODAT | FACCESSAT | FUTIMESAT | MKNODAT  => SyscallGroup::ChmodAccessMkNodAt,
-        INOTIFY_ADD_WATCH                           => SyscallGroup::InotifyAddWatch,
+        sc::nr::FCHMODAT | sc::nr::FACCESSAT | sc::nr::MKNODAT => SyscallGroup::ChmodAccessMkNodAt,
+        #[cfg(any(target_arch = "x86", target_arch = "x86_64", target_arch = "arm"))]
+        sc::nr::FUTIMESAT => SyscallGroup::ChmodAccessMkNodAt,
+
+        sc::nr::INOTIFY_ADD_WATCH => SyscallGroup::InotifyAddWatch,
+
         // int syscall(const char *pathname, ...) not follow symlink
-        LCHOWN /*| LCHOWN32*/ | LGETXATTR
-            | LLISTXATTR | LREMOVEXATTR | LSETXATTR
-            | LSTAT /*| LSTATE64*/ /*| OLDLSTAT*/
-            | UNLINK | RMDIR | MKDIR                => SyscallGroup::DirLinkAttr,
-        PIVOT_ROOT                                  => SyscallGroup::PivotRoot,
-        LINKAT                                      => SyscallGroup::LinkAt,
-        MOUNT                                       => SyscallGroup::Mount,
-        OPENAT                                      => SyscallGroup::OpenAt,
-        READLINK                                    => SyscallGroup::ReadLink,
-        READLINKAT                                  => SyscallGroup::ReadLinkAt,
-        UNLINKAT | MKDIRAT                          => SyscallGroup::UnlinkMkdirAt,
-        LINK                                        => SyscallGroup::Link,
-        RENAME                                      => SyscallGroup::Rename,
-        RENAMEAT                                    => SyscallGroup::RenameAt,
-        SYMLINK                                     => SyscallGroup::SymLink,
-        SYMLINKAT                                   => SyscallGroup::SymLinkAt,
-        UNAME                                       => SyscallGroup::Uname,
-        _                                           => SyscallGroup::Ignored,
+        sc::nr::LGETXATTR | sc::nr::LLISTXATTR | sc::nr::LREMOVEXATTR | sc::nr::LSETXATTR => {
+            SyscallGroup::DirLinkAttr
+        }
+        #[cfg(any(target_arch = "x86"))]
+        sc::nr::OLDLSTAT => SyscallGroup::DirLinkAttr,
+        #[cfg(any(target_arch = "x86", target_arch = "arm"))]
+        sc::nr::LCHOWN32 | sc::nr::LSTAT64 => SyscallGroup::DirLinkAttr,
+        #[cfg(any(target_arch = "x86", target_arch = "x86_64", target_arch = "arm"))]
+        sc::nr::LCHOWN | sc::nr::LSTAT | sc::nr::UNLINK | sc::nr::RMDIR | sc::nr::MKDIR => {
+            SyscallGroup::DirLinkAttr
+        }
+
+        sc::nr::PIVOT_ROOT => SyscallGroup::PivotRoot,
+        sc::nr::LINKAT => SyscallGroup::LinkAt,
+        sc::nr::MOUNT => SyscallGroup::Mount,
+        sc::nr::OPENAT => SyscallGroup::OpenAt,
+        #[cfg(any(target_arch = "x86", target_arch = "x86_64", target_arch = "arm"))]
+        sc::nr::READLINK => SyscallGroup::ReadLink,
+        sc::nr::READLINKAT => SyscallGroup::ReadLinkAt,
+        sc::nr::UNLINKAT | sc::nr::MKDIRAT => SyscallGroup::UnlinkMkdirAt,
+        #[cfg(any(target_arch = "x86", target_arch = "x86_64", target_arch = "arm"))]
+        sc::nr::LINK => SyscallGroup::Link,
+        #[cfg(any(target_arch = "x86", target_arch = "x86_64", target_arch = "arm"))]
+        sc::nr::RENAME => SyscallGroup::Rename,
+        sc::nr::RENAMEAT => SyscallGroup::RenameAt,
+        #[cfg(any(target_arch = "x86", target_arch = "x86_64", target_arch = "arm"))]
+        sc::nr::SYMLINK => SyscallGroup::SymLink,
+        sc::nr::SYMLINKAT => SyscallGroup::SymLinkAt,
+        sc::nr::UNAME => SyscallGroup::Uname,
+        _ => SyscallGroup::Ignored,
     }
 }

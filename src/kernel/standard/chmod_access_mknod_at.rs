@@ -12,7 +12,9 @@ pub fn enter(tracee: &mut Tracee) -> Result<()> {
 
     let deref_final = match sys_num {
         sc::nr::MKNODAT => false, /* By default, mknodat() will not follow a symbolic link. https://man7.org/linux/man-pages/man2/mknod.2.html */
-        sc::nr::FACCESSAT | sc::nr::FUTIMESAT | sc::nr::FCHMODAT => true,
+        #[cfg(any(target_arch = "x86", target_arch = "x86_64", target_arch = "arm"))]
+        sc::nr::FUTIMESAT => true,
+        sc::nr::FACCESSAT | sc::nr::FCHMODAT => true,
         _ => true,
     };
 

@@ -12,6 +12,7 @@ pub fn enter(tracee: &mut Tracee) -> Result<()> {
 
     let deref_final = match sys_num {
         // First, create/delete/rename related system calls cannot follow final component.
+        #[cfg(any(target_arch = "x86", target_arch = "x86_64", target_arch = "arm"))]
         sc::nr::UNLINK | sc::nr::RMDIR | sc::nr::MKDIR => false,
         _ => {
             // Second, since there is no flags here, skip check for LOOKUP_FOLLOW.

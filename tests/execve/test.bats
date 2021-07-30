@@ -56,7 +56,8 @@ function script_test_run_script_with_shebang {
     chmod +x ./script5.sh
     [ "$(./script5.sh 2>&1)" = '"123      " ./script5.sh' ]
 
-    # Blank-space in the middle of opt argument is reserved. But the ones at the beginning and the end are stripped
+    # The whitespace characters in the middle of the opt parameter are preserved, but the whitespace characters at the head and tail are stripped away.
+    # ["./script6.sh"] -> ["/bin/echo", "123 456    789", "./script6.sh"]
     echo '#!/bin/echo     123 456    789   ' > ./script6.sh
     chmod +x ./script6.sh
     [ "$(./script6.sh 2>&1)" = '123 456    789 ./script6.sh' ]

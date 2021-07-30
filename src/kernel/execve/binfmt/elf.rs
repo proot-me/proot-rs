@@ -246,7 +246,8 @@ pub(super) fn load_elf(fs: &FileSystem, parameters: &mut ExecveParameters) -> Re
     load_info.user_path = Some(parameters.canonical_guest_path.clone());
     load_info.host_path = Some(parameters.host_path.clone());
 
-    // An interpreter should not depend on another interpreter
+    // An ELF interpreter is supposed to be standalone and should not depend on
+    // another ELF interpreter.
     if let Some(ref interp) = load_info.interp {
         if interp.interp.is_some() {
             return Err(Error::errno_with_msg(

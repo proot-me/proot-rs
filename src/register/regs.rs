@@ -1,11 +1,64 @@
+use std::fmt;
+use std::mem::MaybeUninit;
+
+use libc::c_void;
+use nix::unistd::Pid;
+
 use crate::errors::Result;
 use crate::register::Word;
-use libc::user_regs_struct;
-use nix::sys::ptrace;
-use nix::unistd::Pid;
-use std::fmt;
 
 const VOID: Word = Word::MAX;
+/// On x86 and x86_64, `user_regs_struct` in `<sys/user.h>` is used.
+/// For x86: https://github.com/bminor/glibc/blob/3908fa933a4354309225af616d9242f595e11ccf/sysdeps/unix/sysv/linux/x86/sys/user.h#L42
+/// For x86_64: https://github.com/bminor/glibc/blob/3908fa933a4354309225af616d9242f595e11ccf/sysdeps/unix/sysv/linux/x86/sys/user.h#L131
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+#[derive(Debug, Eq, Hash, PartialEq, Clone, Copy)]
+pub struct RegisterSet(pub libc::user_regs_struct);
+
+/// On arm, use `user_regs` instead of `user_regs_struct`.
+/// See: https://github.com/bminor/glibc/blob/3908fa933a4354309225af616d9242f595e11ccf/sysdeps/unix/sysv/linux/arm/sys/user.h#L43
+///
+/// Note: Entries 0-15 match r0..r15
+///       Entry 16 is used to store the CPSR register.
+///       Entry 17 is used to store the "orig_r0" value.
+#[cfg(any(target_arch = "arm"))]
+#[derive(Debug, Eq, Hash, PartialEq, Clone, Copy)]
+pub struct RegisterSet(pub [libc::c_ulong; 18]);
+
+impl RegisterSet {
+    fn get_from_tracee(pid: Pid) -> Result<Self> {
+        #[cfg(any(target_arch = "x86", target_arch = "x86_64", target_arch = "arm"))]
+        {
+            let mut data = MaybeUninit::uninit();
+            let res = unsafe {
+                libc::ptrace(
+                    libc::PTRACE_GETREGS,
+                    libc::pid_t::from(pid),
+                    std::ptr::null_mut::<c_void>(),
+                    data.as_mut_ptr() as *const _ as *const c_void,
+                )
+            };
+            nix::errno::Errno::result(res)?;
+            Ok(Self(unsafe { data.assume_init() }))
+        }
+    }
+
+    fn set_to_tracee(&self, pid: Pid) -> Result<()> {
+        #[cfg(any(target_arch = "x86", target_arch = "x86_64", target_arch = "arm"))]
+        {
+            let res = unsafe {
+                libc::ptrace(
+                    libc::PTRACE_SETREGS,
+                    libc::pid_t::from(pid),
+                    std::ptr::null_mut::<c_void>(),
+                    &self.0 as *const _ as *const c_void,
+                )
+            };
+            nix::errno::Errno::result(res).map(drop)?;
+            Ok(())
+        }
+    }
+}
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum RegVersion {
@@ -67,7 +120,7 @@ use self::Register::*;
 pub struct Registers {
     /// Pid of the tracee that it was generated from
     pid: Pid,
-    registers: [Option<user_regs_struct>; 3],
+    registers: [Option<RegisterSet>; 3],
     regs_were_changed: bool,
     restore_original_regs: bool,
 }
@@ -86,7 +139,7 @@ impl Registers {
 
     #[cfg(test)]
     /// Same, but with the initial regs. Useful for tests.
-    pub fn from(pid: Pid, raw_regs: user_regs_struct) -> Self {
+    pub fn from(pid: Pid, raw_regs: RegisterSet) -> Self {
         Self {
             pid: pid,
             registers: [Some(raw_regs), None, None],
@@ -163,7 +216,7 @@ impl Registers {
     pub fn fetch_regs(&mut self) -> Result<()> {
         // Notice the ? at the end, which is the equivalent of `try!`.
         // It will return the error if there is one.
-        let regs: user_regs_struct = ptrace::getregs(self.pid)?;
+        let regs = RegisterSet::get_from_tracee(self.pid)?;
 
         self.registers[Current as usize] = Some(regs);
         Ok(())
@@ -183,10 +236,27 @@ impl Registers {
             self.restore_regs();
         }
 
+        #[cfg(any(target_arch = "arm"))]
+        {
+            // On ARM, a special ptrace request is required to change
+            // effectively the syscall number during a ptrace-stop.
+            // See man page ptrace(2).
+            let current_sysnum = self.get_sys_num(Current);
+            if current_sysnum != self.get_sys_num(Original) {
+                // The value of `PTRACE_SET_SYSCALL` is defined here: https://github.com/bminor/glibc/blob/3908fa933a4354309225af616d9242f595e11ccf/sysdeps/unix/sysv/linux/arm/sys/ptrace.h#L110
+                const PTRACE_SET_SYSCALL: usize = 23;
+                let res =
+                    unsafe { libc::ptrace(PTRACE_SET_SYSCALL as _, self.pid, 0, current_sysnum) };
+                nix::errno::Errno::result(res).map(drop).with_context(|| {
+                    format!("Failed to set syscall number for tracee({})", self.pid)
+                })?;
+            }
+        }
+
         let pid = self.pid;
         let current_regs = self.get_mut_regs(Current);
 
-        ptrace::setregs(pid, *current_regs)?;
+        current_regs.set_to_tracee(pid)?;
         Ok(())
     }
 
@@ -196,7 +266,7 @@ impl Registers {
     /// This function relies on the ABI mapping implemented through the
     /// `get_reg!` macro.
     #[inline]
-    fn get_raw(&self, raw_regs: &user_regs_struct, register: Register) -> Word {
+    fn get_raw(&self, raw_regs: &RegisterSet, register: Register) -> Word {
         match register {
             SysNum => get_reg!(raw_regs, SysNum),
             SysArg(SysArg1) => get_reg!(raw_regs, SysArg1),
@@ -262,7 +332,7 @@ impl Registers {
     }
 
     #[inline]
-    fn get_regs(&self, version: RegVersion) -> &user_regs_struct {
+    fn get_regs(&self, version: RegVersion) -> &RegisterSet {
         match self.registers[version as usize] {
             Some(ref regs) => regs,
             None => unreachable!(),
@@ -270,7 +340,7 @@ impl Registers {
     }
 
     #[inline]
-    fn get_mut_regs(&mut self, version: RegVersion) -> &mut user_regs_struct {
+    fn get_mut_regs(&mut self, version: RegVersion) -> &mut RegisterSet {
         match self.registers[version as usize] {
             Some(ref mut regs) => regs,
             None => unreachable!(),

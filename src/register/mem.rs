@@ -68,15 +68,15 @@ impl PtraceMemoryAllocator for Registers {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::register::regs::RegisterSet;
     use crate::register::Registers;
-    use libc::user_regs_struct;
     use nix::unistd::getpid;
     use std::mem;
     use std::usize::MAX;
 
     #[test]
     fn test_mem_alloc_normal() {
-        let mut raw_regs: user_regs_struct = unsafe { mem::zeroed() };
+        let mut raw_regs: RegisterSet = unsafe { mem::zeroed() };
         let starting_stack_pointer = 100000;
 
         get_reg!(raw_regs, StackPointer) = starting_stack_pointer;
@@ -98,7 +98,7 @@ mod tests {
 
     #[test]
     fn test_mem_alloc_overflow() {
-        let mut raw_regs: user_regs_struct = unsafe { mem::zeroed() };
+        let mut raw_regs: RegisterSet = unsafe { mem::zeroed() };
         let starting_stack_pointer = 120;
 
         get_reg!(raw_regs, StackPointer) = starting_stack_pointer;
@@ -121,7 +121,7 @@ mod tests {
 
     #[test]
     fn test_mem_alloc_underflow() {
-        let mut raw_regs: user_regs_struct = unsafe { mem::zeroed() };
+        let mut raw_regs: RegisterSet = unsafe { mem::zeroed() };
         let starting_stack_pointer = (MAX as Word) - 120;
 
         get_reg!(raw_regs, StackPointer) = starting_stack_pointer;

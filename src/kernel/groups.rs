@@ -93,13 +93,13 @@ pub fn syscall_group_from_sysnum(sysnum: usize) -> SyscallGroup {
         sc::nr::OPEN => SyscallGroup::Open,
 
         // int syscall(int dirfd, const char *pathname, ... , int flags, ...)
-        sc::nr::FCHOWNAT
-        | sc::nr::NEWFSTATAT
-        | sc::nr::UTIMENSAT
-        | sc::nr::NAME_TO_HANDLE_AT
-        | sc::nr::STATX => SyscallGroup::StatAt,
+        sc::nr::FCHOWNAT | sc::nr::UTIMENSAT | sc::nr::NAME_TO_HANDLE_AT | sc::nr::STATX => {
+            SyscallGroup::StatAt
+        }
         #[cfg(any(target_arch = "x86", target_arch = "arm"))]
         sc::nr::FSTATAT64 => SyscallGroup::StatAt,
+        #[cfg(any(target_arch = "x86_64", target_arch = "aarch64"))]
+        sc::nr::NEWFSTATAT => SyscallGroup::StatAt,
 
         // int syscall(int dirfd, const char *pathname, ...)
         sc::nr::FCHMODAT | sc::nr::FACCESSAT | sc::nr::MKNODAT => SyscallGroup::ChmodAccessMkNodAt,

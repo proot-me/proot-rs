@@ -16,7 +16,9 @@ pub fn enter(tracee: &mut Tracee) -> Result<()> {
 
     let flags_arg_index = match sys_num {
         sc::nr::FCHOWNAT | sc::nr::NAME_TO_HANDLE_AT => SysArg5,
-        sc::nr::NEWFSTATAT | sc::nr::UTIMENSAT => SysArg4,
+        sc::nr::UTIMENSAT => SysArg4,
+        #[cfg(any(target_arch = "x86_64", target_arch = "aarch64"))]
+        sc::nr::NEWFSTATAT => SysArg4,
         sc::nr::STATX => SysArg3,
         _ =>
         // This check prevents us from incorrectly handling system calls other than
@@ -41,7 +43,11 @@ pub fn enter(tracee: &mut Tracee) -> Result<()> {
         sc::nr::NAME_TO_HANDLE_AT => {
             flags.contains(AtFlags::AT_SYMLINK_FOLLOW) || raw_path.with_trailing_slash()
         }
-        sc::nr::STATX | sc::nr::NEWFSTATAT | sc::nr::UTIMENSAT | sc::nr::FCHOWNAT => {
+        sc::nr::STATX | sc::nr::UTIMENSAT | sc::nr::FCHOWNAT => {
+            !flags.contains(AtFlags::AT_SYMLINK_NOFOLLOW) || raw_path.with_trailing_slash()
+        }
+        #[cfg(any(target_arch = "x86_64", target_arch = "aarch64"))]
+        sc::nr::NEWFSTATAT => {
             !flags.contains(AtFlags::AT_SYMLINK_NOFOLLOW) || raw_path.with_trailing_slash()
         }
         _ => true,

@@ -744,8 +744,6 @@ lazy_static! {
         (sc::nr::SYNC, "sync"),
         #[cfg(any(target_arch = "x86_64", target_arch = "aarch64", target_arch = "x86"))]
         (sc::nr::SYNC_FILE_RANGE, "sync_file_range"),
-        #[cfg(any(target_arch = "arm"))]
-        (sc::nr::SYNC_FILE_RANGE2, "sync_file_range2"),
         #[cfg(any(target_arch = "x86_64", target_arch = "arm", target_arch = "aarch64", target_arch = "x86"))]
         (sc::nr::SYNCFS, "syncfs"),
         #[cfg(any(target_arch = "x86_64", target_arch = "arm", target_arch = "x86"))]

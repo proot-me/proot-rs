@@ -44,11 +44,29 @@ lazy_static! {
 }
 
 //TODO: move these in arch.rs and do cfg for each env
-const HAS_LOADER_32BIT: bool = true;
+#[cfg(target_arch = "x86")]
+const EXEC_PIC_ADDRESS: Word = 0x0f000000;
+#[cfg(target_arch = "x86")]
+const INTERP_PIC_ADDRESS: Word = 0xaf000000;
+
+#[cfg(target_arch = "x86_64")]
 const EXEC_PIC_ADDRESS: Word = 0x500000000000;
+#[cfg(target_arch = "x86_64")]
 const INTERP_PIC_ADDRESS: Word = 0x6f0000000000;
+#[cfg(target_arch = "x86_64")]
 const EXEC_PIC_ADDRESS_32: Word = 0x0f000000;
+#[cfg(target_arch = "x86_64")]
 const INTERP_PIC_ADDRESS_32: Word = 0xaf000000;
+
+#[cfg(target_arch = "arm")]
+const EXEC_PIC_ADDRESS: Word = 0x0f000000;
+#[cfg(target_arch = "arm")]
+const INTERP_PIC_ADDRESS: Word = 0x1f000000;
+
+#[cfg(target_arch = "aarch64")]
+const EXEC_PIC_ADDRESS: Word = 0x3000000000;
+#[cfg(target_arch = "aarch64")]
+const INTERP_PIC_ADDRESS: Word = 0x3f00000000;
 
 impl LoadInfo {
     fn new(elf_header: ElfHeader) -> Self {
@@ -254,17 +272,28 @@ impl LoadInfo {
     /// @tracee.
     pub fn compute_load_addresses(&mut self, is_interp: bool) -> Result<()> {
         let is_pos_indep = apply!(self.elf_header, |header| header.is_position_independent())?;
-        let (load_base_32, load_base) = match is_interp {
-            false => (EXEC_PIC_ADDRESS_32, EXEC_PIC_ADDRESS), // exec
-            true => (INTERP_PIC_ADDRESS_32, INTERP_PIC_ADDRESS), // interp
-        };
 
         if is_pos_indep && self.mappings.get(0).unwrap().addr == 0 {
-            if HAS_LOADER_32BIT && self.elf_header.get_class() == ExecutableClass::Class32 {
+            #[cfg(target_arch = "x86_64")]
+            let load_base_32 = match is_interp {
+                false => EXEC_PIC_ADDRESS_32,  // exec
+                true => INTERP_PIC_ADDRESS_32, // interp
+            };
+
+            let load_base = match is_interp {
+                false => EXEC_PIC_ADDRESS,  // exec
+                true => INTERP_PIC_ADDRESS, // interp
+            };
+
+            #[cfg(target_arch = "x86_64")]
+            if self.elf_header.get_class() == ExecutableClass::Class32 {
                 self.add_load_base(load_base_32)?;
             } else {
                 self.add_load_base(load_base)?;
             }
+
+            #[cfg(not(target_arch = "x86_64"))]
+            self.add_load_base(load_base)?;
         }
 
         if !is_interp {

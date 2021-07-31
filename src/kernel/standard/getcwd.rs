@@ -6,8 +6,8 @@ use crate::errors::*;
 
 use crate::filesystem::Translator;
 use crate::process::tracee::Tracee;
-use crate::register::PtraceWriter;
 use crate::register::{Original, SysArg, SysArg1, SysArg2, SysResult};
+use crate::register::{PtraceWriter, Word};
 
 pub fn enter(tracee: &mut Tracee) -> Result<()> {
     tracee
@@ -48,7 +48,7 @@ pub fn exit(tracee: &mut Tracee) -> Result<()> {
     // https://elixir.bootlin.com/linux/v5.10.43/source/fs/d_path.c#L412
     tracee.regs.set(
         SysResult,
-        real_size as u64,
+        real_size as Word,
         "update return value in getcwd::exit()",
     );
     Ok(())

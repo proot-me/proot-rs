@@ -1,7 +1,7 @@
 extern crate gcc;
 
 #[cfg(target_arch = "x86")]
-mod config {
+mod arch {
     pub const LOADER_ADDRESS: u64 = 0xa0000000;
     pub const LOADER_ARCH_CFLAGS: &[&'static str] = &["-mregparm=3"];
 }

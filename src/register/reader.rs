@@ -150,9 +150,9 @@ fn read_string(pid: Pid, src_string: *mut Word, max_size: usize) -> Result<Vec<u
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::register::regs::RegisterSet;
     use crate::register::*;
     use crate::utils::tests::{fork_test, get_test_rootfs_path};
-    use libc::user_regs_struct;
     use nix::unistd::{execvp, getpid};
     use sc::nr::MKDIR;
     use std::ffi::CString;
@@ -183,7 +183,7 @@ mod tests {
 
     #[test]
     fn test_reader_get_sysarg_path_return_empty_if_given_null_src_() {
-        let raw_regs: user_regs_struct = unsafe { mem::zeroed() };
+        let raw_regs: RegisterSet = unsafe { mem::zeroed() };
         let regs = Registers::from(getpid(), raw_regs);
         let args = [SysArg1, SysArg2, SysArg3, SysArg4, SysArg5, SysArg6];
 

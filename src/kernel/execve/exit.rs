@@ -12,6 +12,7 @@ use crate::kernel::execve::load_info::LoadStatementStackExec;
 use crate::kernel::execve::load_info::LoadStatementStart;
 use crate::process::tracee::Tracee;
 use crate::register::PtraceWriter;
+use crate::register::Word;
 use crate::register::{Current, StackPointer, SysArg, SysArgIndex, SysResult};
 
 pub fn translate(tracee: &mut Tracee) -> Result<()> {
@@ -74,7 +75,7 @@ pub fn transfert_load_script(tracee: &mut Tracee) -> Result<()> {
     // write load statement: open
     buffer.extend_from_slice(
         LoadStatement::Open(LoadStatementOpen {
-            string_address: string1_address as u64,
+            string_address: string1_address as Word,
         })
         .as_bytes(),
     );
@@ -85,7 +86,7 @@ pub fn transfert_load_script(tracee: &mut Tracee) -> Result<()> {
                 LoadStatement::MmapAnonymous(LoadStatementMmap {
                     addr: mapping.addr,
                     length: mapping.length,
-                    prot: mapping.prot.bits() as u64,
+                    prot: mapping.prot.bits() as libc::c_ulong,
                     offset: mapping.offset,
                     clear_length: mapping.clear_length,
                 })
@@ -96,7 +97,7 @@ pub fn transfert_load_script(tracee: &mut Tracee) -> Result<()> {
                 LoadStatement::MmapFile(LoadStatementMmap {
                     addr: mapping.addr,
                     length: mapping.length,
-                    prot: mapping.prot.bits() as u64,
+                    prot: mapping.prot.bits() as libc::c_ulong,
                     offset: mapping.offset,
                     clear_length: mapping.clear_length,
                 })
@@ -109,7 +110,7 @@ pub fn transfert_load_script(tracee: &mut Tracee) -> Result<()> {
         // write load statement: open next
         buffer.extend_from_slice(
             LoadStatement::OpenNext(LoadStatementOpen {
-                string_address: string2_address as u64,
+                string_address: string2_address as libc::c_ulong,
             })
             .as_bytes(),
         );
@@ -120,7 +121,7 @@ pub fn transfert_load_script(tracee: &mut Tracee) -> Result<()> {
                     LoadStatement::MmapAnonymous(LoadStatementMmap {
                         addr: mapping.addr,
                         length: mapping.length,
-                        prot: mapping.prot.bits() as u64,
+                        prot: mapping.prot.bits() as libc::c_ulong,
                         offset: mapping.offset,
                         clear_length: mapping.clear_length,
                     })
@@ -131,7 +132,7 @@ pub fn transfert_load_script(tracee: &mut Tracee) -> Result<()> {
                     LoadStatement::MmapFile(LoadStatementMmap {
                         addr: mapping.addr,
                         length: mapping.length,
-                        prot: mapping.prot.bits() as u64,
+                        prot: mapping.prot.bits() as libc::c_ulong,
                         offset: mapping.offset,
                         clear_length: mapping.clear_length,
                     })
@@ -155,7 +156,7 @@ pub fn transfert_load_script(tracee: &mut Tracee) -> Result<()> {
 
         buffer.extend_from_slice(
             LoadStatement::MakeStackExec(LoadStatementStackExec {
-                start: (stack_pointer & page_mask) as u64,
+                start: (stack_pointer & page_mask) as libc::c_ulong,
             })
             .as_bytes(),
         );
@@ -163,22 +164,23 @@ pub fn transfert_load_script(tracee: &mut Tracee) -> Result<()> {
 
     // determine the entry_point of this executable
     let entry_point = if let Some(interp) = load_info.interp.as_ref() {
-        get!(interp.elf_header, e_entry, u64)?
+        get!(interp.elf_header, e_entry, libc::c_ulong)?
     } else {
-        get!(load_info.elf_header, e_entry, u64)?
+        get!(load_info.elf_header, e_entry, libc::c_ulong)?
     };
 
     // Load script statement: start.
     // TODO: Start of the program slightly differs when ptraced. see proot https://github.com/proot-me/proot/blob/fb9503240eeaa3114b29b8742feb2bda6edccde8/src/execve/exit.c#L298
     buffer.extend_from_slice(
         LoadStatement::Start(LoadStatementStart {
-            stack_pointer: stack_pointer as u64,
+            stack_pointer: stack_pointer as libc::c_ulong,
             entry_point: entry_point,
-            at_phdr: get!(load_info.elf_header, e_phoff, u64)? + load_info.mappings[0].addr,
-            at_phent: get!(load_info.elf_header, e_phentsize, u64)?,
-            at_phnum: get!(load_info.elf_header, e_phnum, u64)?,
-            at_entry: get!(load_info.elf_header, e_entry, u64)?,
-            at_execfn: string3_address as u64,
+            at_phdr: get!(load_info.elf_header, e_phoff, libc::c_ulong)?
+                + load_info.mappings[0].addr,
+            at_phent: get!(load_info.elf_header, e_phentsize, libc::c_ulong)?,
+            at_phnum: get!(load_info.elf_header, e_phnum, libc::c_ulong)?,
+            at_entry: get!(load_info.elf_header, e_entry, libc::c_ulong)?,
+            at_execfn: string3_address as libc::c_ulong,
         })
         .as_bytes(),
     );
@@ -205,12 +207,12 @@ pub fn transfert_load_script(tracee: &mut Tracee) -> Result<()> {
         .write_data(new_stack_pointer as *mut c_void, &buffer, false)?;
     tracee.regs.set(
         StackPointer,
-        new_stack_pointer as u64,
+        new_stack_pointer as libc::c_ulong,
         "update stack pointer address in execve::exit()",
     );
     tracee.regs.set(
         SysArg(SysArgIndex::SysArg1),
-        new_stack_pointer as u64,
+        new_stack_pointer as libc::c_ulong,
         "update stack pointer address in execve::exit()",
     );
 

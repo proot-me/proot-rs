@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use crate::errors::*;
 use crate::filesystem::binding::Side;
 use crate::process::tracee::Tracee;
-use crate::register::{Current, PtraceReader, SysArg, SysArg1, SysResult};
+use crate::register::{Current, PtraceReader, SysArg, SysArg1, SysResult, Word};
 
 pub fn enter(tracee: &mut Tracee) -> Result<()> {
     let sys_num = tracee.regs.get_sys_num(Current);
@@ -49,7 +49,7 @@ pub fn exit(tracee: &mut Tracee) -> Result<()> {
     // This syscall is fully emulated, see method `enter()` above.
     tracee
         .regs
-        .set(SysResult, 0u64, "update return value in chdir::exit()");
+        .set(SysResult, 0 as Word, "update return value in chdir::exit()");
     Ok(())
 }
 

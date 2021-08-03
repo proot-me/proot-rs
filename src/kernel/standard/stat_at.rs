@@ -122,13 +122,16 @@ mod tests {
                     assert_eq!((statx.stx_mode as u32 & nc::S_IFMT), nc::S_IFLNK);
 
                     // test newfstatat()
-                    let mut stat = nc::stat_t::default();
-                    nc::newfstatat(fd, linkname, &mut stat, 0).unwrap();
-                    // should be a regular file, since AT_SYMLINK_NOFOLLOW is not set.
-                    assert_eq!((stat.st_mode & nc::S_IFMT), nc::S_IFREG);
-                    nc::newfstatat(fd, linkname, &mut stat, nc::AT_SYMLINK_NOFOLLOW).unwrap();
-                    // should be a symlink, since AT_SYMLINK_NOFOLLOW is set.
-                    assert_eq!((stat.st_mode & nc::S_IFMT), nc::S_IFLNK);
+                    #[cfg(any(target_arch = "x86_64", target_arch = "aarch64"))]
+                    {
+                        let mut stat = nc::stat_t::default();
+                        nc::newfstatat(fd, linkname, &mut stat, 0).unwrap();
+                        // should be a regular file, since AT_SYMLINK_NOFOLLOW is not set.
+                        assert_eq!((stat.st_mode & nc::S_IFMT), nc::S_IFREG);
+                        nc::newfstatat(fd, linkname, &mut stat, nc::AT_SYMLINK_NOFOLLOW).unwrap();
+                        // should be a symlink, since AT_SYMLINK_NOFOLLOW is set.
+                        assert_eq!((stat.st_mode & nc::S_IFMT), nc::S_IFLNK);
+                    }
 
                     // test utimensat()
 

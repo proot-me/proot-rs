@@ -146,7 +146,7 @@ mod tests {
 
                     // lstat("link1")
                     nc::lstat(&link1_name, &mut stat).unwrap();
-                    assert_eq!((stat.st_mode & nc::S_IFMT), nc::S_IFLNK);
+                    assert_eq!((stat.st_mode as nc::mode_t & nc::S_IFMT), nc::S_IFLNK);
 
                     // lstat("link1/")
                     assert_eq!(
@@ -156,11 +156,11 @@ mod tests {
 
                     // lstat("link2")
                     nc::lstat(&link2_name, &mut stat).unwrap();
-                    assert_eq!((stat.st_mode & nc::S_IFMT), nc::S_IFLNK);
+                    assert_eq!((stat.st_mode as nc::mode_t & nc::S_IFMT), nc::S_IFLNK);
 
                     // lstat("link2/")
                     nc::lstat(format!("{}/", link2_name).as_str(), &mut stat).unwrap();
-                    assert_eq!((stat.st_mode & nc::S_IFMT), nc::S_IFDIR);
+                    assert_eq!((stat.st_mode as nc::mode_t & nc::S_IFMT), nc::S_IFDIR);
                 });
 
                 let _ = std::fs::remove_dir_all(base_dir);
@@ -192,12 +192,12 @@ mod tests {
                     // mkdir("dir1"), test mkdir without trailing slash
                     nc::mkdir(&dir1_name, 0o755).unwrap();
                     nc::lstat(&dir1_name, &mut stat).unwrap();
-                    assert_eq!((stat.st_mode & nc::S_IFMT), nc::S_IFDIR);
+                    assert_eq!((stat.st_mode as nc::mode_t & nc::S_IFMT), nc::S_IFDIR);
 
                     // mkdir("dir2/"), test mkdir with trailing slash
                     nc::mkdir(format!("{}/", dir2_name).as_str(), 0o755).unwrap();
                     nc::lstat(format!("{}/", dir2_name).as_str(), &mut stat).unwrap();
-                    assert_eq!((stat.st_mode & nc::S_IFMT), nc::S_IFDIR);
+                    assert_eq!((stat.st_mode as nc::mode_t & nc::S_IFMT), nc::S_IFDIR);
 
                     nc::symlink(&dir3_name, &link1_name).unwrap();
 
@@ -248,15 +248,15 @@ mod tests {
 
                     // lstat("link1")
                     nc::lstat(&link1_name, &mut stat).unwrap();
-                    assert_eq!((stat.st_mode & nc::S_IFMT), nc::S_IFLNK);
+                    assert_eq!((stat.st_mode as nc::mode_t & nc::S_IFMT), nc::S_IFLNK);
 
                     // lstat("link2")
                     nc::lstat(&link2_name, &mut stat).unwrap();
-                    assert_eq!((stat.st_mode & nc::S_IFMT), nc::S_IFLNK);
+                    assert_eq!((stat.st_mode as nc::mode_t & nc::S_IFMT), nc::S_IFLNK);
 
                     // lstat("link1/") -> lstat("link2/") -> lstat("dir/")
                     nc::lstat(format!("{}/", link1_name).as_str(), &mut stat).unwrap();
-                    assert_eq!((stat.st_mode & nc::S_IFMT), nc::S_IFDIR);
+                    assert_eq!((stat.st_mode as nc::mode_t & nc::S_IFMT), nc::S_IFDIR);
                 });
 
                 let _ = std::fs::remove_dir_all(base_dir);

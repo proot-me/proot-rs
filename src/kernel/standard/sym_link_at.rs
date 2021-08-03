@@ -56,14 +56,14 @@ mod tests {
                     let mut stat = nc::stat_t::default();
                     // both `linkpath_1` and `linkpath_2` should be symlink
                     nc::lstat(linkpath_1, &mut stat).unwrap();
-                    assert_eq!((stat.st_mode & nc::S_IFMT), nc::S_IFLNK);
+                    assert_eq!((stat.st_mode as nc::mode_t & nc::S_IFMT), nc::S_IFLNK);
                     nc::lstat(linkpath_2, &mut stat).unwrap();
-                    assert_eq!((stat.st_mode & nc::S_IFMT), nc::S_IFLNK);
+                    assert_eq!((stat.st_mode as nc::mode_t & nc::S_IFMT), nc::S_IFLNK);
                     // both `linkpath_1` and `linkpath_2` should point to a regular file
                     nc::stat(linkpath_1, &mut stat).unwrap();
-                    assert_eq!((stat.st_mode & nc::S_IFMT), nc::S_IFREG);
+                    assert_eq!((stat.st_mode as nc::mode_t & nc::S_IFMT), nc::S_IFREG);
                     nc::stat(linkpath_2, &mut stat).unwrap();
-                    assert_eq!((stat.st_mode & nc::S_IFMT), nc::S_IFREG);
+                    assert_eq!((stat.st_mode as nc::mode_t & nc::S_IFMT), nc::S_IFREG);
                 });
                 std::fs::remove_file(filepath).unwrap();
                 std::fs::remove_file(linkpath_1).unwrap();

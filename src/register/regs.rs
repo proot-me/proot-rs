@@ -4,7 +4,7 @@ use std::mem::MaybeUninit;
 use libc::c_void;
 use nix::unistd::Pid;
 
-use crate::errors::Result;
+use crate::errors::*;
 use crate::register::Word;
 
 const VOID: Word = Word::MAX;

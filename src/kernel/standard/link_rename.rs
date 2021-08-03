@@ -146,7 +146,7 @@ mod tests {
                     nc::link(original_linkpath, cloned_linkpath).unwrap();
                     let mut stat = nc::stat_t::default();
                     nc::lstat(cloned_linkpath, &mut stat).unwrap();
-                    assert_eq!((stat.st_mode & nc::S_IFMT), nc::S_IFLNK);
+                    assert_eq!((stat.st_mode as nc::mode_t & nc::S_IFMT), nc::S_IFLNK);
                     let mut buf = [0_u8; nc::PATH_MAX as usize];
                     let n_read = nc::readlink(cloned_linkpath, &mut buf).unwrap() as usize;
                     assert_eq!(original_filepath.as_bytes(), &buf[0..n_read]);
@@ -155,7 +155,10 @@ mod tests {
                     nc::link(original_filepath, cloned_filepath).unwrap();
                     let mut cloned_filestat = nc::stat_t::default();
                     nc::lstat(cloned_filepath, &mut cloned_filestat).unwrap();
-                    assert_eq!((cloned_filestat.st_mode & nc::S_IFMT), nc::S_IFREG);
+                    assert_eq!(
+                        (cloned_filestat.st_mode as nc::mode_t & nc::S_IFMT),
+                        nc::S_IFREG
+                    );
 
                     let mut original_filestat = nc::stat_t::default();
                     nc::lstat(original_filepath, &mut original_filestat).unwrap();
@@ -168,7 +171,7 @@ mod tests {
                     // This file does not exist because it has been renamed.
                     assert_eq!(nc::lstat(cloned_filepath, &mut stat), Err(nc::ENOENT));
                     nc::lstat(renamed_filepath, &mut stat).unwrap();
-                    assert_eq!((stat.st_mode & nc::S_IFMT), nc::S_IFREG);
+                    assert_eq!((stat.st_mode as nc::mode_t & nc::S_IFMT), nc::S_IFREG);
 
                     // test renameat()
                     nc::renameat(fd, renamed_filename, fd, rerenamed_filename).unwrap();
@@ -176,7 +179,7 @@ mod tests {
                     // This file does not exist because it has been renamed.
                     assert_eq!(nc::lstat(renamed_filepath, &mut stat), Err(nc::ENOENT));
                     nc::lstat(rerenamed_filepath, &mut stat).unwrap();
-                    assert_eq!((stat.st_mode & nc::S_IFMT), nc::S_IFREG);
+                    assert_eq!((stat.st_mode as nc::mode_t & nc::S_IFMT), nc::S_IFREG);
                 });
 
                 let _ = std::fs::remove_file(original_filepath);

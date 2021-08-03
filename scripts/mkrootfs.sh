@@ -25,7 +25,9 @@ case $(uname -m) in
     i386)   arch="i386" ;;
     i686)   arch="i386" ;;
     x86_64) arch="amd64" ;;
-    *)      echo "Unsupported architecture $(uname -m)"; exist 1 ;;
+    armv7l) arch="arm32v7" ;;
+    aarch64) arch="arm64v8" ;;
+    *)      echo "Unsupported architecture $(uname -m)"; exit 1 ;;
 esac
 
 if [ -n "$(ls -A "${PROOT_TEST_ROOTFS}" 2>/dev/null)" ]; then

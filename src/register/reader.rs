@@ -175,7 +175,8 @@ mod tests {
     #[cfg(target_pointer_width = "32")]
     fn test_reader_convert_word_to_bytes() {
         let number: Word =
-            'h' as u64 + 'e' as u64 * 256 + 'l' as u64 * 256 * 256 + 'o' as u64 * 256 * 256 * 256;
+            ('h' as u64 + 'e' as u64 * 256 + 'l' as u64 * 256 * 256 + 'o' as u64 * 256 * 256 * 256)
+                as Word;
         let bytes = convert_word_to_bytes(number);
 
         assert_eq!(bytes, ['h' as u8, 'e' as u8, 'l' as u8, 'o' as u8]);

@@ -66,7 +66,7 @@ mod tests {
                     let file_fd = nc::open(linkpath, nc::O_RDONLY | nc::O_CREAT, 0o755).unwrap();
                     let mut stat = nc::stat_t::default();
                     nc::fstat(file_fd, &mut stat).unwrap();
-                    assert_eq!((stat.st_mode & nc::S_IFMT), nc::S_IFREG);
+                    assert_eq!((stat.st_mode as nc::mode_t & nc::S_IFMT), nc::S_IFREG);
                     nc::unlink(filepath).unwrap();
 
                     // Test open(filepath) with `O_CREAT` and `O_EXCL`, and this will create a
@@ -75,21 +75,21 @@ mod tests {
                         nc::open(filepath, nc::O_RDONLY | nc::O_CREAT | nc::O_EXCL, 0o755).unwrap();
                     let mut stat = nc::stat_t::default();
                     nc::fstat(file_fd, &mut stat).unwrap();
-                    assert_eq!((stat.st_mode & nc::S_IFMT), nc::S_IFREG);
+                    assert_eq!((stat.st_mode as nc::mode_t & nc::S_IFMT), nc::S_IFREG);
                     nc::close(file_fd).unwrap();
 
                     // test open() with `OFlag::O_NOFOLLOW`;
                     let file_fd = nc::open(linkpath, nc::O_NOFOLLOW | nc::O_PATH, 0).unwrap();
                     let mut stat = nc::stat_t::default();
                     nc::fstat(file_fd, &mut stat).unwrap();
-                    assert_eq!((stat.st_mode & nc::S_IFMT), nc::S_IFLNK);
+                    assert_eq!((stat.st_mode as nc::mode_t & nc::S_IFMT), nc::S_IFLNK);
                     nc::close(file_fd).unwrap();
 
                     // test open() in normal case;
                     let file_fd = nc::open(linkpath, 0, 0).unwrap();
                     let mut stat = nc::stat_t::default();
                     nc::fstat(file_fd, &mut stat).unwrap();
-                    assert_eq!((stat.st_mode & nc::S_IFMT), nc::S_IFREG);
+                    assert_eq!((stat.st_mode as nc::mode_t & nc::S_IFMT), nc::S_IFREG);
                     nc::close(file_fd).unwrap();
                 });
                 let _ = std::fs::remove_file(linkpath);

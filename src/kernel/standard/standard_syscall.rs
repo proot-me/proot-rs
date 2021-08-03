@@ -51,9 +51,9 @@ mod tests {
                     nc::stat(linkpath, &mut stat).unwrap();
                     // should be a regular file, since symbol link file will be dereference
                     // automatically.
-                    assert_eq!((stat.st_mode & nc::S_IFMT), nc::S_IFREG);
+                    assert_eq!((stat.st_mode as nc::mode_t & nc::S_IFMT), nc::S_IFREG);
                     nc::stat(filepath, &mut stat).unwrap();
-                    assert_eq!((stat.st_mode & nc::S_IFMT), nc::S_IFREG);
+                    assert_eq!((stat.st_mode as nc::mode_t & nc::S_IFMT), nc::S_IFREG);
                 });
                 std::fs::remove_file(filepath).unwrap();
                 std::fs::remove_file(linkpath).unwrap();

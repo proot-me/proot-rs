@@ -135,10 +135,10 @@ mod tests {
                     let mut stat = nc::stat_t::default();
                     nc::lstat(linkpath, &mut stat).unwrap();
                     // should be a symlink.
-                    assert_eq!((stat.st_mode & nc::S_IFMT), nc::S_IFLNK);
+                    assert_eq!((stat.st_mode as nc::mode_t & nc::S_IFMT), nc::S_IFLNK);
                     nc::lstat(filepath, &mut stat).unwrap();
                     // should be a symlink.
-                    assert_eq!((stat.st_mode & nc::S_IFMT), nc::S_IFREG);
+                    assert_eq!((stat.st_mode as nc::mode_t & nc::S_IFMT), nc::S_IFREG);
 
                     // test lchown()
 

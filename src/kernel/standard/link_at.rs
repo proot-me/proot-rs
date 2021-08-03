@@ -72,7 +72,7 @@ mod tests {
                     nc::linkat(fd, oldlinkname, fd, newlinkname, 0).unwrap();
                     let mut stat = nc::stat_t::default();
                     nc::lstat(newlinkpath, &mut stat).unwrap();
-                    assert_eq!((stat.st_mode & nc::S_IFMT), nc::S_IFLNK);
+                    assert_eq!((stat.st_mode as nc::mode_t & nc::S_IFMT), nc::S_IFLNK);
                     let mut buf = [0_u8; nc::PATH_MAX as usize];
                     let n_read = nc::readlink(newlinkpath, &mut buf).unwrap() as usize;
                     assert_eq!(oldfilepath.as_bytes(), &buf[0..n_read]);
@@ -82,7 +82,10 @@ mod tests {
                     nc::linkat(fd, oldlinkname, fd, newfilename, nc::AT_SYMLINK_FOLLOW).unwrap();
                     let mut new_filestat = nc::stat_t::default();
                     nc::lstat(newfilepath, &mut new_filestat).unwrap();
-                    assert_eq!((new_filestat.st_mode & nc::S_IFMT), nc::S_IFREG);
+                    assert_eq!(
+                        (new_filestat.st_mode as nc::mode_t & nc::S_IFMT),
+                        nc::S_IFREG
+                    );
                     let mut old_filestat = nc::stat_t::default();
                     nc::lstat(oldfilepath, &mut old_filestat).unwrap();
                     assert_eq!(new_filestat.st_ino, old_filestat.st_ino);

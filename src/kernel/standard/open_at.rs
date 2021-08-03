@@ -60,21 +60,21 @@ mod tests {
                             .unwrap();
                     let mut stat = nc::stat_t::default();
                     nc::fstat(file_fd, &mut stat).unwrap();
-                    assert_eq!((stat.st_mode & nc::S_IFMT), nc::S_IFREG);
+                    assert_eq!((stat.st_mode as nc::mode_t & nc::S_IFMT), nc::S_IFREG);
                     nc::close(file_fd).unwrap();
 
                     // test openat() with `OFlag::O_NOFOLLOW`;
                     let file_fd = nc::openat(fd, linkname, nc::O_NOFOLLOW | nc::O_PATH, 0).unwrap();
                     let mut stat = nc::stat_t::default();
                     nc::fstat(file_fd, &mut stat).unwrap();
-                    assert_eq!((stat.st_mode & nc::S_IFMT), nc::S_IFLNK);
+                    assert_eq!((stat.st_mode as nc::mode_t & nc::S_IFMT), nc::S_IFLNK);
                     nc::close(file_fd).unwrap();
 
                     // test openat() in normal case;
                     let file_fd = nc::openat(fd, linkname, 0, 0).unwrap();
                     let mut stat = nc::stat_t::default();
                     nc::fstat(file_fd, &mut stat).unwrap();
-                    assert_eq!((stat.st_mode & nc::S_IFMT), nc::S_IFREG);
+                    assert_eq!((stat.st_mode as nc::mode_t & nc::S_IFMT), nc::S_IFREG);
                     nc::close(file_fd).unwrap();
                 });
                 std::fs::remove_file(linkpath).unwrap();

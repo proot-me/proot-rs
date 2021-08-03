@@ -107,8 +107,8 @@ use self::Register::*;
 ///   to the other slot of the specified version
 /// - `push_regs()`: Decide whether to overwrite the [`Current`] version of the
 ///   value with the [`Original`] version based on the `regs_were_changed` and
-///   `restore_original_regs` fields (Note that syscall return value will not be
-///   overwrite). Then the [`Current`] version of the register value will be
+///   `restore_original_regs` fields (**Note that syscall return value will not be
+///   overwrite**). Then the [`Current`] version of the register value will be
 ///   pushed to the tracee process.
 /// - `get()`: Get the value of a specific register in the specified version.
 /// - `set()`: Set the value of a specific register for the [`Current`] version.
@@ -308,22 +308,37 @@ impl Registers {
         };
     }
 
-    /// Restore the current regs with the original ones.
+    /// Restore the current regs with the original ones. This function
+    /// requires both `Current` and `Original` regs to be defined.
     ///
-    /// Requires both `Current` and `Original` regs to be defined.
+    /// Note that syscall return value will not be overwrite**
     #[inline]
     fn restore_regs(&mut self) {
         let original_regs = self.registers[Original as usize].unwrap(); // get a copy of original regs
         let current_regs = self.registers[Current as usize].as_mut().unwrap();
 
-        get_reg!(current_regs, SysNum) = get_reg!(original_regs, SysNum);
-        get_reg!(current_regs, SysArg1) = get_reg!(original_regs, SysArg1);
-        get_reg!(current_regs, SysArg2) = get_reg!(original_regs, SysArg2);
-        get_reg!(current_regs, SysArg3) = get_reg!(original_regs, SysArg3);
-        get_reg!(current_regs, SysArg4) = get_reg!(original_regs, SysArg4);
-        get_reg!(current_regs, SysArg5) = get_reg!(original_regs, SysArg5);
-        get_reg!(current_regs, SysArg6) = get_reg!(original_regs, SysArg6);
-        get_reg!(current_regs, StackPointer) = get_reg!(original_regs, StackPointer);
+        macro_rules! restore {
+            ($reg: ident) => {
+                // In some architectures (such as arm and aarch64), modifying
+                // the parameter registers results in modifying the system
+                // call return value. We need to detect such problems and skip.
+                if !std::ptr::eq(
+                    &get_reg!(current_regs, $reg),
+                    &get_reg!(current_regs, SysResult),
+                ) {
+                    get_reg!(current_regs, $reg) = get_reg!(original_regs, $reg);
+                }
+            };
+        }
+        restore!(SysNum);
+        restore!(SysArg1);
+        restore!(SysArg2);
+        restore!(SysArg3);
+        restore!(SysArg4);
+        restore!(SysArg5);
+        restore!(SysArg6);
+        restore!(StackPointer);
+        // Note that syscall return value register should not be restored.
     }
 
     #[inline]

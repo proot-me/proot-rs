@@ -55,16 +55,22 @@ mod tests {
 
                     // test openat() with `O_CREAT` and `O_EXCL`
                     // this will create a regular file at `filepath`
-                    let file_fd =
-                        nc::openat(fd, filename, nc::O_RDONLY | nc::O_CREAT | nc::O_EXCL, 0o755)
-                            .unwrap();
+                    let file_fd = nc::openat(
+                        fd,
+                        filename,
+                        (OFlag::O_RDONLY | OFlag::O_CREAT | OFlag::O_EXCL).bits(),
+                        0o755,
+                    )
+                    .unwrap();
                     let mut stat = nc::stat_t::default();
                     nc::fstat(file_fd, &mut stat).unwrap();
                     assert_eq!((stat.st_mode as nc::mode_t & nc::S_IFMT), nc::S_IFREG);
                     nc::close(file_fd).unwrap();
 
                     // test openat() with `OFlag::O_NOFOLLOW`;
-                    let file_fd = nc::openat(fd, linkname, nc::O_NOFOLLOW | nc::O_PATH, 0).unwrap();
+                    let file_fd =
+                        nc::openat(fd, linkname, (OFlag::O_NOFOLLOW | OFlag::O_PATH).bits(), 0)
+                            .unwrap();
                     let mut stat = nc::stat_t::default();
                     nc::fstat(file_fd, &mut stat).unwrap();
                     assert_eq!((stat.st_mode as nc::mode_t & nc::S_IFMT), nc::S_IFLNK);

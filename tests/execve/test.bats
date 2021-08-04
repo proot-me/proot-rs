@@ -24,7 +24,7 @@ load ../helper
 
 
 function script_test_run_script_with_shebang {
-    PATH=/bin
+    PATH=/usr/local/bin:/usr/bin:/bin
 
     cd /tmp/test_run_script_with_shebang
 
@@ -89,7 +89,7 @@ function script_test_run_script_with_shebang {
 
 @test "test run script with shebang" {
     local test_dir="$ROOTFS/tmp/test_run_script_with_shebang"
-    mkdir "$test_dir"
+    mkdir -p "$test_dir"
     runp proot-rs --rootfs "$ROOTFS" -- /bin/sh -e -x -c "$(declare -f script_test_run_script_with_shebang); script_test_run_script_with_shebang"
     rm -rf "$test_dir"
     [ "$status" -eq 0 ]

@@ -14,7 +14,7 @@ function script_test_run_sh {
 
 
 function script_test_run_applets_file_ops {
-    PATH=/bin
+    PATH=/usr/local/bin:/usr/bin:/bin
 
     # pwd
     [ "$(/bin/pwd -L)" = "/" ]
@@ -107,7 +107,7 @@ function script_test_run_applets_file_ops {
 
 
 function script_test_run_applets_common_tools {
-    PATH=/bin
+    PATH=/usr/local/bin:/usr/bin:/bin
 
     # clear
     clear
@@ -241,7 +241,7 @@ function script_test_run_applets_common_tools {
 
 @test "test proot-rs run applets common tools" {
     local test_dir="$ROOTFS/tmp/test_applets_common_tools"
-    mkdir "$test_dir"
+    mkdir -p "$test_dir"
     runp proot-rs --rootfs "$ROOTFS" --cwd "/tmp/test_applets_common_tools" -- /bin/sh -e -x -c "$(declare -f script_test_run_applets_common_tools); script_test_run_applets_common_tools"
     rm -rf "$test_dir"
     [ "$status" -eq 0 ]
@@ -259,8 +259,10 @@ function script_test_run_applets_common_tools {
 
 
 @test "test proot-rs run whoami" {
+    check_if_command_exists whoami
+
     local output_on_host="$(whoami)"
-    runp proot-rs -- /bin/whoami
+    runp proot-rs -- "$(which whoami)"
     [ "$status" -eq 0 ]
     local output_on_guest="$output"
 
@@ -269,8 +271,10 @@ function script_test_run_applets_common_tools {
 
 
 @test "test proot-rs run man " {
-    local output_on_host="$(man man)"
-    runp proot-rs -- /bin/man man
+    check_if_command_exists man
+
+    local output_on_host="$(MAN_DISABLE_SECCOMP=1 man man)"
+    MAN_DISABLE_SECCOMP=1 runp proot-rs -- "$(which man)" man
     [ "$status" -eq 0 ]
     local output_on_guest="$output"
 
@@ -290,7 +294,7 @@ function script_test_run_applets_common_tools {
 @test "test proot-rs run kill" {
 
     runp proot-rs --rootfs "$ROOTFS" -- /bin/sh -e -x -c '
-        PATH=/bin
+        PATH=/usr/local/bin:/usr/bin:/bin
         sleep 10 &
         pid="$!"
         # kill the background process
@@ -308,7 +312,7 @@ function script_test_run_applets_common_tools {
     fi
 
     runp proot-rs -- /bin/sh -e -x -c '
-        PATH=/bin
+        PATH=/usr/local/bin:/usr/bin:/bin
         sleep 10 &
         pid="$!"
         # kill the background process
@@ -322,8 +326,15 @@ function script_test_run_applets_common_tools {
 
 
 @test "test proot-rs run ping" {
+    check_if_command_exists ping
+
     # ping localhost once
-    proot-rs -- /bin/ping -c 1 127.0.0.1
+    runp proot-rs -- "$(which ping)" -c 1 127.0.0.1
+
+    if [[ "$output" == *"Operation not permitted"* ]]; then
+        skip "The command \`ping\` requires either the SETUID bit or the CAP_NET_RAW capability, but when run in proot-rs, both of these effects are stripped"
+    fi
+    [ "$status" -eq 0 ]
 }
 
 
@@ -348,7 +359,7 @@ function script_test_run_applets_common_tools {
 
 
 function script_test_proot_rs_path_with_railing_slash {
-    PATH=/bin
+    PATH=/usr/local/bin:/usr/bin:/bin
     [[ "$(stat -c "%F" /lib64)" == *"symbolic link"* ]]
     [[ "$(stat -c "%F" /lib64/)" == *"directory"* ]]
     [[ "$(stat -c "%F" /lib64/.)" == *"directory"* ]]
@@ -369,7 +380,7 @@ function script_test_proot_rs_path_with_railing_slash {
 
 
 function script_test_should_not_follow {
-    PATH=/bin
+    PATH=/usr/local/bin:/usr/bin:/bin
 
     cd /tmp/test_should_not_follow
 
@@ -388,7 +399,7 @@ function script_test_should_not_follow {
 
 @test "test should not follow" {
     local test_dir="$ROOTFS/tmp/test_should_not_follow"
-    mkdir "$test_dir"
+    mkdir -p "$test_dir"
     runp proot-rs --rootfs "$ROOTFS" -- /bin/sh -e -x -c "$(declare -f script_test_should_not_follow); script_test_should_not_follow"
     rm -rf "$test_dir"
     [ "$status" -eq 0 ]
@@ -398,7 +409,7 @@ function script_test_should_not_follow {
 
 
 function script_test_trailing_slash_in_symlink {
-    PATH=/bin
+    PATH=/usr/local/bin:/usr/bin:/bin
 
     cd /tmp/test_trailing_slash_in_symlink
 
@@ -415,7 +426,7 @@ function script_test_trailing_slash_in_symlink {
 
 @test "test trailing slash in symlink" {
     local test_dir="$ROOTFS/tmp/test_trailing_slash_in_symlink"
-    mkdir "$test_dir"
+    mkdir -p "$test_dir"
     runp proot-rs --rootfs "$ROOTFS" -- /bin/sh -e -x -c "$(declare -f script_test_trailing_slash_in_symlink); script_test_trailing_slash_in_symlink"
     rm -rf "$test_dir"
     [ "$status" -eq 0 ]

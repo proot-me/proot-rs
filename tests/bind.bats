@@ -5,27 +5,27 @@ load helper
 
 @test "test bind dir to dir" {
     # bind /etc to /home
-    proot-rs --bind "/etc:/home" -- /bin/sh -c "/bin/diff /etc /home"
+    proot-rs --bind "/etc:/home" -- /bin/sh -c "$(which diff) /etc /home"
 }
 
 
 @test "test bind file to file" {
     # bind /etc/group to /etc/passwd
-    proot-rs --bind "/etc/group:/etc/passwd" -- /bin/sh -c "/bin/diff /etc/group /etc/passwd"
+    proot-rs --bind "/etc/group:/etc/passwd" -- /bin/sh -c "$(which diff) /etc/group /etc/passwd"
 }
 
 
 @test "test bind dir to file" {
     # bind /home to /etc/passwd
     # this may seem odd, but it is allowed
-    proot-rs --bind "/home:/etc/passwd" -- /bin/sh -c "/bin/diff /home /etc/passwd"
+    proot-rs --bind "/home:/etc/passwd" -- /bin/sh -c "$(which diff) /home /etc/passwd"
 }
 
 
 @test "test bind file to dir" {
     # bind /etc/passwd to /home
     # this may seem odd, but it is allowed
-    proot-rs --bind "/etc/passwd:/home" -- /bin/sh -c "/bin/diff /etc/passwd /home"
+    proot-rs --bind "/etc/passwd:/home" -- /bin/sh -c "$(which diff) /etc/passwd /home"
 }
 
 
@@ -45,7 +45,7 @@ load helper
     chmod 777 "$ROOTFS/tmp/test_bind_with_getdents64/file2"
     # bind "$ROOTFS/tmp/test_bind_with_getdents64/file1" to "/tmp/test_bind_with_getdents64/file2"
     runp proot-rs --rootfs "$ROOTFS" --bind "$ROOTFS/tmp/test_bind_with_getdents64/file1:/tmp/test_bind_with_getdents64/file2" -- /bin/sh -e -c ' \
-        PATH=/bin
+        PATH=/usr/local/bin:/usr/bin:/bin
         # Get the output of ls -l and filter out the lines related to file1 and file2
         output=$(ls -l /tmp/test_bind_with_getdents64 | grep "file" | sed  "s/file.*//g") \
         # The $output should contain two lines

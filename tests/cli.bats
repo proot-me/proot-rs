@@ -26,7 +26,7 @@ load helper
 }
 
 @test "test proot-rs options --bind" {
-    proot-rs --bind "/etc:/home" -- /bin/stat /home/passwd
-    proot-rs -b "/etc:/home" -- /bin/stat /home/passwd
+    proot-rs --bind "/etc:/home" -- "$(which stat)" /home/passwd
+    proot-rs -b "/etc:/home" -- "$(which stat)" /home/passwd
 }
 

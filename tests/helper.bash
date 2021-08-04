@@ -1,5 +1,7 @@
 #!/bin/bash
 
+export LC_ALL=C
+
 # The root directory where the integration test files are placed
 TEST_ROOT=$(dirname "$(readlink -f "$BASH_SOURCE")")
 
@@ -30,14 +32,19 @@ function proot-rs() {
 
 # Compile a single C source code file ($2) to statically linked binary ($1)
 function compile_c_static() {
-    local target_path=$1
-    local source_path=$2
+    local target_path="$1"
+    local source_path="$2"
     gcc -static -o "$target_path" "$source_path"
 }
 
 # Same as `compile_c_static()`, but the final binary is dynamically linked
 function compile_c_dynamic() {
-    local target_path=$1
-    local source_path=$2
+    local target_path="$1"
+    local source_path="$2"
     gcc -o "$target_path" "$source_path"
+}
+
+# Ensure that the command exists, or skip the test
+function check_if_command_exists() {
+    command -v "$1" 1>&- 2>&- || { skip "The command \`$1\` is required but is not installed."; }
 }

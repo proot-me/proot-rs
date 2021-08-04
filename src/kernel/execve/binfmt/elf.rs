@@ -3,6 +3,7 @@ use crate::filesystem::readers::ExtraReader;
 use crate::filesystem::FileSystem;
 use crate::kernel::execve::load_info::LoadInfo;
 use crate::kernel::execve::params::ExecveParameters;
+use std::any::TypeId;
 use std::fs::File;
 use std::io::{Read, Seek, SeekFrom};
 use std::mem;
@@ -41,32 +42,44 @@ pub enum ExecutableClass {
     Class64 = 2,
 }
 
-/// Use T = u32 for 32bits, and T = u64 for 64bits.
 #[repr(C)]
 #[derive(Debug, PartialEq)]
-pub struct ParameterizedProgramHeader<T> {
+pub struct ProgramHeader32 {
+    pub p_type: u32,
+    pub p_offset: u32,
+    pub p_vaddr: u32,
+    pub p_paddr: u32,
+    pub p_filesz: u32,
+    pub p_memsz: u32,
+    pub p_flags: u32,
+    pub p_align: u32,
+}
+
+#[repr(C)]
+#[derive(Debug, PartialEq)]
+pub struct ProgramHeader64 {
     pub p_type: u32,
     pub p_flags: u32,
-    pub p_offset: T,
-    pub p_vaddr: T,
-    pub p_paddr: T,
-    pub p_filesz: T,
-    pub p_memsz: T,
-    pub p_align: T,
+    pub p_offset: u64,
+    pub p_vaddr: u64,
+    pub p_paddr: u64,
+    pub p_filesz: u64,
+    pub p_memsz: u64,
+    pub p_align: u64,
 }
 
 #[derive(Debug, PartialEq)]
 pub enum ProgramHeader {
-    ProgramHeader32(ParameterizedProgramHeader<u32>),
-    ProgramHeader64(ParameterizedProgramHeader<u64>),
+    ProgramHeader32(ProgramHeader32),
+    ProgramHeader64(ProgramHeader64),
 }
 
 impl ProgramHeader {
     #[inline]
     pub fn apply<
         V,
-        F32: FnOnce(&ParameterizedProgramHeader<u32>) -> Result<V>,
-        F64: FnOnce(&ParameterizedProgramHeader<u64>) -> Result<V>,
+        F32: FnOnce(&ProgramHeader32) -> Result<V>,
+        F64: FnOnce(&ProgramHeader64) -> Result<V>,
     >(
         &self,
         func32: F32,
@@ -99,7 +112,7 @@ pub struct ParameterizedElfHeader<T> {
     pub e_shstrndx: u16,
 }
 
-impl<T> ParameterizedElfHeader<T> {
+impl<T: 'static> ParameterizedElfHeader<T> {
     #[inline]
     pub fn is_exec_or_dyn(&self) -> Result<()> {
         match self.e_type {
@@ -116,7 +129,11 @@ impl<T> ParameterizedElfHeader<T> {
 
     #[inline]
     pub fn is_known_phentsize(&self) -> Result<()> {
-        let program_header_size = mem::size_of::<ParameterizedProgramHeader<T>>() as u16;
+        let program_header_size = if TypeId::of::<T>() == TypeId::of::<u64>() {
+            mem::size_of::<ProgramHeader64>() as u16
+        } else {
+            mem::size_of::<ProgramHeader32>() as u16
+        };
 
         match self.e_phentsize == program_header_size {
             true => Ok(()),
@@ -287,7 +304,10 @@ mod tests {
         let mut file = File::open(PathBuf::from("/bin/sleep")).unwrap();
         let (elf_header, _) = ElfHeader::extract_from(&mut file).unwrap();
 
-        assert_eq!(get!(elf_header, e_ident).unwrap()[4], 2);
+        assert!(
+            get!(elf_header, e_ident).unwrap()[4] == 1 // 32 bit elf file
+                || get!(elf_header, e_ident).unwrap()[4] == 2 // 64 bit elf file
+        );
         assert!(apply!(elf_header, |header| header.is_exec_or_dyn()).is_ok());
         assert!(apply!(elf_header, |header| header.is_known_phentsize()).is_ok());
     }

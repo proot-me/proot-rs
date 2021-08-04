@@ -306,7 +306,8 @@ impl LoadInfo {
 }
 
 // TODO: change size of enum tags
-#[repr(C, u64)]
+#[cfg_attr(any(target_arch = "x86_64", target_arch = "aarch64"), repr(C, u64))]
+#[cfg_attr(any(target_arch = "x86", target_arch = "arm"), repr(C, u32))]
 #[derive(Debug)]
 pub enum LoadStatement {
     OpenNext(LoadStatementOpen),

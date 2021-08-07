@@ -5,7 +5,7 @@ use std::io::Write;
 use std::os::unix::fs::PermissionsExt;
 use std::path::Path;
 
-const LOADER_EXE: &'static [u8] = include_bytes!("loader/binary_loader_exe");
+const LOADER_EXE: &'static [u8] = include_bytes!("loader/loader-shim");
 
 pub trait LoaderFile {
     fn prepare_loader(&self) -> Result<()>;
@@ -21,7 +21,7 @@ impl LoaderFile for TempFile {
         file.write_all(LOADER_EXE)?;
 
         // make it readable and executable
-        perms.set_mode(S_IRUSR | S_IXUSR);
+        perms.set_mode((S_IRUSR | S_IXUSR) as _);
         file.set_permissions(perms)?;
 
         Ok(())

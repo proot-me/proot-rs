@@ -2,9 +2,15 @@ use crate::errors::*;
 use crate::register::{Current, Original, Registers, StackPointer, Word};
 use std::usize::MAX as USIZE_MAX;
 
-#[cfg(all(target_os = "linux", target_arch = "x86_64"))]
+#[cfg(all(
+    any(target_os = "linux", target_os = "android"),
+    target_arch = "x86_64"
+))]
 const RED_ZONE_SIZE: isize = 128;
-#[cfg(all(target_os = "linux", not(target_arch = "x86_64")))]
+#[cfg(all(
+    any(target_os = "linux", target_os = "android"),
+    not(target_arch = "x86_64")
+))]
 const RED_ZONE_SIZE: isize = 0;
 
 pub trait PtraceMemoryAllocator {

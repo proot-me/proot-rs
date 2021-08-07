@@ -1,0 +1,18 @@
+# cargo-features = ["extra-link-arg"]
+
+[package]
+name = "loader-shim"
+version = "0.1.0"
+authors = ["PRoot Developers <proot_me@googlegroups.com>"]
+edition = "2018"
+
+[dependencies]
+sc = { path = "../../res/syscall.rs" }
+rlibc = { version = "1.0", optional = true }
+
+[features]
+build-binary = [ "rlibc" ]
+
+[[bin]]
+name = "loader-shim"
+required-features = ["build-binary"] # crate `rlibc` is required only when build executable files

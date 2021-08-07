@@ -7,6 +7,6 @@
 .idea/
 PRoot-rust.iml
 *.rs.bk
-/src/kernel/execve/loader/binary_loader_exe
 .vscode/
 rootfs/
+proot-rs/src/kernel/execve/loader/loader-shim

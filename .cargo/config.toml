@@ -1,2 +1,5 @@
 [target.arm-unknown-linux-musleabi]
 linker = "arm-linux-musleabi-gcc"
+
+[target.arm-linux-androideabi]
+linker = "armv7a-linux-androideabi18-clang"

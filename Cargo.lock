@@ -45,9 +45,9 @@ checksum = "14c189c53d098945499cdfa7ecc63567cf3886b3332b312a5b4585d8d3a6a610"
 
 [[package]]
 name = "cc"
-version = "1.0.67"
+version = "1.0.69"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e3c69b077ad434294d3ce9f1f6143a2a4b89a8a2d54ef813d85003a4fd1137fd"
+checksum = "e70cc2f62c6ce1868963827bd677764c62d07c3d9a3e1fb1177ee1a9ab199eb2"
 
 [[package]]
 name = "cfg-if"
@@ -116,6 +116,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ba4aede83fc3617411dc6993bc8c70919750c1c257c6ca6a502aed6e0e2394ae"
 
 [[package]]
+name = "loader-shim"
+version = "0.1.0"
+dependencies = [
+ "rlibc",
+ "sc 0.2.4",
+]
+
+[[package]]
 name = "log"
 version = "0.4.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -132,9 +140,9 @@ checksum = "0ee1c47aaa256ecabcaea351eae4a9b01ef39ed810004e298d2511ed284b1525"
 
 [[package]]
 name = "nc"
-version = "0.6.2"
+version = "0.7.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "513aaa1a95469f86db3b008b53f718bbe93ee80584ef725abe63f4f4173089f0"
+checksum = "c7d087c9008c3b6e74d552e5ac9aa5aa7c4dbfdaa5f31211eb4f123a931e745b"
 dependencies = [
  "cc",
 ]
@@ -161,10 +169,11 @@ dependencies = [
  "gcc",
  "lazy_static",
  "libc",
+ "loader-shim",
  "log",
  "nc",
  "nix",
- "sc",
+ "sc 0.2.4 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -185,10 +194,20 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "24d5f089152e60f62d28b835fbff2cd2e8dc0baf1ac13343bef92ab7eed84548"
 
 [[package]]
-name = "sc"
-version = "0.2.3"
+name = "rlibc"
+version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "176365c8253e381ad147774b6d9730a1b3fe2d7db498af521ed7d968674a55b3"
+checksum = "fc874b127765f014d792f16763a81245ab80500e2ad921ed4ee9e82481ee08fe"
+
+[[package]]
+name = "sc"
+version = "0.2.4"
+
+[[package]]
+name = "sc"
+version = "0.2.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d6c362b5ec9cd8c12544e0ad4a610855204a0f127163d122e1d2f51f249d8404"
 
 [[package]]
 name = "strsim"

@@ -1,15 +1,15 @@
 use std::os::unix::prelude::OsStrExt;
 
 use libc::c_void;
+use loader_shim::script::LoadStatement;
+use loader_shim::script::LoadStatementMmap;
+use loader_shim::script::LoadStatementOpen;
+use loader_shim::script::LoadStatementStackExec;
+use loader_shim::script::LoadStatementStart;
 use nix::sys::mman::MapFlags;
 use nix::unistd::SysconfVar;
 
 use crate::errors::Result;
-use crate::kernel::execve::load_info::LoadStatement;
-use crate::kernel::execve::load_info::LoadStatementMmap;
-use crate::kernel::execve::load_info::LoadStatementOpen;
-use crate::kernel::execve::load_info::LoadStatementStackExec;
-use crate::kernel::execve::load_info::LoadStatementStart;
 use crate::process::tracee::Tracee;
 use crate::register::PtraceWriter;
 use crate::register::Word;
@@ -73,16 +73,44 @@ pub fn transfert_load_script(tracee: &mut Tracee) -> Result<()> {
     // create a buffer to store the data we need to write to tracee's stack
     let mut buffer: Vec<u8> = vec![];
     // write load statement: open
-    buffer.extend_from_slice(
-        LoadStatement::Open(LoadStatementOpen {
-            string_address: string1_address as Word,
-        })
-        .as_bytes(),
-    );
+    let stmt = LoadStatement::Open(LoadStatementOpen {
+        string_address: string1_address as Word,
+    });
+    debug!("LoadStatement: {:x?}", stmt);
+    buffer.extend_from_slice(stmt.as_bytes());
     // write load statement: mmap
     for mapping in &load_info.mappings {
-        if mapping.flags.contains(MapFlags::MAP_ANONYMOUS) {
-            buffer.extend_from_slice(
+        let stmt = if mapping.flags.contains(MapFlags::MAP_ANONYMOUS) {
+            LoadStatement::MmapAnonymous(LoadStatementMmap {
+                addr: mapping.addr,
+                length: mapping.length,
+                prot: mapping.prot.bits() as libc::c_ulong,
+                offset: mapping.offset,
+                clear_length: mapping.clear_length,
+            })
+        } else {
+            LoadStatement::MmapFile(LoadStatementMmap {
+                addr: mapping.addr,
+                length: mapping.length,
+                prot: mapping.prot.bits() as libc::c_ulong,
+                offset: mapping.offset,
+                clear_length: mapping.clear_length,
+            })
+        };
+        debug!("LoadStatement: {:x?}", stmt);
+        buffer.extend_from_slice(stmt.as_bytes());
+    }
+    // if interpreter exist, we also need to load for interpreter (PT_INTERP)
+    if let Some(interp) = load_info.interp.as_ref() {
+        // write load statement: open next
+        let stmt = LoadStatement::OpenNext(LoadStatementOpen {
+            string_address: string2_address as libc::c_ulong,
+        });
+        debug!("LoadStatement: {:x?}", stmt);
+        buffer.extend_from_slice(stmt.as_bytes());
+        // write load statement: mmap
+        for mapping in &interp.mappings {
+            let stmt = if mapping.flags.contains(MapFlags::MAP_ANONYMOUS) {
                 LoadStatement::MmapAnonymous(LoadStatementMmap {
                     addr: mapping.addr,
                     length: mapping.length,
@@ -90,10 +118,7 @@ pub fn transfert_load_script(tracee: &mut Tracee) -> Result<()> {
                     offset: mapping.offset,
                     clear_length: mapping.clear_length,
                 })
-                .as_bytes(),
-            );
-        } else {
-            buffer.extend_from_slice(
+            } else {
                 LoadStatement::MmapFile(LoadStatementMmap {
                     addr: mapping.addr,
                     length: mapping.length,
@@ -101,44 +126,9 @@ pub fn transfert_load_script(tracee: &mut Tracee) -> Result<()> {
                     offset: mapping.offset,
                     clear_length: mapping.clear_length,
                 })
-                .as_bytes(),
-            );
-        }
-    }
-    // if interpreter exist, we also need to load for interpreter (PT_INTERP)
-    if let Some(interp) = load_info.interp.as_ref() {
-        // write load statement: open next
-        buffer.extend_from_slice(
-            LoadStatement::OpenNext(LoadStatementOpen {
-                string_address: string2_address as libc::c_ulong,
-            })
-            .as_bytes(),
-        );
-        // write load statement: mmap
-        for mapping in &interp.mappings {
-            if mapping.flags.contains(MapFlags::MAP_ANONYMOUS) {
-                buffer.extend_from_slice(
-                    LoadStatement::MmapAnonymous(LoadStatementMmap {
-                        addr: mapping.addr,
-                        length: mapping.length,
-                        prot: mapping.prot.bits() as libc::c_ulong,
-                        offset: mapping.offset,
-                        clear_length: mapping.clear_length,
-                    })
-                    .as_bytes(),
-                );
-            } else {
-                buffer.extend_from_slice(
-                    LoadStatement::MmapFile(LoadStatementMmap {
-                        addr: mapping.addr,
-                        length: mapping.length,
-                        prot: mapping.prot.bits() as libc::c_ulong,
-                        offset: mapping.offset,
-                        clear_length: mapping.clear_length,
-                    })
-                    .as_bytes(),
-                );
-            }
+            };
+            debug!("LoadStatement: {:x?}", stmt);
+            buffer.extend_from_slice(stmt.as_bytes());
         }
     }
 
@@ -154,12 +144,11 @@ pub fn transfert_load_script(tracee: &mut Tracee) -> Result<()> {
             .unwrap_or(0x1000);
         let page_mask = !(page_size - 1) as usize;
 
-        buffer.extend_from_slice(
-            LoadStatement::MakeStackExec(LoadStatementStackExec {
-                start: (stack_pointer & page_mask) as libc::c_ulong,
-            })
-            .as_bytes(),
-        );
+        let stmt = LoadStatement::MakeStackExec(LoadStatementStackExec {
+            start: (stack_pointer & page_mask) as libc::c_ulong,
+        });
+        debug!("LoadStatement: {:x?}", stmt);
+        buffer.extend_from_slice(stmt.as_bytes());
     }
 
     // determine the entry_point of this executable
@@ -171,19 +160,17 @@ pub fn transfert_load_script(tracee: &mut Tracee) -> Result<()> {
 
     // Load script statement: start.
     // TODO: Start of the program slightly differs when ptraced. see proot https://github.com/proot-me/proot/blob/fb9503240eeaa3114b29b8742feb2bda6edccde8/src/execve/exit.c#L298
-    buffer.extend_from_slice(
-        LoadStatement::Start(LoadStatementStart {
-            stack_pointer: stack_pointer as libc::c_ulong,
-            entry_point: entry_point,
-            at_phdr: get!(load_info.elf_header, e_phoff, libc::c_ulong)?
-                + load_info.mappings[0].addr,
-            at_phent: get!(load_info.elf_header, e_phentsize, libc::c_ulong)?,
-            at_phnum: get!(load_info.elf_header, e_phnum, libc::c_ulong)?,
-            at_entry: get!(load_info.elf_header, e_entry, libc::c_ulong)?,
-            at_execfn: string3_address as libc::c_ulong,
-        })
-        .as_bytes(),
-    );
+    let stmt = LoadStatement::Start(LoadStatementStart {
+        stack_pointer: stack_pointer as libc::c_ulong,
+        entry_point: entry_point,
+        at_phdr: get!(load_info.elf_header, e_phoff, libc::c_ulong)? + load_info.mappings[0].addr,
+        at_phent: get!(load_info.elf_header, e_phentsize, libc::c_ulong)?,
+        at_phnum: get!(load_info.elf_header, e_phnum, libc::c_ulong)?,
+        at_entry: get!(load_info.elf_header, e_entry, libc::c_ulong)?,
+        at_execfn: string3_address as libc::c_ulong,
+    });
+    debug!("LoadStatement: {:x?}", stmt);
+    buffer.extend_from_slice(stmt.as_bytes());
 
     // TODO: consider 32on64 mode: https://github.com/proot-me/proot/blob/fb9503240eeaa3114b29b8742feb2bda6edccde8/src/execve/exit.c#L319
 

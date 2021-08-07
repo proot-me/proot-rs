@@ -1,22 +1,11 @@
-[package]
-name = "proot-rs"
-version = "0.1.0"
-authors = ["PRoot Developers <proot_me@googlegroups.com>"]
-build = "src/build_loader.rs"
-edition = "2018"
+[workspace]
+members = [
+  "proot-rs",
+  "loader-shim",
+]
 
-[dependencies]
-libc = "0.2.25"
-nix = "0.20.0"
-clap = "2.25.1"
-sc = "0.2.3"
-lazy_static = "1.4.0"
-byteorder = "1.1.0"
-log = "0.4.14"
-env_logger = "0.8.3"
+[profile.dev.package.loader-shim]
+opt-level = 1
 
-[dev-dependencies]
-nc = "0.6.2"
-
-[build-dependencies]
-gcc = { git = "https://github.com/vincenthage/gcc-rs", branch = "master" }
+[profile.release.package.loader-shim]
+opt-level = "s"

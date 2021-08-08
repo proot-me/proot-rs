@@ -59,21 +59,67 @@ macro_rules! branch {
     ($stack_pointer:expr, $entry_point:expr) => {
         #[cfg(target_arch = "x86_64")]
         llvm_asm!("
-        // Restore initial stack pointer.
-        movq $0, %rsp
-        // Clear state flags.
-        pushq $$0
-        popfq
-        // Clear rtld_fini.
-        movq $$0, %rdx
-        // Start the program.
-        jmpq *%rax
+            // Restore initial stack pointer.
+            movq $0, %rsp
+            // Clear state flags.
+            pushq $$0
+            popfq
+            // Clear rtld_fini.
+            movq $$0, %rdx
+            // Start the program.
+            jmpq *%rax
         "
         : /* no output */
         : "irm" ($stack_pointer), "{ax}" ($entry_point)
         : "memory", "cc", "rsp", "rdx"
         : "volatile"
         );
+        #[cfg(target_arch = "x86")]
+        llvm_asm!("
+            // Restore initial stack pointer
+            movl $0, %esp
+            // Clear state flags.
+            pushl $$0
+            popfl
+            // Clear rtld_fini.
+            movl $$0, %edx
+            // Start the program.
+            jmpl *%eax
+        "
+        : /* no output */
+        : "irm" ($stack_pointer), "{ax}" ($entry_point)
+        : "memory", "cc", "esp", "edx"
+        : "volatile"
+        );
+        #[cfg(target_arch = "aarch64")]
+        llvm_asm!("
+            // Restore initial stack pointer
+            mov sp, $0
+            // Clear rtld_fini.
+            mov x0, 0
+            // Start the program.
+            br $1
+        "
+        : /* no output */
+        : "r" ($stack_pointer), "r" ($entry_point)
+        : "memory", "x0"
+        : "volatile"
+        );
+        #[cfg(target_arch = "arm")]
+        llvm_asm!("
+            // Restore initial stack pointer
+            mov sp, $0
+            // Clear rtld_fini.
+            mov r0, $$0
+            // Start the program.
+            mov pc, $1
+        "
+        : /* no output */
+        : "r" ($stack_pointer), "r" ($entry_point)
+        : "memory", "r0"
+        : "volatile"
+        );
+
     }
 }
 
@@ -114,8 +160,19 @@ pub unsafe extern "C" fn _start(mut cursor: *const ()) {
             }
             LoadStatement::MmapFile(mmap) => {
                 // call mmap() with fd
+                #[cfg(any(target_arch = "x86_64", target_arch = "aarch64"))]
                 let status = sc::syscall!(
                     MMAP,
+                    mmap.addr,
+                    mmap.length,
+                    mmap.prot,
+                    MAP_PRIVATE | MAP_FIXED,
+                    fd.unwrap(),
+                    mmap.offset
+                );
+                #[cfg(any(target_arch = "arm", target_arch = "x86"))]
+                let status = sc::syscall!(
+                    MMAP2,
                     mmap.addr,
                     mmap.length,
                     mmap.prot,
@@ -138,6 +195,7 @@ pub unsafe extern "C" fn _start(mut cursor: *const ()) {
                 }
             }
             LoadStatement::MmapAnonymous(mmap) => {
+                #[cfg(any(target_arch = "x86_64", target_arch = "aarch64"))]
                 let status = sc::syscall!(
                     MMAP,
                     mmap.addr,
@@ -147,6 +205,17 @@ pub unsafe extern "C" fn _start(mut cursor: *const ()) {
                     (-1isize) as usize,
                     0
                 );
+                #[cfg(any(target_arch = "arm", target_arch = "x86"))]
+                let status = sc::syscall!(
+                    MMAP2,
+                    mmap.addr,
+                    mmap.length,
+                    mmap.prot,
+                    MAP_PRIVATE | MAP_FIXED | MAP_ANONYMOUS,
+                    (-1isize) as usize,
+                    0
+                );
+
                 assert!(status as isize >= 0);
             }
             LoadStatement::MakeStackExec(stack_exec) => {
@@ -271,4 +340,9 @@ fn panic_handler(panic_info: &PanicInfo<'_>) -> ! {
         sc::syscall!(EXIT, 182);
     }
     unreachable!()
+}
+
+#[no_mangle]
+pub unsafe fn __aeabi_unwind_cpp_pr0() -> () {
+    loop {}
 }

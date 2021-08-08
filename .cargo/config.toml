@@ -2,4 +2,7 @@
 linker = "arm-linux-musleabi-gcc"
 
 [target.arm-linux-androideabi]
-linker = "armv7a-linux-androideabi18-clang"
+linker = "armv7a-linux-androideabi21-clang"
+
+[target.aarch64-linux-android]
+linker = "aarch64-linux-android21-clang"

@@ -59,7 +59,7 @@ cargo make build
 ```
 The command basically consists of the following steps:
 - Run `cargo build` on `loader-shim` package to compile the loader executable.
-- Copy the loader executable `loader-shim` to `proot-rs/src/kernel/execve/loader/loader-shim`
+- Copy the loader executable `loader-shim` to `proot-rs/src/kernel/execve/loader-shim`
 - Run `cargo build` on `proot-rs` package to  build the final executable.
 
 If the compilation is successful, it should also print out the path to the `proot-rs` executable file.

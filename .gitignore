@@ -9,4 +9,4 @@ PRoot-rust.iml
 *.rs.bk
 .vscode/
 rootfs/
-proot-rs/src/kernel/execve/loader/loader-shim
+proot-rs/src/kernel/execve/loader-shim

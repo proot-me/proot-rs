@@ -15,7 +15,7 @@ jobs:
         fetch-depth: 0
     - name: Setup components
       run: rustup component add clippy rustfmt
-    - name: Check
+    - name: Check code style
       shell: bash
       run: |
         set +o pipefail
@@ -52,8 +52,12 @@ jobs:
             echo 'Code formatting issues detected.'
             exit 1
         fi
-
-        # Run clippy check
+    - name: Run clippy check
+      shell: bash
+      run: |
+        # There is a bit of a Hack here:
+        # Since we just want to do a clippy check, not a heavy build task. We can get the clippy check to continue by creating an empty file.
+        touch proot-rs/src/kernel/execve/loader/loader-shim
         cargo clippy
 
   tests:
@@ -61,16 +65,21 @@ jobs:
     timeout-minutes: 10
     steps:
     - uses: actions/checkout@v2
+    - name: Install cargo-make
+      uses: actions-rs/cargo@v1
+      with:
+        command: install
+        args: --debug cargo-make
     - name: Build
-      run: cargo build --verbose
+      run: cargo make build
     - name: Setup rootfs
       shell: bash
       run: |
-        bash scripts/mkrootfs.sh
+        bash scripts/mkrootfs.sh -d ./rootfs
     - name: Run unit tests
       shell: bash
       run: |
-        PROOT_TEST_ROOTFS=./rootfs cargo test --verbose -- --nocapture
+        PROOT_TEST_ROOTFS="$(pwd)/rootfs" cargo test --package=proot-rs --verbose -- --nocapture
     - name: Setup bats-core
       uses: mig4/setup-bats@v1
       with:
@@ -78,4 +87,4 @@ jobs:
     - name: Run integration tests
       shell: bash
       run: |
-        PROOT_TEST_ROOTFS=./rootfs bats -r tests
+        PROOT_TEST_ROOTFS="$(pwd)/rootfs" bats -r tests

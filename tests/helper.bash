@@ -9,7 +9,9 @@ TEST_ROOT=$(dirname "$(readlink -f "$BASH_SOURCE")")
 PROJECT_ROOT="$TEST_ROOT/../"
 
 # Path to the proot-rs binary
-PROOT_RS="$PROJECT_ROOT/target/debug/proot-rs"
+if [ -z "${PROOT_RS}" ]; then
+    PROOT_RS="$PROJECT_ROOT/target/debug/proot-rs"
+fi
 
 # Set the default path to the new rootfs, which is created in advance by `scripts/mkrootfs.sh`
 # Note that if `PROOT_TEST_ROOTFS` is set, then the value of `ROOTFS` will the same as it; otherwise, the default value of `ROOTFS` is `$PROJECT_ROOT/rootfs`

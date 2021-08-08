@@ -2,7 +2,7 @@
 
 This document describes the integration testing part of proot-rs. It is intended for developers to understand the current status of integration testing in proot-rs.
 
-## Why and how to
+## Why and How To
 
 proot-rs currently uses unit testing and integration testing to find potential software faults.
 
@@ -12,29 +12,26 @@ We use [Bats](https://github.com/bats-core/bats-core) to run integration tests. 
 
 We also considered ShellSpec and shUnit2, but they seem to be more suitable for testing shell scripts rather than command line programs.
 
-## Run tests
+## Run Tests
 
-### Run manually
+### Run Manually
 
 To launch integration testing, you need to [install bats](https://github.com/bats-core/bats-core/blob/master/docs/source/installation.rst) first, and make sure that `bats` is in your `PATH`.
 
-> Note: Before running integration tests, you need to set `PROOT_TEST_ROOTFS` to the path of new rootfs, or the `rootfs` directory in the root of the project will be used as the new rootfs.
-
-Before you start, make sure you are in the root directory of this project.
-
-1. Compile proot-rs:
-
+We use `cargo-make` to manage the build tasks, and you can launch integration test directly by:
 ```shell
-cargo build
+cargo make integration-test
 ```
+> Add the option `--profile=production` if you want to test a release build of proot-rs
 
-This will generate a executable file at `target/debug/proot-rs`, which will be used in during integration tests.
+This command above will first rebuild `proot-rs` and then run `bats -r tests` to start the tests.
 
-2. Run all test scripts under the `tests/` directory:
+#### Environment Variables
 
-```shell
-bats -r tests
-```
+There are two optional environment variables related to testing:
+- `PROOT_TEST_ROOTFS`: Absolute path of a guest rootfs for testing purposes.
+- `PROOT_RS`: Absolute path of the proot-rs executable file to be tested.
+
 
 ### Run in Docker
 
@@ -56,7 +53,7 @@ docker run --rm -it proot/proot-rs-test:latest
 
 Integration tests are now added to the GitHub [workflow](.github/workflows/tests.yml)
 
-## Write tests
+## Write Tests
 
 All integration test scripts are placed in the `tests/` directory. They all use `.bats` as suffix and are named as the category of the tests. A script file may contains more than one test case.
 

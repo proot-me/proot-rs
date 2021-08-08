@@ -1,0 +1,73 @@
+[env]
+CARGO_MAKE_EXTEND_WORKSPACE_MAKEFILE = true
+
+[env.development]
+OUTPUT_DIR_NAME = "debug"
+CARGO_EXTRA_FLAGS = []
+
+[env.production]
+OUTPUT_DIR_NAME = "release"
+CARGO_EXTRA_FLAGS = ["--release"]
+
+[config]
+default_to_workspace = false
+
+[tasks.run]
+dependencies = ["build"]
+script_runner = "@shell"
+script = '''
+cargo run --bin=proot-rs ${CARGO_EXTRA_FLAGS} -- ${@}
+'''
+
+[tasks.build]
+clear = true
+dependencies = ["copy-loader", "build-loader"]
+script_runner = "@shell"
+script = '''
+cargo build --bin=proot-rs ${CARGO_EXTRA_FLAGS}
+echo -e "proot-rs:\t$(realpath target/${CARGO_BUILD_TARGET}/${OUTPUT_DIR_NAME}/proot-rs)"
+echo -e "loader-shim:\t$(realpath target/${CARGO_BUILD_TARGET}/${OUTPUT_DIR_NAME}/loader-shim)"
+'''
+
+[tasks.build-loader]
+script_runner = "@shell"
+script = '''
+RUSTFLAGS="-C panic=abort -C link-self-contained=no" cargo build --bin=loader-shim --features="build-binary" ${CARGO_EXTRA_FLAGS}
+'''
+
+[tasks.copy-loader]
+dependencies = ["build-loader"]
+script_runner = "@shell"
+script = '''
+cp target/${CARGO_BUILD_TARGET}/${OUTPUT_DIR_NAME}/loader-shim proot-rs/src/kernel/execve/loader/
+'''
+
+[tasks.test]
+clear = true
+dependencies = ["unit-test", "integration-test"]
+
+[tasks.unit-test]
+script_runner = "@shell"
+script = '''
+if [ -z "${PROOT_TEST_ROOTFS}" ]; then
+    export PROOT_TEST_ROOTFS="$(pwd)/rootfs"
+fi
+cargo test --package=proot-rs ${CARGO_EXTRA_FLAGS}
+'''
+
+[tasks.integration-test]
+dependencies = ["build"]
+script_runner = "@shell"
+script = '''
+if [ -z "${PROOT_TEST_ROOTFS}" ]; then
+    export PROOT_TEST_ROOTFS="$(pwd)/rootfs"
+fi
+if [ -z "${PROOT_RS}" ]; then
+    export PROOT_RS="$(realpath target/${CARGO_BUILD_TARGET}/${OUTPUT_DIR_NAME}/proot-rs)"
+fi
+bats -r tests
+'''
+
+[tasks.default]
+clear = true
+dependencies = ["build"]

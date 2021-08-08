@@ -57,29 +57,65 @@ ARGS:
 
 ## Requirements
 
-Use the nightly Rust channel for rustc:
+### Cargo
 
-```
-rustup default nightly
-```
+We use _rustup/cargo_ to develop proot-rs, which is a common approach in Rust development. You can install them as shown [here](https://www.rust-lang.org/tools/install).
 
-Some dependencies (like `syscall`) depend on features (`asm` in this case) that are not 
-on the stable channel yet.
+### cargo-make
+
+We also use [`cargo-make`](https://github.com/sagiegurari/cargo-make) as build tool, which can help you launch complex compilation steps. It works a bit like `make`, and you can install it like this:
+
+```shell
+cargo install --force cargo-make
+```
 
 ## Build
 
-The recommended way is to use _rustup/cargo_:
+The recommended way is to use `cargo-make`:
 
-```text
-cargo build
+```shell
+cargo make build
+```
+The command basically consists of the following steps:
+- Run `cargo build` on `loader-shim` package to compile the loader executable.
+- Copy the loader executable `loader-shim` to `proot-rs/src/kernel/execve/loader/loader-shim`
+- Run `cargo build` on `proot-rs` package to  build the final executable.
+
+If the compilation is successful, it should also print out the path to the `proot-rs` executable file.
+
+### Build Release Version
+
+To generate the release binary (it takes longer, but the binary generated is quicker), you can specify `--profile=production`:
+
+```shell
+cargo make build --profile=production
 ```
 
-It will install all the dependencies and compile it (in debug mode).
+> Note: This [`--profile` option](https://github.com/sagiegurari/cargo-make#usage-profiles) comes from `cargo-make`, which has a different meaning than [the `profile` in cargo](https://doc.rust-lang.org/cargo/reference/profiles.html). And it is processed by `cargo-make` and will not be passed to `cargo`. 
 
-To generate the release binary (it takes longer, but the binary generated is quicker):
+### Cross Compilation
 
-```text
-cargo build --release
+Currently `proot-rs` supports multiple platforms. You can change the compilation target by setting the environment variable `CARGO_BUILD_TARGET`.
+
+For example, compiling to the `arm-linux-androideabi` target:
+```shell
+CARGO_BUILD_TARGET=arm-linux-androideabi cargo make build
+```
+
+<!-- TODO: Try to compile and test multiple targets in CI, and crate a table here. -->
+
+## Run
+
+Build and run `proot-rs`:
+
+```shell
+cargo make run -- "<args-of-proot-rs>"
+```
+
+Build and run release version of `proot-rs`:
+
+```shell
+cargo make run --profile=production -- "<args-of-proot-rs>"
 ```
 
 ## Tests
@@ -90,31 +126,23 @@ Typically, we need to specify a new rootfs path for testing proot-rs.
 
 This script provided below can be used to create one:
 
-```sh
+```shell
 # This will create a busybox-based temporary rootfs at ./rootfs/
 bash scripts/mkrootfs.sh
 ```
-
-Then set an environment variable `PROOT_TEST_ROOTFS` so the test program can find it:
-
-```sh
-export PROOT_TEST_ROOTFS=./rootfs/
-```
-
-If you want to use the same rootfs as the host, just set it to `/`:
-
-```sh
-export PROOT_TEST_ROOTFS=/
-```
-
 ### Unit testing
 
-> Note: When running unit tests, it is required that `PROOT_TEST_ROOTFS` must be set
-
-Start running tests:
+Start running unit tests:
 
 ```shell
-cargo test
+cargo make unit-test
+```
+> Note: Add the option `--profile=production` if you want to test a release build of proot-rs
+
+By default, By default, `./rootfs/` will be used as the root filesystem for testing purposes. But you can set the environment variable `PROOT_TEST_ROOTFS` to change this behavior.
+
+```shell
+export PROOT_TEST_ROOTFS="<absolute-path-to-a-rootfs>"
 ```
 
 ### Integration testing

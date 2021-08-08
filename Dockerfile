@@ -4,10 +4,14 @@ RUN apk update && \
     apk add bash \
             bats \
             curl \
-            shellcheck
+            shellcheck \
+            openssl-dev \
+            musl-dev
+
+RUN cargo install --force cargo-make
 
 WORKDIR /usr/src/proot-rs
 COPY . /usr/src/proot-rs
 
-CMD ["cargo", "build"]
+CMD ["cargo", "make", "build"]
 

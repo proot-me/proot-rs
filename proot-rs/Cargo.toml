@@ -8,7 +8,7 @@ edition = "2018"
 libc = "0.2.25"
 nix = "0.20.0"
 clap = "2.25.1"
-sc = "0.2.4"
+sc = { git = "https://github.com/KB5201314/syscall.rs.git", rev = "cf49872" }
 lazy_static = "1.4.0"
 byteorder = "1.1.0"
 log = "0.4.14"
@@ -17,6 +17,3 @@ loader-shim = { path = "../loader-shim" }
 
 [dev-dependencies]
 nc = "0.7.5"
-
-[build-dependencies]
-gcc = { git = "https://github.com/vincenthage/gcc-rs", branch = "master" }

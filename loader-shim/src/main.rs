@@ -40,6 +40,11 @@ const MAP_PRIVATE: usize = 0x02;
 const MAP_FIXED: usize = 0x10;
 const MAP_ANONYMOUS: usize = 0x20;
 
+#[cfg(any(target_arch = "x86", target_arch = "x86_64", target_arch = "aarch64"))]
+const MMAP_OFFSET_SHIFT: usize = 0;
+#[cfg(any(target_arch = "arm"))]
+const MMAP_OFFSET_SHIFT: usize = 12;
+
 const PROT_READ: usize = 0x1;
 const PROT_WRITE: usize = 0x2;
 const PROT_EXEC: usize = 0x4;
@@ -168,7 +173,7 @@ pub unsafe extern "C" fn _start(mut cursor: *const ()) {
                     mmap.prot,
                     MAP_PRIVATE | MAP_FIXED,
                     fd.unwrap(),
-                    mmap.offset
+                    mmap.offset >> MMAP_OFFSET_SHIFT
                 );
                 #[cfg(any(target_arch = "arm", target_arch = "x86"))]
                 let status = sc::syscall!(
@@ -178,7 +183,7 @@ pub unsafe extern "C" fn _start(mut cursor: *const ()) {
                     mmap.prot,
                     MAP_PRIVATE | MAP_FIXED,
                     fd.unwrap(),
-                    mmap.offset
+                    mmap.offset >> MMAP_OFFSET_SHIFT
                 );
                 assert_eq!(status, mmap.addr as _);
                 // set the end of the space to 0, if needed.

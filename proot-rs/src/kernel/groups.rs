@@ -54,7 +54,9 @@ pub fn syscall_group_from_sysnum(sysnum: usize) -> SyscallGroup {
         sc::nr::GETCWD => SyscallGroup::GetCwd,
         sc::nr::FCHDIR | sc::nr::CHDIR => SyscallGroup::Chdir,
         sc::nr::BIND | sc::nr::CONNECT => SyscallGroup::BindConnect,
-        sc::nr::ACCEPT | sc::nr::ACCEPT4 => SyscallGroup::Accept,
+        #[cfg(any(target_arch = "x86_64", target_arch = "arm", target_arch = "aarch64"))]
+        sc::nr::ACCEPT => SyscallGroup::Accept,
+        sc::nr::ACCEPT4 => SyscallGroup::Accept,
         sc::nr::GETSOCKNAME | sc::nr::GETPEERNAME => SyscallGroup::GetSockOrPeerName,
         #[cfg(any(target_arch = "x86"))]
         sc::nr::SOCKETCALL => SyscallGroup::SocketCall,

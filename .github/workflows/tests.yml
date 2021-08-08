@@ -57,7 +57,7 @@ jobs:
       run: |
         # There is a bit of a Hack here:
         # Since we just want to do a clippy check, not a heavy build task. We can get the clippy check to continue by creating an empty file.
-        touch proot-rs/src/kernel/execve/loader/loader-shim
+        touch proot-rs/src/kernel/execve/loader-shim
         cargo clippy
 
   tests:

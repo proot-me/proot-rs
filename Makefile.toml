@@ -39,7 +39,7 @@ RUSTFLAGS="-C panic=abort -C link-self-contained=no" cargo build --bin=loader-sh
 dependencies = ["build-loader"]
 script_runner = "@shell"
 script = '''
-cp target/${CARGO_BUILD_TARGET}/${OUTPUT_DIR_NAME}/loader-shim proot-rs/src/kernel/execve/loader/
+cp target/${CARGO_BUILD_TARGET}/${OUTPUT_DIR_NAME}/loader-shim proot-rs/src/kernel/execve/
 '''
 
 [tasks.test]

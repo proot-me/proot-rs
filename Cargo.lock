@@ -84,11 +84,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "gcc"
-version = "0.3.52"
-source = "git+https://github.com/vincenthage/gcc-rs?branch=master#ffcb7dc685e6df5f7120fb6f4d4a9f2e9b9e2fd7"
-
-[[package]]
 name = "hermit-abi"
 version = "0.1.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -120,7 +115,7 @@ name = "loader-shim"
 version = "0.1.0"
 dependencies = [
  "rlibc",
- "sc 0.2.4",
+ "sc",
 ]
 
 [[package]]
@@ -166,14 +161,13 @@ dependencies = [
  "byteorder",
  "clap",
  "env_logger",
- "gcc",
  "lazy_static",
  "libc",
  "loader-shim",
  "log",
  "nc",
  "nix",
- "sc 0.2.4 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sc",
 ]
 
 [[package]]
@@ -202,12 +196,7 @@ checksum = "fc874b127765f014d792f16763a81245ab80500e2ad921ed4ee9e82481ee08fe"
 [[package]]
 name = "sc"
 version = "0.2.4"
-
-[[package]]
-name = "sc"
-version = "0.2.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d6c362b5ec9cd8c12544e0ad4a610855204a0f127163d122e1d2f51f249d8404"
+source = "git+https://github.com/KB5201314/syscall.rs.git?rev=cf49872#cf4987217a41ae5a870e38ded346b90420acf28a"
 
 [[package]]
 name = "strsim"

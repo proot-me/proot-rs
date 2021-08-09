@@ -34,7 +34,26 @@ proot-rs -R ./my-docker-image /bin/sh
 
 ## Usage
 
-Not usable for now **(work in progress)**.
+```
+proot-rs --help
+proot-rs 
+
+USAGE:
+    proot-rs [OPTIONS] [--] [command]...
+
+FLAGS:
+    -h, --help       Prints help information
+    -V, --version    Prints version information
+
+OPTIONS:
+    -b, --bind <bind>...     Make the content of *host_path* accessible in the guest rootfs. Format:
+                             host_path:guest_path
+    -w, --cwd <cwd>          Set the initial working directory to *path*. [default: /]
+    -r, --rootfs <rootfs>    Use *path* as the new guest root file-system. [default: /]
+
+ARGS:
+    <command>...    
+```
 
 ## Requirements
 

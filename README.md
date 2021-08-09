@@ -46,7 +46,12 @@ We use _rustup/cargo_ to develop proot-rs, which is a common approach in Rust de
 
 We also use [`cargo-make`](https://github.com/sagiegurari/cargo-make) as build tool, which can help you launch complex compilation steps. It works a bit like `make`, and you can install it like this:
 
+> Note: We recommend using the stable toolchain to install `cargo-make` in order to avoid installation failures
+
 ```shell
+# Install stable rust toolchain
+rustup toolchain install stable
+# Install cargo-make
 cargo +stable install --force cargo-make
 ```
 

@@ -8,7 +8,7 @@ RUN apk update && \
             openssl-dev \
             musl-dev
 
-RUN cargo install --force cargo-make
+RUN rustup toolchain install stable && cargo +stable install --force cargo-make
 
 WORKDIR /usr/src/proot-rs
 COPY . /usr/src/proot-rs

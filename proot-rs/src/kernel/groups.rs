@@ -2,6 +2,7 @@
 /// It's easier and cleaner to use cfg conditions here rather than in the huge
 /// match in `translate_syscall_enter` and `translate_syscall_exit`.
 #[derive(Debug, PartialEq)]
+#[allow(dead_code)]
 pub enum SyscallGroup {
     Ignored = 0,
     Execve,

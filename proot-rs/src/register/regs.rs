@@ -12,6 +12,7 @@ const VOID: Word = Word::MAX;
 /// For x86: https://github.com/bminor/glibc/blob/3908fa933a4354309225af616d9242f595e11ccf/sysdeps/unix/sysv/linux/x86/sys/user.h#L42
 /// For x86_64: https://github.com/bminor/glibc/blob/3908fa933a4354309225af616d9242f595e11ccf/sysdeps/unix/sysv/linux/x86/sys/user.h#L131
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+#[repr(C)]
 #[derive(Debug, Eq, Hash, PartialEq, Clone, Copy)]
 pub struct RegisterSet(pub libc::user_regs_struct);
 
@@ -22,8 +23,32 @@ pub struct RegisterSet(pub libc::user_regs_struct);
 ///       Entry 16 is used to store the CPSR register.
 ///       Entry 17 is used to store the "orig_r0" value.
 #[cfg(any(target_arch = "arm"))]
+#[repr(C)]
 #[derive(Debug, Eq, Hash, PartialEq, Clone, Copy)]
 pub struct RegisterSet(pub [libc::c_ulong; 18]);
+
+/// See: https://github.com/bminor/glibc/blob/3908fa933a4354309225af616d9242f595e11ccf/sysdeps/unix/sysv/linux/aarch64/sys/user.h#L22
+#[cfg(any(target_arch = "aarch64"))]
+#[repr(C)]
+#[derive(Debug, Eq, Hash, PartialEq, Clone, Copy)]
+pub struct RegisterSet {
+    pub regs: [libc::c_ulonglong; 31],
+    pub sp: libc::c_ulonglong,
+    pub pc: libc::c_ulonglong,
+    pub pstate: libc::c_ulonglong,
+}
+
+#[cfg(any(target_arch = "aarch64"))]
+const NT_PRSTATUS: usize = 1;
+/// ARM system call number
+#[cfg(any(target_arch = "aarch64"))]
+const NT_ARM_SYSTEM_CALL: usize = 0x404;
+
+#[cfg(any(target_arch = "aarch64"))]
+const PTRACE_GETREGSET: libc::c_int = 0x4204;
+
+#[cfg(any(target_arch = "aarch64"))]
+const PTRACE_SETREGSET: libc::c_int = 0x4205;
 
 impl RegisterSet {
     fn get_from_tracee(pid: Pid) -> Result<Self> {
@@ -41,6 +66,24 @@ impl RegisterSet {
             nix::errno::Errno::result(res)?;
             Ok(Self(unsafe { data.assume_init() }))
         }
+        #[cfg(any(target_arch = "aarch64"))]
+        {
+            let mut data = MaybeUninit::uninit();
+            let regs = libc::iovec {
+                iov_base: data.as_mut_ptr() as *mut c_void,
+                iov_len: std::mem::size_of::<RegisterSet>(),
+            };
+            let res = unsafe {
+                libc::ptrace(
+                    PTRACE_GETREGSET,
+                    libc::pid_t::from(pid),
+                    NT_PRSTATUS,
+                    &regs as *const _ as *const c_void,
+                )
+            };
+            nix::errno::Errno::result(res)?;
+            Ok(unsafe { data.assume_init() })
+        }
     }
 
     fn set_to_tracee(&self, pid: Pid) -> Result<()> {
@@ -55,6 +98,23 @@ impl RegisterSet {
                 )
             };
             nix::errno::Errno::result(res).map(drop)?;
+            Ok(())
+        }
+        #[cfg(any(target_arch = "aarch64"))]
+        {
+            let regs = libc::iovec {
+                iov_base: self as *const _ as *mut c_void,
+                iov_len: std::mem::size_of::<RegisterSet>(),
+            };
+            let res = unsafe {
+                libc::ptrace(
+                    PTRACE_SETREGSET,
+                    libc::pid_t::from(pid),
+                    NT_PRSTATUS,
+                    &regs as *const _ as *const c_void,
+                )
+            };
+            nix::errno::Errno::result(res)?;
             Ok(())
         }
     }
@@ -247,6 +307,31 @@ impl Registers {
                 const PTRACE_SET_SYSCALL: usize = 23;
                 let res =
                     unsafe { libc::ptrace(PTRACE_SET_SYSCALL as _, self.pid, 0, current_sysnum) };
+                nix::errno::Errno::result(res).map(drop).with_context(|| {
+                    format!("Failed to set syscall number for tracee({})", self.pid)
+                })?;
+            }
+        }
+
+        #[cfg(any(target_arch = "aarch64"))]
+        {
+            // On arch64, we need a special ptrace(PTRACE_SETREGSET) call
+            // to change effectively the syscall number during a ptrace-stop.
+            // See man page ptrace(2).
+            let current_sysnum = self.get_sys_num(Current);
+            if current_sysnum != self.get_sys_num(Original) {
+                let regs = libc::iovec {
+                    iov_base: &current_sysnum as *const _ as *mut c_void,
+                    iov_len: std::mem::size_of_val(&current_sysnum),
+                };
+                let res = unsafe {
+                    libc::ptrace(
+                        PTRACE_SETREGSET,
+                        libc::pid_t::from(self.pid),
+                        NT_ARM_SYSTEM_CALL,
+                        &regs as *const _ as *const c_void,
+                    )
+                };
                 nix::errno::Errno::result(res).map(drop).with_context(|| {
                     format!("Failed to set syscall number for tracee({})", self.pid)
                 })?;

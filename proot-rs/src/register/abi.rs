@@ -138,3 +138,44 @@ pub mod regs_offset {
         };
     }
 }
+
+/// https://chromium.googlesource.com/chromiumos/docs/+/master/constants/syscalls.md#calling-conventions
+#[cfg(all(
+    any(target_os = "linux", target_os = "android"),
+    any(target_arch = "aarch64")
+))]
+#[macro_use]
+pub mod regs_offset {
+    macro_rules! get_reg {
+        ($regs:expr, SysNum) => {
+            $regs.regs[8]
+        };
+        ($regs:expr, SysArg1) => {
+            $regs.regs[0]
+        };
+        ($regs:expr, SysArg2) => {
+            $regs.regs[1]
+        };
+        ($regs:expr, SysArg3) => {
+            $regs.regs[2]
+        };
+        ($regs:expr, SysArg4) => {
+            $regs.regs[3]
+        };
+        ($regs:expr, SysArg5) => {
+            $regs.regs[4]
+        };
+        ($regs:expr, SysArg6) => {
+            $regs.regs[5]
+        };
+        ($regs:expr, SysResult) => {
+            $regs.regs[0]
+        };
+        ($regs:expr, StackPointer) => {
+            $regs.sp
+        };
+        ($regs:expr, InstrPointer) => {
+            $regs.pc
+        };
+    }
+}

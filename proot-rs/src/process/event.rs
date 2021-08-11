@@ -90,14 +90,13 @@ impl EventHandler for Tracee {
         self.regs.fetch_regs()?;
         let sysnum = self.regs.get_sys_num(RegVersion::Current);
 
-        let clone_flags = if sysnum == sc::nr::VFORK {
-            CloneFlags::CLONE_VFORK
-        } else if sysnum == sc::nr::CLONE {
-            CloneFlags::from_bits_truncate(
-                self.regs.get(RegVersion::Current, SysArg(SysArg1)) as i32
-            )
-        } else {
-            CloneFlags::empty()
+        let clone_flags = match sysnum {
+            #[cfg(any(target_arch = "x86_64", target_arch = "arm", target_arch = "x86"))]
+            sc::nr::VFORK => CloneFlags::CLONE_VFORK,
+            sc::nr::CLONE => CloneFlags::from_bits_truncate(
+                self.regs.get(RegVersion::Current, SysArg(SysArg1)) as i32,
+            ),
+            _ => CloneFlags::empty(),
         };
 
         // Get the pid of the parent's new child.

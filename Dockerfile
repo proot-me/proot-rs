@@ -1,14 +1,22 @@
-FROM rust:alpine as build
+FROM runmymind/docker-android-sdk:alpine-standalone as build
 
 RUN apk update && \
-    apk add bash \
+    apk add --repository=http://dl-cdn.alpinelinux.org/alpine/edge/testing \
+            bash \
             bats \
             curl \
+            gcc \
+            rustup \
             shellcheck \
             openssl-dev \
             musl-dev
 
-RUN rustup toolchain install stable && cargo +stable install --force cargo-make
+ENV PATH "/root/.cargo/bin/:/opt/android-sdk-linux/ndk-bundle/toolchains/llvm/prebuilt/linux-x86_64/bin:${PATH}"
+
+RUN rustup-init -y && \
+    rustup toolchain install stable && \
+    rustup target add arm-linux-androideabi && \
+    cargo +stable install --force cargo-make
 
 WORKDIR /usr/src/proot-rs
 COPY . /usr/src/proot-rs

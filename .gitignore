@@ -10,3 +10,4 @@ PRoot-rust.iml
 .vscode/
 rootfs/
 proot-rs/src/kernel/execve/loader-shim
+src/

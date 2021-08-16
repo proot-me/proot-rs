@@ -10,6 +10,7 @@
 
 #[allow(unused_attributes)]
 // Only static links are used and prevent linking with the shared libraries.
+#[link_args = "-no-pie"]
 #[link_args = "-static"]
 // Disable system startup files or libraries when linking. This means
 // that the linker will not include files like `crt0.o` and some of the

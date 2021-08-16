@@ -102,10 +102,40 @@ cargo make build --profile=production
 
 Currently `proot-rs` supports multiple platforms. You can change the compilation target by setting the environment variable `CARGO_BUILD_TARGET`.
 
-For example, compiling to the `arm-linux-androideabi` target:
-```shell
-CARGO_BUILD_TARGET=arm-linux-androideabi cargo make build
-```
+#### With [`cross`](https://github.com/rust-embedded/cross) (Recommended)
+
+The `cross` is a “zero setup” cross compilation and “cross testing” tool, which uses docker to provide an out-of-the-box cross-compilation environment.
+
+- To use cross, you may need to install it first:
+
+    ```shell
+    cargo install cross
+    ```
+
+- Run with `USE_CROSS=true`
+
+  Our `Makefile.toml` script contains the integration with `cross`.
+
+  For example, to compile to the `arm-linux-androideabi` target, you can simply run:
+  ```shell
+  USE_CROSS=true CARGO_BUILD_TARGET=arm-linux-androideabi cargo make build
+  ```
+  > The `USE_CROSS=true` will indicate the build script to use the `cross` tool to compile.
+
+#### With `cargo` (Native Approach)
+
+You can also use the rust native approach to cross-compile proot-rs.
+
+For example, to compile to the `arm-linux-androideabi` target
+- Install this target first:
+  ```shell
+  rustup target add arm-linux-androideabi
+  ```
+- Cross compile with `cargo`
+  ```shell
+  CARGO_BUILD_TARGET=arm-linux-androideabi cargo make build
+  ```
+  > Note: This command may fail for compiling to some targets because the linker reports some error. In this case, You may need to install an additional gcc/clang toolchain on your computer, and specify the appropriate linker path in the `.cargo/config.toml` file
 
 <!-- TODO: Try to compile and test multiple targets in CI, and crate a table here. -->
 

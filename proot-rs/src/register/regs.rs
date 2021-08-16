@@ -8,13 +8,80 @@ use crate::errors::*;
 use crate::register::Word;
 
 const VOID: Word = Word::MAX;
+
+/// The definition of `user_regs_struct` is missing in the rust libc
+/// binding crate for some target, e.g. x86 musl and x86 android and
+/// x86_64 android. Since they are the same, we define them here manually.
+///
 /// On x86 and x86_64, `user_regs_struct` in `<sys/user.h>` is used.
-/// For x86: https://github.com/bminor/glibc/blob/3908fa933a4354309225af616d9242f595e11ccf/sysdeps/unix/sysv/linux/x86/sys/user.h#L42
-/// For x86_64: https://github.com/bminor/glibc/blob/3908fa933a4354309225af616d9242f595e11ccf/sysdeps/unix/sysv/linux/x86/sys/user.h#L131
-#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+/// For x86: https://github.com/bminor/glibc/blob/3908fa933a4354309225af616d9242f595e11ccf/sysdeps/unix/sysv/linux/x86/sys/user.h#L131
+/// For x86_64: https://github.com/bminor/glibc/blob/3908fa933a4354309225af616d9242f595e11ccf/sysdeps/unix/sysv/linux/x86/sys/user.h#L42
+#[cfg(all(target_arch = "x86", any(target_os = "android", target_os = "linux")))]
 #[repr(C)]
 #[derive(Debug, Eq, Hash, PartialEq, Clone, Copy)]
-pub struct RegisterSet(pub libc::user_regs_struct);
+pub struct user_regs_struct {
+    pub ebx: libc::c_long,
+    pub ecx: libc::c_long,
+    pub edx: libc::c_long,
+    pub esi: libc::c_long,
+    pub edi: libc::c_long,
+    pub ebp: libc::c_long,
+    pub eax: libc::c_long,
+    pub xds: libc::c_long,
+    pub xes: libc::c_long,
+    pub xfs: libc::c_long,
+    pub xgs: libc::c_long,
+    pub orig_eax: libc::c_long,
+    pub eip: libc::c_long,
+    pub xcs: libc::c_long,
+    pub eflags: libc::c_long,
+    pub esp: libc::c_long,
+    pub xss: libc::c_long,
+}
+
+#[cfg(all(
+    target_arch = "x86_64",
+    any(target_os = "android", target_os = "linux")
+))]
+#[repr(C)]
+#[derive(Debug, Eq, Hash, PartialEq, Clone, Copy)]
+pub struct user_regs_struct {
+    pub r15: libc::c_ulonglong,
+    pub r14: libc::c_ulonglong,
+    pub r13: libc::c_ulonglong,
+    pub r12: libc::c_ulonglong,
+    pub rbp: libc::c_ulonglong,
+    pub rbx: libc::c_ulonglong,
+    pub r11: libc::c_ulonglong,
+    pub r10: libc::c_ulonglong,
+    pub r9: libc::c_ulonglong,
+    pub r8: libc::c_ulonglong,
+    pub rax: libc::c_ulonglong,
+    pub rcx: libc::c_ulonglong,
+    pub rdx: libc::c_ulonglong,
+    pub rsi: libc::c_ulonglong,
+    pub rdi: libc::c_ulonglong,
+    pub orig_rax: libc::c_ulonglong,
+    pub rip: libc::c_ulonglong,
+    pub cs: libc::c_ulonglong,
+    pub eflags: libc::c_ulonglong,
+    pub rsp: libc::c_ulonglong,
+    pub ss: libc::c_ulonglong,
+    pub fs_base: libc::c_ulonglong,
+    pub gs_base: libc::c_ulonglong,
+    pub ds: libc::c_ulonglong,
+    pub es: libc::c_ulonglong,
+    pub fs: libc::c_ulonglong,
+    pub gs: libc::c_ulonglong,
+}
+
+#[cfg(all(
+    any(target_arch = "x86", target_arch = "x86_64"),
+    any(target_os = "android", target_os = "linux")
+))]
+#[repr(C)]
+#[derive(Debug, Eq, Hash, PartialEq, Clone, Copy)]
+pub struct RegisterSet(pub user_regs_struct);
 
 /// On arm, use `user_regs` instead of `user_regs_struct`.
 /// See: https://github.com/bminor/glibc/blob/3908fa933a4354309225af616d9242f595e11ccf/sysdeps/unix/sysv/linux/arm/sys/user.h#L43
@@ -44,11 +111,47 @@ const NT_PRSTATUS: usize = 1;
 #[cfg(any(target_arch = "aarch64"))]
 const NT_ARM_SYSTEM_CALL: usize = 0x404;
 
-#[cfg(any(target_arch = "aarch64"))]
-const PTRACE_GETREGSET: libc::c_int = 0x4204;
+#[cfg(any(
+    all(
+        target_os = "android",
+        any(target_arch = "x86_64", target_arch = "aarch64")
+    ),
+    all(target_os = "linux", target_arch = "aarch64"),
+))]
+const PTRACE_GETREGS: usize = 12;
+
+#[cfg(not(any(
+    all(
+        target_os = "android",
+        any(target_arch = "x86_64", target_arch = "aarch64")
+    ),
+    all(target_os = "linux", target_arch = "aarch64"),
+)))]
+const PTRACE_GETREGS: usize = libc::PTRACE_GETREGS as _;
+
+#[cfg(any(
+    all(
+        target_os = "android",
+        any(target_arch = "x86_64", target_arch = "aarch64")
+    ),
+    all(target_os = "linux", target_arch = "aarch64"),
+))]
+const PTRACE_SETREGS: usize = 12;
+
+#[cfg(not(any(
+    all(
+        target_os = "android",
+        any(target_arch = "x86_64", target_arch = "aarch64")
+    ),
+    all(target_os = "linux", target_arch = "aarch64"),
+)))]
+const PTRACE_SETREGS: usize = libc::PTRACE_SETREGS as _;
 
 #[cfg(any(target_arch = "aarch64"))]
-const PTRACE_SETREGSET: libc::c_int = 0x4205;
+const PTRACE_GETREGSET: usize = 0x4204;
+
+#[cfg(any(target_arch = "aarch64"))]
+const PTRACE_SETREGSET: usize = 0x4205;
 
 impl RegisterSet {
     fn get_from_tracee(pid: Pid) -> Result<Self> {
@@ -57,7 +160,7 @@ impl RegisterSet {
             let mut data = MaybeUninit::uninit();
             let res = unsafe {
                 libc::ptrace(
-                    libc::PTRACE_GETREGS,
+                    PTRACE_GETREGS as _,
                     libc::pid_t::from(pid),
                     std::ptr::null_mut::<c_void>(),
                     data.as_mut_ptr() as *const _ as *const c_void,
@@ -75,7 +178,7 @@ impl RegisterSet {
             };
             let res = unsafe {
                 libc::ptrace(
-                    PTRACE_GETREGSET,
+                    PTRACE_GETREGSET as _,
                     libc::pid_t::from(pid),
                     NT_PRSTATUS,
                     &regs as *const _ as *const c_void,
@@ -91,7 +194,7 @@ impl RegisterSet {
         {
             let res = unsafe {
                 libc::ptrace(
-                    libc::PTRACE_SETREGS,
+                    PTRACE_SETREGS as _,
                     libc::pid_t::from(pid),
                     std::ptr::null_mut::<c_void>(),
                     &self.0 as *const _ as *const c_void,
@@ -108,7 +211,7 @@ impl RegisterSet {
             };
             let res = unsafe {
                 libc::ptrace(
-                    PTRACE_SETREGSET,
+                    PTRACE_SETREGSET as _,
                     libc::pid_t::from(pid),
                     NT_PRSTATUS,
                     &regs as *const _ as *const c_void,
@@ -326,7 +429,7 @@ impl Registers {
                 };
                 let res = unsafe {
                     libc::ptrace(
-                        PTRACE_SETREGSET,
+                        PTRACE_SETREGSET as _,
                         libc::pid_t::from(self.pid),
                         NT_ARM_SYSTEM_CALL,
                         &regs as *const _ as *const c_void,
@@ -352,7 +455,7 @@ impl Registers {
     /// `get_reg!` macro.
     #[inline]
     fn get_raw(&self, raw_regs: &RegisterSet, register: Register) -> Word {
-        match register {
+        return match register {
             SysNum => get_reg!(raw_regs, SysNum),
             SysArg(SysArg1) => get_reg!(raw_regs, SysArg1),
             SysArg(SysArg2) => get_reg!(raw_regs, SysArg2),
@@ -362,7 +465,7 @@ impl Registers {
             SysArg(SysArg6) => get_reg!(raw_regs, SysArg6),
             SysResult => get_reg!(raw_regs, SysResult),
             StackPointer => get_reg!(raw_regs, StackPointer),
-        }
+        } as _;
     }
 
     /// Utility function to modify the corresponding register's value
@@ -379,17 +482,16 @@ impl Registers {
     #[inline]
     fn set_raw(&mut self, register: Register, new_value: Word) {
         let raw_regs = self.get_mut_regs(Current);
-
         match register {
-            SysNum => get_reg!(raw_regs, SysNum) = new_value,
-            SysArg(SysArg1) => get_reg!(raw_regs, SysArg1) = new_value,
-            SysArg(SysArg2) => get_reg!(raw_regs, SysArg2) = new_value,
-            SysArg(SysArg3) => get_reg!(raw_regs, SysArg3) = new_value,
-            SysArg(SysArg4) => get_reg!(raw_regs, SysArg4) = new_value,
-            SysArg(SysArg5) => get_reg!(raw_regs, SysArg5) = new_value,
-            SysArg(SysArg6) => get_reg!(raw_regs, SysArg6) = new_value,
-            SysResult => get_reg!(raw_regs, SysResult) = new_value,
-            StackPointer => get_reg!(raw_regs, StackPointer) = new_value,
+            SysNum => get_reg!(raw_regs, SysNum) = new_value as _,
+            SysArg(SysArg1) => get_reg!(raw_regs, SysArg1) = new_value as _,
+            SysArg(SysArg2) => get_reg!(raw_regs, SysArg2) = new_value as _,
+            SysArg(SysArg3) => get_reg!(raw_regs, SysArg3) = new_value as _,
+            SysArg(SysArg4) => get_reg!(raw_regs, SysArg4) = new_value as _,
+            SysArg(SysArg5) => get_reg!(raw_regs, SysArg5) = new_value as _,
+            SysArg(SysArg6) => get_reg!(raw_regs, SysArg6) = new_value as _,
+            SysResult => get_reg!(raw_regs, SysResult) = new_value as _,
+            StackPointer => get_reg!(raw_regs, StackPointer) = new_value as _,
         };
     }
 

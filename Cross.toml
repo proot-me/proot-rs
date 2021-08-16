@@ -1,0 +1,9 @@
+[build.env]
+passthrough = [
+    "RUST_BACKTRACE",
+    "RUST_LOG",
+    "TRAVIS",
+    "RUSTFLAGS",
+    "PROOT_TEST_ROOTFS",
+    "PROOT_RS",
+]

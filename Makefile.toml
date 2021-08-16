@@ -1,13 +1,16 @@
 [env]
 CARGO_MAKE_EXTEND_WORKSPACE_MAKEFILE = true
+# override $CARGO with "cross"
+CARGO = { value = "cross", condition = { env_true = ["USE_CROSS"] } }
+CARGO_EXTRA_FLAGS_TARGET = { value = "--target=${CARGO_BUILD_TARGET}", condition = { env_set = ["CARGO_BUILD_TARGET"] } }
 
 [env.development]
 OUTPUT_DIR_NAME = "debug"
-CARGO_EXTRA_FLAGS = []
+CARGO_EXTRA_FLAGS = "${CARGO_EXTRA_FLAGS_TARGET}"
 
 [env.production]
 OUTPUT_DIR_NAME = "release"
-CARGO_EXTRA_FLAGS = ["--release"]
+CARGO_EXTRA_FLAGS = "${CARGO_EXTRA_FLAGS_TARGET} --release"
 
 [config]
 default_to_workspace = false
@@ -16,7 +19,7 @@ default_to_workspace = false
 dependencies = ["build"]
 script_runner = "@shell"
 script = '''
-cargo run --bin=proot-rs ${CARGO_EXTRA_FLAGS} -- ${@}
+"$CARGO" run --bin=proot-rs ${CARGO_EXTRA_FLAGS} -- ${@}
 '''
 
 [tasks.build]
@@ -24,7 +27,7 @@ clear = true
 dependencies = ["build-loader", "copy-loader"]
 script_runner = "@shell"
 script = '''
-cargo build --bin=proot-rs ${CARGO_EXTRA_FLAGS}
+"$CARGO" build --bin=proot-rs ${CARGO_EXTRA_FLAGS}
 echo -e "proot-rs:\t$(realpath target/${CARGO_BUILD_TARGET}/${OUTPUT_DIR_NAME}/proot-rs)"
 echo -e "loader-shim:\t$(realpath target/${CARGO_BUILD_TARGET}/${OUTPUT_DIR_NAME}/loader-shim)"
 '''
@@ -32,7 +35,7 @@ echo -e "loader-shim:\t$(realpath target/${CARGO_BUILD_TARGET}/${OUTPUT_DIR_NAME
 [tasks.build-loader]
 script_runner = "@shell"
 script = '''
-RUSTFLAGS="-C panic=abort -C link-self-contained=no" cargo build --bin=loader-shim --features="build-binary" ${CARGO_EXTRA_FLAGS}
+RUSTFLAGS="-C panic=abort -C link-self-contained=no" "$CARGO" build --bin=loader-shim --features="build-binary" ${CARGO_EXTRA_FLAGS}
 '''
 
 [tasks.copy-loader]
@@ -52,7 +55,7 @@ script = '''
 if [ -z "${PROOT_TEST_ROOTFS}" ]; then
     export PROOT_TEST_ROOTFS="$(pwd)/rootfs"
 fi
-cargo test --package=proot-rs ${CARGO_EXTRA_FLAGS}
+"$CARGO" test --package=proot-rs ${CARGO_EXTRA_FLAGS}
 '''
 
 [tasks.integration-test]

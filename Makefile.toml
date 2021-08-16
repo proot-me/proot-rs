@@ -21,7 +21,7 @@ cargo run --bin=proot-rs ${CARGO_EXTRA_FLAGS} -- ${@}
 
 [tasks.build]
 clear = true
-dependencies = ["copy-loader", "build-loader"]
+dependencies = ["build-loader", "copy-loader"]
 script_runner = "@shell"
 script = '''
 cargo build --bin=proot-rs ${CARGO_EXTRA_FLAGS}

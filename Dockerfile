@@ -15,8 +15,9 @@ ENV PATH "/root/.cargo/bin/:/opt/android-sdk-linux/ndk-bundle/toolchains/llvm/pr
 
 RUN rustup-init -y && \
     rustup toolchain install stable && \
-    rustup target add arm-linux-androideabi && \
-    cargo +stable install --force cargo-make
+    cargo +stable install --force cargo-make && \
+    rustup toolchain install nightly-2021-03-24 && \
+    rustup +nightly-2021-03-24 target add arm-linux-androideabi
 
 WORKDIR /usr/src/proot-rs
 COPY . /usr/src/proot-rs

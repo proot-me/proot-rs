@@ -1,16 +1,26 @@
+env_scripts = [
+'''
+#!@duckscript
+
+if not is_empty "${CARGO_BUILD_TARGET}"
+    set_env CARGO_EXTRA_FLAGS "${CARGO_EXTRA_FLAGS} --target=${CARGO_BUILD_TARGET}"
+end
+'''
+]
+
 [env]
 CARGO_MAKE_EXTEND_WORKSPACE_MAKEFILE = true
 # override $CARGO with "cross"
 CARGO = { value = "cross", condition = { env_true = ["USE_CROSS"] } }
-CARGO_EXTRA_FLAGS_TARGET = { value = "--target=${CARGO_BUILD_TARGET}", condition = { env_set = ["CARGO_BUILD_TARGET"] } }
 
 [env.development]
 OUTPUT_DIR_NAME = "debug"
-CARGO_EXTRA_FLAGS = "${CARGO_EXTRA_FLAGS_TARGET}"
+CARGO_EXTRA_FLAGS = ""
 
 [env.production]
 OUTPUT_DIR_NAME = "release"
-CARGO_EXTRA_FLAGS = "${CARGO_EXTRA_FLAGS_TARGET} --release"
+CARGO_EXTRA_FLAGS = "--release"
+
 
 [config]
 default_to_workspace = false

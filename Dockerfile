@@ -16,6 +16,7 @@ ENV PATH "/root/.cargo/bin/:/opt/android-sdk-linux/ndk-bundle/toolchains/llvm/pr
 RUN rustup-init -y && \
     rustup toolchain install stable && \
     cargo +stable install --force cargo-make && \
+    cargo install cross && \
     rustup toolchain install nightly-2021-03-24 && \
     rustup +nightly-2021-03-24 target add arm-linux-androideabi
 

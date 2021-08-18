@@ -1,8 +1,13 @@
+cargo-features = ["strip"]
+
 [workspace]
 members = [
   "proot-rs",
   "loader-shim",
 ]
+
+[profile.release]
+strip = true
 
 [profile.dev.package.loader-shim]
 opt-level = 1

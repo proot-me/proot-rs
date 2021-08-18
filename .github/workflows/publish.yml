@@ -1,0 +1,57 @@
+name: Publish
+
+on: [push, pull_request]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  cross-compile:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    strategy:
+      matrix:
+        target:
+          - x86_64-unknown-linux-musl
+          - x86_64-unknown-linux-gnu
+          - x86_64-linux-android
+          - i686-unknown-linux-musl
+          - i686-unknown-linux-gnu
+          - i686-linux-android
+          - armv7-unknown-linux-musleabihf
+          - armv7-unknown-linux-gnueabihf
+          - arm-linux-androideabi
+          - aarch64-unknown-linux-musl
+          - aarch64-unknown-linux-gnu
+          - aarch64-linux-android
+    steps:
+    - uses: actions/checkout@v2
+    - uses: davidB/rust-cargo-make@v1.6.0
+    - name: Install cross
+      shell: bash
+      run: |
+        curl -L https://github.com/rust-embedded/cross/releases/download/v0.2.1/cross-v0.2.1-x86_64-unknown-linux-musl.tar.gz | tar -xzf - --to-stdout > ~/.cargo/bin/cross
+        chmod +x ~/.cargo/bin/cross
+    - name: Build proot-rs
+      shell: bash
+      run: |
+        USE_CROSS=true CARGO_BUILD_TARGET="${{ matrix.target }}" cargo make build --profile=production
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v2
+      with:
+        name: proot-rs-${{ matrix.target }}
+        path: target/${{ matrix.target }}/release/proot-rs
+    - name: Compress binaries
+      # We only publish binaries when we create a tag
+      if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') }}
+      shell: bash
+      run: |
+        tar czvf proot-rs.tar.gz -C target/${{ matrix.target }}/release proot-rs
+    - name: Upload binaries to release
+      if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') }}
+      uses: svenstaro/upload-release-action@v2
+      with:
+        repo_token: ${{ secrets.GITHUB_TOKEN }}
+        file: proot-rs.tar.gz
+        asset_name: proot-rs-$tag-${{ matrix.target }}.tar.gz
+        tag: ${{ github.ref }}

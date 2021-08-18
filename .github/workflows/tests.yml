@@ -89,3 +89,50 @@ jobs:
       shell: bash
       run: |
         PROOT_TEST_ROOTFS="$(pwd)/rootfs" bats -r tests
+
+  cross-compile:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        target:
+          - x86_64-unknown-linux-musl
+          - x86_64-unknown-linux-gnu
+          - x86_64-linux-android
+          - i686-unknown-linux-musl
+          - i686-unknown-linux-gnu
+          - i686-linux-android
+          - armv7-unknown-linux-musleabihf
+          - armv7-unknown-linux-gnueabihf
+          - arm-linux-androideabi
+          - aarch64-unknown-linux-musl
+          - aarch64-unknown-linux-gnu
+          - aarch64-linux-android
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install cargo-make
+        uses: actions-rs/cargo@v1
+        with:
+          toolchain: stable
+          command: install
+          args: --debug cargo-make
+      - name: Build proot-rs
+        uses: actions-rs/cargo@v1
+        with:
+          command: make
+          args: build
+          use-cross: true
+        env:
+          USE_CROSS: true
+          CARGO_BUILD_TARGET: ${{ matrix.target }}
+      - name: Build archive
+        shell: bash
+        run: |
+          asset_name="proot-rs-${{ github.ref }}-${{ matrix.target }}"
+          cp "target/${{ matrix.target }}/debug/proot-rs" "${asset_name}"
+          tar czf "${asset_name}.tar.gz" "${asset_name}"
+          echo "ASSET=${asset_name}.tar.gz" >> $GITHUB_ENV
+      - name: Upload artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: proot-rs-${{ matrix.target }}
+          path: ${{ env.ASSET }}

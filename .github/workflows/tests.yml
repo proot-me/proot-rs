@@ -65,12 +65,7 @@ jobs:
     timeout-minutes: 10
     steps:
     - uses: actions/checkout@v2
-    - name: Install cargo-make
-      uses: actions-rs/cargo@v1
-      with:
-        toolchain: stable
-        command: install
-        args: --debug cargo-make
+    - uses: davidB/rust-cargo-make@v1.6.0
     - name: Build
       run: cargo make build
     - name: Setup rootfs
@@ -90,7 +85,7 @@ jobs:
       run: |
         PROOT_TEST_ROOTFS="$(pwd)/rootfs" bats -r tests
 
-  cross-compile:
+  cross-compile: 
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -108,31 +103,19 @@ jobs:
           - aarch64-unknown-linux-gnu
           - aarch64-linux-android
     steps:
-      - uses: actions/checkout@v2
-      - name: Install cargo-make
-        uses: actions-rs/cargo@v1
-        with:
-          toolchain: stable
-          command: install
-          args: --debug cargo-make
-      - name: Build proot-rs
-        uses: actions-rs/cargo@v1
-        with:
-          command: make
-          args: build
-          use-cross: true
-        env:
-          USE_CROSS: true
-          CARGO_BUILD_TARGET: ${{ matrix.target }}
-      - name: Build archive
-        shell: bash
-        run: |
-          asset_name="proot-rs-${{ github.ref }}-${{ matrix.target }}"
-          cp "target/${{ matrix.target }}/debug/proot-rs" "${asset_name}"
-          tar czf "${asset_name}.tar.gz" "${asset_name}"
-          echo "ASSET=${asset_name}.tar.gz" >> $GITHUB_ENV
-      - name: Upload artifact
-        uses: actions/upload-artifact@v2
-        with:
-          name: proot-rs-${{ matrix.target }}
-          path: ${{ env.ASSET }}
+    - uses: actions/checkout@v2
+    - uses: davidB/rust-cargo-make@v1.6.0
+    - name: Install cross
+      shell: bash
+      run: |
+        curl -L https://github.com/rust-embedded/cross/releases/download/v0.2.1/cross-v0.2.1-x86_64-unknown-linux-musl.tar.gz | tar -xzf - --to-stdout > ~/.cargo/bin/cross
+        chmod +x ~/.cargo/bin/cross
+    - name: Build proot-rs
+      shell: bash
+      run: |
+        USE_CROSS=true CARGO_BUILD_TARGET="${{ matrix.target }}" cargo make build
+    - name: Upload artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: proot-rs-${{ matrix.target }}
+        path: target/${{ matrix.target }}/debug/proot-rs

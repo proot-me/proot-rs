@@ -104,7 +104,9 @@ Currently `proot-rs` supports multiple platforms. You can change the compilation
 
 #### With [`cross`](https://github.com/rust-embedded/cross) (Recommended)
 
-The `cross` is a “zero setup” cross compilation and “cross testing” tool, which uses docker to provide an out-of-the-box cross-compilation environment.
+The `cross` is a “zero setup” cross compilation and “cross testing” tool, which uses docker to provide an out-of-the-box cross-compilation environment which contains a ready-to-use cross-compilation toolchain. So we don't need to prepare it ourselves.
+
+> Note that `cross` depends on docker, so you need to install docker and start it.
 
 - To use cross, you may need to install it first:
 

@@ -9,14 +9,15 @@ RUN apk update && \
             rustup \
             shellcheck \
             openssl-dev \
-            musl-dev
+            musl-dev \
+            docker
 
 ENV PATH "/root/.cargo/bin/:/opt/android-sdk-linux/ndk-bundle/toolchains/llvm/prebuilt/linux-x86_64/bin:${PATH}"
 
 RUN rustup-init -y && \
     rustup toolchain install stable && \
     cargo +stable install --force cargo-make && \
-    cargo install cross && \
+    cargo +stable install --git="https://github.com/rust-embedded/cross.git" --branch="master" cross && \
     rustup toolchain install nightly-2021-03-24 && \
     rustup +nightly-2021-03-24 target add x86_64-unknown-linux-musl && \
     rustup +nightly-2021-03-24 target add x86_64-unknown-linux-gnu && \
@@ -33,6 +34,8 @@ RUN rustup-init -y && \
 
 WORKDIR /usr/src/proot-rs
 COPY . /usr/src/proot-rs
+
+ENV CROSS_DOCKER_IN_DOCKER=true
 
 CMD ["cargo", "make", "build"]
 

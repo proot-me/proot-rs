@@ -17,7 +17,10 @@
 // system standard libraries.
 // See https://gcc.gnu.org/onlinedocs/gcc/Link-Options.html
 //
-// Since _start is defined in the system startup files, with this option
+// The `-nostdlib` flag is much like a combination of `-nostartfiles` and
+// `-nodefaultlibs`.
+//
+// Since `_start` is defined in the system startup files, with this option
 // we can use our own `_start` function to override the program entry point.
 #[link_args = "-nostdlib"]
 #[link_args = "-ffreestanding"]
@@ -27,6 +30,18 @@
 #[cfg_attr(target_arch = "arm", link_args = "-Wl,-Ttext=0x10000000")]
 #[cfg_attr(target_arch = "aarch64", link_args = "-Wl,-Ttext=0x2000000000")]
 extern "C" {}
+
+// The compiler may emit a call to the `memset()` function even if there is
+// no such call in our code. However, since we use `-nostdlib` or
+// `-nodefaultlibs`, this means we will not link to libc, which provides the
+// implementation of `memset()`.
+//
+// In this case, we will get an `undefined reference to \`memset'` error.
+// Fortunately, the crate `rlibc` provides an unoptimized implementation of
+// `memset()`.
+//
+// See `-nodefaultlibs` at https://gcc.gnu.org/onlinedocs/gcc/Link-Options.html
+extern crate rlibc;
 
 mod script;
 

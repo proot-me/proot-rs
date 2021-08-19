@@ -8,9 +8,3 @@ members = [
 
 [profile.release]
 strip = true
-
-[profile.dev.package.loader-shim]
-opt-level = 1
-
-[profile.release.package.loader-shim]
-opt-level = "s"

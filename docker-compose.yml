@@ -7,6 +7,9 @@ services:
     image: proot/proot-rs-sdk:latest
     volumes:
       - ~/src/proot-rs/:/usr/src/proot-rs
+      - type: bind
+        source: /var/run/docker.sock
+        target: /var/run/docker.sock
   proot-rs-test:
     container_name: proot-rs-test
     hostname: proot-rs-test
@@ -14,4 +17,7 @@ services:
     image: proot/proot-rs-test:latest
     volumes:
       - ~/src/proot-rs/:/usr/src/proot-rs
+      - type: bind
+        source: /var/run/docker.sock
+        target: /var/run/docker.sock
 

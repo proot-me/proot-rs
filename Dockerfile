@@ -1,24 +1,34 @@
-FROM runmymind/docker-android-sdk:alpine-standalone as build
+# Note that since cross needs the rust toolchain for *-x86_64-unknown-linux-gnu, 
+# so it is better to use a glibc-based system image such as buster, rather than 
+# alpine.
+FROM rust:buster as build
 
-RUN apk update && \
-    apk add --repository=http://dl-cdn.alpinelinux.org/alpine/edge/testing \
+RUN apt-get update && \
+    apt-get install -y \
             bash \
             bats \
             curl \
             gcc \
-            rustup \
-            shellcheck \
-            openssl-dev \
-            musl-dev \
-            docker
+            shellcheck
 
-ENV PATH "/root/.cargo/bin/:/opt/android-sdk-linux/ndk-bundle/toolchains/llvm/prebuilt/linux-x86_64/bin:${PATH}"
+# Install docker
+RUN apt-get install -y apt-transport-https ca-certificates curl gnupg lsb-release && \
+    curl -fsSL https://download.docker.com/linux/debian/gpg | apt-key add - && \
+    echo "deb [arch=amd64] https://download.docker.com/linux/debian buster stable" | tee /etc/apt/sources.list.d/docker.list && \
+    apt-get update && \
+    apt-get install -y docker-ce docker-ce-cli containerd.io
 
-RUN rustup-init -y && \
-    rustup toolchain install stable && \
-    cargo +stable install --force cargo-make && \
-    cargo +stable install --git="https://github.com/rust-embedded/cross.git" --branch="master" cross && \
-    rustup toolchain install nightly-2021-03-24 && \
+# Install cargo-make
+RUN curl -O -L https://github.com/sagiegurari/cargo-make/releases/download/0.35.0/cargo-make-v0.35.0-x86_64-unknown-linux-musl.zip && \
+    unzip -p cargo-make-v0.35.0-x86_64-unknown-linux-musl.zip cargo-make-v0.35.0-x86_64-unknown-linux-musl/cargo-make > "${CARGO_HOME}/bin/cargo-make" && \
+    chmod +x "${CARGO_HOME}/bin/cargo-make" && \
+    rm cargo-make-v0.35.0-x86_64-unknown-linux-musl.zip
+
+# Install cross
+RUN cargo install --git="https://github.com/rust-embedded/cross.git" --branch="master" cross
+
+# Install targets
+RUN rustup toolchain install nightly-2021-03-24 && \
     rustup +nightly-2021-03-24 target add x86_64-unknown-linux-musl && \
     rustup +nightly-2021-03-24 target add x86_64-unknown-linux-gnu && \
     rustup +nightly-2021-03-24 target add x86_64-linux-android && \

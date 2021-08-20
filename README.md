@@ -35,8 +35,8 @@ proot-rs -R ./my-docker-image /bin/sh
 ## Usage
 
 ```
-proot-rs --help
-proot-rs 
+proot-rs 0.1.0
+chroot, mount --bind, and binfmt_misc without privilege/setup.
 
 USAGE:
     proot-rs [OPTIONS] [--] [command]...
@@ -52,7 +52,7 @@ OPTIONS:
     -r, --rootfs <rootfs>    Use *path* as the new guest root file-system. [default: /]
 
 ARGS:
-    <command>...    
+    <command>...  
 ```
 
 ## Requirements

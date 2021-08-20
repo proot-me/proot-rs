@@ -7,3 +7,5 @@ Lucas Ramage <ramage.lucas@protonmail.com>
 Joshua Nelson <jyn514@gmail.com>
         Implemented shebang parsing, bug reports, and fixes.
 
+imlk <me@imlk.top>
+        Refactored error handling, implemented syscall translation, and rewritten loader with rust.

@@ -1,10 +1,10 @@
 # proot-rs
 
-[![Tests](https://github.com/proot-me/proot-rs/actions/workflows/tests.yml/badge.svg)](https://github.com/proot-me/proot-rs/actions/workflows/tests.yml)
+[![Tests](https://img.shields.io/github/workflow/status/proot-me/proot-rs/Tests?style=flat-square)](https://github.com/proot-me/proot-rs/actions/workflows/tests.yml)
+[![Releases](https://img.shields.io/github/v/release/proot-me/proot-rs?sort=semver&style=flat-square)](https://github.com/proot-me/proot-rs/releases)
+
 
 _Rust implementation of PRoot, a ptrace-based sandbox._
-
-**(Work in progress)**
 
 `proot-rs` works by intercepting all Linux system calls that use paths (`execve`, `mkdir`, `ls`, ...)
 and translating these with the specified path bindings, in order to simulate `chroot`,

@@ -1,4 +1,4 @@
-use clap::{App, Arg};
+use clap::{crate_version, App, Arg};
 
 use crate::errors::*;
 use crate::filesystem::validation::{binding_validator, path_validator};
@@ -9,6 +9,8 @@ pub const DEFAULT_CWD: &'static str = "/";
 
 pub fn get_args_parser() -> App<'static, 'static> {
     App::new("proot-rs")
+        .about("chroot, mount --bind, and binfmt_misc without privilege/setup.")
+        .version(crate_version!())
         .arg(Arg::with_name("rootfs")
             .short("r")
             .long("rootfs")

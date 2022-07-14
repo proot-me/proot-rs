@@ -6,7 +6,7 @@ edition = "2018"
 
 [dependencies]
 libc = "0.2.25"
-nix = "0.20.0"
+nix = "0.24.1"
 clap = "2.25.1"
 sc = { git = "https://github.com/japaric/syscall.rs.git", rev = "431ecf9db8cafa48c9bb268bf2fdbe8141d902f6" }
 lazy_static = "1.4.0"

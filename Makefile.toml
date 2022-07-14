@@ -65,7 +65,7 @@ script = '''
 if [ -z "${PROOT_TEST_ROOTFS}" ]; then
     export PROOT_TEST_ROOTFS="$(pwd)/rootfs"
 fi
-"$CARGO" test --package=proot-rs ${CARGO_EXTRA_FLAGS}
+"$CARGO" test --package=proot-rs ${CARGO_EXTRA_FLAGS} ${@} -- --test-threads=1 --nocapture
 '''
 
 [tasks.integration-test]

@@ -58,7 +58,12 @@ pub mod tests {
                 }
             }
             Ok(ForkResult::Parent { child }) => {
-                assert_eq!(wait::waitpid(child, None), Ok(Exited(child, 0)))
+                assert_eq!(
+                    wait::waitpid(child, None),
+                    Ok(Exited(child, 0)),
+                    "A panic has occurred in the child process. If this is not expected behavior, \
+                    you may want to use --nocapture for the detailed panic messages."
+                )
             }
             Err(_) => panic!("Error: fork"),
         }

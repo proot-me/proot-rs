@@ -172,15 +172,13 @@ bash scripts/mkrootfs.sh
 Start running unit tests:
 
 ```shell
-cargo make unit-test
+export PROOT_TEST_ROOTFS="`realpath ./rootfs/`"
+cargo test --package=proot-rs -- --test-threads=1
 ```
-> Note: Add the option `--profile=production` if you want to test a release build of proot-rs
 
-By default, By default, `./rootfs/` will be used as the root filesystem for testing purposes. But you can set the environment variable `PROOT_TEST_ROOTFS` to change this behavior.
-
-```shell
-export PROOT_TEST_ROOTFS="<absolute-path-to-a-rootfs>"
-```
+> Note:
+> - Since our testing will spawn multiple processes, we need `--test-threads=1` to avoid deadlock caused by `fork()`. The option `--nocapture` may also be needed to show the original panic reason printed out by the child process.
+> - Add the option `--profile=production` if you want to test a release build of proot-rs
 
 ### Integration testing
 

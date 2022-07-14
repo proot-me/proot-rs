@@ -75,7 +75,7 @@ jobs:
     - name: Run unit tests
       shell: bash
       run: |
-        PROOT_TEST_ROOTFS="$(pwd)/rootfs" cargo test --package=proot-rs --verbose -- --nocapture
+        PROOT_TEST_ROOTFS="$(pwd)/rootfs" cargo test --package=proot-rs --verbose -- --test-threads=1 --nocapture
     - name: Setup bats-core
       uses: mig4/setup-bats@v1
       with:

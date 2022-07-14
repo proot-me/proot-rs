@@ -196,7 +196,7 @@ checksum = "fc874b127765f014d792f16763a81245ab80500e2ad921ed4ee9e82481ee08fe"
 [[package]]
 name = "sc"
 version = "0.2.4"
-source = "git+https://github.com/KB5201314/syscall.rs.git?rev=cf49872#cf4987217a41ae5a870e38ded346b90420acf28a"
+source = "git+https://github.com/japaric/syscall.rs.git?rev=431ecf9db8cafa48c9bb268bf2fdbe8141d902f6#431ecf9db8cafa48c9bb268bf2fdbe8141d902f6"
 
 [[package]]
 name = "strsim"

@@ -7,7 +7,7 @@ authors = ["PRoot Developers <proot_me@googlegroups.com>"]
 edition = "2018"
 
 [dependencies]
-sc = { git = "https://github.com/KB5201314/syscall.rs.git", rev = "cf49872" }
+sc = { git = "https://github.com/japaric/syscall.rs.git", rev = "431ecf9db8cafa48c9bb268bf2fdbe8141d902f6" }
 rlibc = { version = "1.0", optional = true }
 
 [features]

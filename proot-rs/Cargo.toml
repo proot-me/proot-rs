@@ -8,7 +8,7 @@ edition = "2018"
 libc = "0.2.25"
 nix = "0.20.0"
 clap = "2.25.1"
-sc = { git = "https://github.com/KB5201314/syscall.rs.git", rev = "cf49872" }
+sc = { git = "https://github.com/japaric/syscall.rs.git", rev = "431ecf9db8cafa48c9bb268bf2fdbe8141d902f6" }
 lazy_static = "1.4.0"
 byteorder = "1.1.0"
 log = "0.4.14"

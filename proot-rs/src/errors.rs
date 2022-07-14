@@ -1,5 +1,4 @@
 pub use nix::errno::Errno::{self, *};
-use nix::Error as NixError;
 use std::io::Error as IOError;
 use std::{
     fmt::{self, Display},
@@ -138,19 +137,6 @@ impl From<IOError> for Error {
                 // we try to convert it to an errno
                 Some(errno) => Errno::from_i32(errno),
                 None => Errno::UnknownErrno,
-            },
-            msg: None,
-            source: Some(Box::new(error)),
-        }
-    }
-}
-
-impl From<NixError> for Error {
-    fn from(error: NixError) -> Error {
-        Error {
-            errno: match error {
-                NixError::Sys(errno) => errno,
-                _ => Errno::UnknownErrno,
             },
             msg: None,
             source: Some(Box::new(error)),

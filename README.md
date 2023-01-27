@@ -1,6 +1,6 @@
 # proot-rs
 
-[![Tests](https://img.shields.io/github/workflow/status/proot-me/proot-rs/Tests?style=flat-square)](https://github.com/proot-me/proot-rs/actions/workflows/tests.yml)
+[![Tests](https://img.shields.io/github/actions/workflow/status/proot-me/proot-rs/tests.yml?style=flat-square)](https://github.com/proot-me/proot-rs/actions/workflows/tests.yml)
 [![Releases](https://img.shields.io/github/v/release/proot-me/proot-rs?sort=semver&style=flat-square)](https://github.com/proot-me/proot-rs/releases)
 
 

@@ -1,5 +1,9 @@
 # proot-rs
 
+**Please take the PRoot Usage Survey for 2023!** [![Survey](https://img.shields.io/badge/survey-2023-green?style=flat-square)](https://www.surveymonkey.com/r/7GVXS7W)
+
+--
+
 [![Tests](https://img.shields.io/github/actions/workflow/status/proot-me/proot-rs/tests.yml?style=flat-square)](https://github.com/proot-me/proot-rs/actions/workflows/tests.yml)
 [![Releases](https://img.shields.io/github/v/release/proot-me/proot-rs?sort=semver&style=flat-square)](https://github.com/proot-me/proot-rs/releases)
 
